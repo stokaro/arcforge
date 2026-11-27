@@ -14,13 +14,14 @@ Run commands from the repository root:
 cargo xtask check
 cargo xtask layers
 cargo xtask notices
+cargo xtask skills
 cargo xtask build
 cargo xtask test
 cargo xtask build --release
 cargo xtask package --release
 ```
 
-`check` is the standard local gate; `layers` runs the dependency-boundary check alone, and `notices` verifies the committed license snapshot. `build`, `test`, and `package` use the shared Rust orchestration rather than requiring a particular shell. The supported interface is `cargo xtask {check,build,test,package,layers,notices} [--target TARGET] [--release]`. Packaging always builds the release profile; supplying `--release` to `package` is optional. The target and profile can be supplied explicitly:
+`check` is the standard local gate: formatting, scoped skills, dependency boundaries, license notices, Clippy, tests, and builds. `layers`, `notices`, and `skills` run their respective checks alone. `skills-sync` regenerates Claude entry points from canonical repository skills; see [skill maintenance](agent-skills.md). `build`, `test`, and `package` use the shared Rust orchestration rather than requiring a particular shell. The supported interface is `cargo xtask {check,build,test,package,layers,notices,skills,skills-sync} [--target TARGET] [--release]`; target/profile options affect Cargo build/test steps, not source-only checks. Packaging always builds the release profile; supplying `--release` to `package` is optional. The target and profile can be supplied explicitly:
 
 ```sh
 cargo xtask build --target x86_64-unknown-linux-gnu --release

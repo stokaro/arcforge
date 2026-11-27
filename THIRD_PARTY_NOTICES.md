@@ -25,6 +25,19 @@ Workspace organization, shared command registries, generated operation catalogs,
 
 No Craft Anything application implementation is copied in this bootstrap. The exact distinction between copied/adapted source and architectural inspiration is recorded in [docs/artcraft-reuse.md](docs/artcraft-reuse.md).
 
+## Superpowers workflow adaptations
+
+Four repository agent skills adapt focused workflows from:
+
+- Repository: <https://github.com/obra/superpowers>
+- Commit: `22f0b463e7a5e579904dd6211a520321035526f7`
+- Upstream paths: `skills/systematic-debugging/SKILL.md`, `skills/verification-before-completion/SKILL.md`, `skills/test-driven-development/SKILL.md`, and `skills/requesting-code-review/SKILL.md`.
+- Copyright: **Copyright (c) 2025 Jesse Vincent**.
+- License: **MIT**.
+- Full unchanged notice: [licenses/superpowers-MIT.txt](licenses/superpowers-MIT.txt).
+
+The exact file mappings, changes, and scope are in [docs/agent-skills.md](docs/agent-skills.md). These adaptations are development instructions; no upstream hooks, installer, or plugin configuration is imported. The project-specific archive-safety skill and Rust skill tooling are original ArcForge work.
+
 ## Assets and dependencies
 
 ArtCraft marks, wordmarks, and the shared raven app icon are excluded from the upstream code licenses and are not included in ArcForge. The source reuse above does not import upstream fonts, icon packs, image assets, or their unrelated third-party dependencies.
