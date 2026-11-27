@@ -36,12 +36,27 @@ fn bundles_preserve_names_bytes_permissions_and_repeatable_archives() -> Result<
     fs::create_dir_all(staging.join("folder"))?;
     fs::write(staging.join("folder/žluťoučký.txt"), b"archive payload")?;
     fs::write(staging.join("arcforge-cli"), b"executable payload")?;
+    fs::write(staging.join("empty.txt"), b"")?;
     let first = directory.0.join("first.zip");
     let second = directory.0.join("second.zip");
     write_zip(&staging, "bundle", &first)?;
     write_zip(&staging, "bundle", &second)?;
     assert_eq!(hash_file(&first)?, hash_file(&second)?);
     let mut zip = zip::ZipArchive::new(File::open(first)?)?;
+    assert_eq!(zip.len(), 3);
+    for index in 0..zip.len() {
+        let entry = zip.by_index(index)?;
+        assert_eq!(entry.system(), zip::System::Unix);
+        assert_eq!(entry.compression(), zip::CompressionMethod::Stored);
+        assert_eq!(entry.last_modified(), Some(zip::DateTime::default()));
+    }
+    assert_eq!(zip.by_name("bundle/empty.txt")?.size(), 0);
+    assert_eq!(
+        zip.by_name("bundle/folder/žluťoučký.txt")?
+            .unix_mode()
+            .map(|mode| mode & 0o777),
+        Some(0o644)
+    );
     let mut content = String::new();
     zip.by_name("bundle/folder/žluťoučký.txt")?
         .read_to_string(&mut content)?;

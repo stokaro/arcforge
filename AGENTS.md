@@ -1,25 +1,35 @@
 # Working on ArcForge
 
-ArcForge is a Rust archive-manager project. The current repository is a bootstrap, not a working archive editor. [Issue #1](https://github.com/stokaro/arcforge/issues/1) defines the product scope and acceptance criteria.
+ArcForge is a Rust archive-manager bootstrap, not a working archive editor. [Issue #1](https://github.com/stokaro/arcforge/issues/1) defines the planned behavior and acceptance criteria.
 
 ## Boundaries
 
-- Put archive models, capabilities, commands, and validation in `crates/core`. Keep this crate independent of UI and windowing libraries.
-- Put presentation and interaction in `crates/ui-egui`. The UI calls shared core operations; it does not implement a second archive engine.
-- Keep `apps/arcforge` and `apps/arcforge-cli` thin. The CLI must remain usable without a display server or GUI dependencies.
-- Put build orchestration and architecture checks in `xtask`. Keep build commands portable; avoid shell-specific orchestration.
-- Register new workspace crates and dependencies in the boundary checker. Do not disable checks to accommodate an accidental dependency direction.
+- Keep models, capabilities, commands, and validation in `crates/core`, independent of UI/windowing libraries. Keep presentation in `crates/ui-egui`; it calls shared operations.
+- Keep `apps/arcforge` and `apps/arcforge-cli` thin. The CLI must work without a display server or GUI dependencies.
+- Keep portable build orchestration in `xtask`. Register workspace crates/dependencies in its boundary checker; correct an accidental dependency direction instead of disabling the check.
+- Keep capabilities truthful: planned, unsupported, and implemented operations are distinct. Preserve the source archive on failed/cancelled updates. Keep blocking I/O and archive processing off the UI thread.
+- Use the pinned toolchain and `Cargo.lock`. Document native prerequisites. Record source adaptations with pinned paths, revisions, modifications, and full license notices in the relevant reuse inventory linked from `THIRD_PARTY_NOTICES.md`.
 
-## Implementation
+## Load only the relevant skills
 
-- Add a regression test for a changed archive behavior, command contract, or data-preservation guarantee. Use temporary directories and synthetic or redistributable fixtures.
-- Keep the capability registry truthful. Planned, unsupported, and implemented operations are distinct; return an explicit unsupported result instead of a success-shaped placeholder.
-- Keep blocking I/O and archive processing out of UI rendering. Preserve the source archive on failed or cancelled updates.
-- Pin dependencies through `Cargo.lock`; use the toolchain in `rust-toolchain.toml`. Document platform requirements when adding native dependencies.
-- When adapting external source, record its upstream path, commit, selected license, and modifications in [the reuse inventory](docs/artcraft-reuse.md). Retain the required full license notices.
+Read the matching canonical `SKILL.md` when its task arises. Do not preload the entire catalog or restart completed workflow stages for a new message.
+
+| Task | Skill |
+| --- | --- |
+| Diagnose a concrete failure or regression | [arcforge-debug](.agents/skills/arcforge-debug/SKILL.md) |
+| Change observable behavior or a preservation guarantee | [arcforge-tdd](.agents/skills/arcforge-tdd/SKILL.md) |
+| Implement/review archive providers, extraction, mutation, helpers, or placement | [arcforge-archive-safety](.agents/skills/arcforge-archive-safety/SKILL.md) |
+| Assess a coherent code change or requested review | [arcforge-review](.agents/skills/arcforge-review/SKILL.md) |
+| Verify implementation claims or prepare a code PR | [arcforge-verify](.agents/skills/arcforge-verify/SKILL.md) |
+
+Several skills may apply at different stages of one task. Prose, formatting, and other changes without executable behavior need appropriate content checks, not a test-first ceremony. Maintain valid prior decisions and user authorization; skills do not introduce extra approval stages or grant permission for unrelated actions.
 
 ## Verification and pull requests
 
-Run `cargo xtask check` and the relevant automated tests. Use `cargo xtask build`, `test`, and `package` as documented in [development.md](docs/development.md). Report which platforms actually ran; compilation alone does not verify desktop behavior.
+Use targeted tests during iteration. Add meaningful regression coverage for changed archive behavior, command contracts, and data-preservation guarantees with isolated temporary fixtures. Before a code PR, run `cargo xtask check` for the final relevant code state. For documentation/skill-text changes, validate content, links, `cargo xtask skills`, and `cargo xtask notices` when license inputs change. See [development commands](docs/development.md).
 
-PR descriptions explain the problem, before/after behavior, implementation, and verification. Include a compact Mermaid diagram when the change alters a flow. State remaining limitations directly. Update the relevant documentation and linked epic checkboxes only for work actually completed.
+Record the verified snapshot, exact commands, results, and platform. Reuse evidence while its relevant inputs remain unchanged; rerun affected checks after a change invalidates it. Report failed/skipped gates honestly. Compilation and startup flags do not prove native desktop behavior.
+
+For a substantial code change, request one independent review when available; otherwise identify the self-review. Follow up on concrete findings rather than repeating broad reviews indefinitely. PRs explain the problem, resulting behavior, verification, and limitations; include a compact Mermaid diagram when a flow changes. Update epic checkboxes only for completed work.
+
+Edit canonical skills under `.agents/skills`, then run `cargo xtask skills-sync` to update Claude entry points. [Skill maintenance and provenance](docs/agent-skills.md) describes the limited Superpowers adaptations.

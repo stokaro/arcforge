@@ -2,10 +2,10 @@
   "schema": 1,
   "generator": "cargo-about 0.9.3",
   "scope": "active locked graph; all targets; workspace all-features; build/dev included",
-  "package_count": 317,
+  "package_count": 320,
   "files": {
     ".gitattributes": "283b23ac96c1413f01d6cc7926e6458b38010553088647b128ac4a24cf47285b",
-    "Cargo.lock": "a6a717fba8b1168bd0955f1b90a982fa26d06e57cb24ff63902971de08436c9f",
+    "Cargo.lock": "fb0ed79d0fe78d0ff4f1cce5e41a2741d7c52014987cf65ed265db727af8a0f1",
     "Cargo.toml": "5563981427465e73d27cb47f9db179c93800422d330a234ab2685183f544299c",
     "LICENSE": "2ef7dd28b9197c6bd7d5beb6706c56ac863514d53908ae4675f59f61d3927739",
     "about.toml": "723bd131033276ad9c75f1f86b2f3f27a15e601e6cbaf751ccfcc744db3cdd10",
@@ -16,8 +16,8 @@
     "licenses/README.md": "dc4b6dff20121979cf1ce003b69600ac19d82d50cb68c8bcfea09e6b1471eb76",
     "licenses/artcraft-craft-anything-MIT.txt": "abcf121dcdf77d4230ea22b44a55b112cf21ce3d0c28dd39cf8d74baba95c7e1",
     "licenses/artcraft-photocraft-MIT.txt": "258e9f33c854efc431c33802c4aeb659ba701f0f4a727cc056e48798dd5335df",
-    "licenses/dependencies.md": "2bc6c3d2c8198f23a8a728c7aad30c0cb3f16e357ed42df51bbd34314cda16ba",
-    "licenses/dependency-source-notices.md": "c45eb17979d08b08737b7d81153eca507987b35dd164774dc4ac8021ecd0425d",
+    "licenses/dependencies.md": "fc18da4091f52564c4adc18f8ca5039f8fa8f152977623cf8b8a284776bf0e01",
+    "licenses/dependency-source-notices.md": "c6981fa554420a270b3154d8e064a4c5c3fa7995fc051999bc3c2def6b41c54e",
     "licenses/fonts/Hack-Regular.txt": "47c0cccbeec7e8614548cc485588b28149e7874188df5f41b36efebcee285c87",
     "licenses/fonts/OFL.txt": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
     "licenses/fonts/README.md": "24cf05fdb4d06527f521e38e6aff8e25d3c7e1a38f7d3e6a1eb2a99e64c59360",
@@ -25,6 +25,7 @@
     "licenses/fonts/egui-icons.txt": "36dbbfd79d73974f864116879c17dd11559e1340277385f1ac52d8d29a5f5c79",
     "licenses/fonts/emoji-icon-font-mit-license.txt": "b9d2c1d909aa149996fd4c91dcb92b2362a04431640c1d200959da94caf8cde1",
     "licenses/fonts/provenance.json": "809db233b2ca0def8f79b9f9e152614c9cebf41d7a836dbeb9493b950b481199",
+    "licenses/superpowers-MIT.txt": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
     "licenses/upstream/AccessKit-accesskit-f3026222559c-LICENSE-APACHE": "fd26644b0118c8ae84a8770bdbbe18f7db14387b5cc19d1de670ad2d98a7ad42",
     "licenses/upstream/AccessKit-accesskit-f3026222559c-LICENSE-MIT": "6ae314acf8e015716cdfbed46fdc6ded0a599411b8b98cd61c87f9940f85ffc7",
     "licenses/upstream/aclysma-profiling-8271551172eb-LICENSE-MIT": "e64891b51361725890d69bafa508ad013bc92aeef99054caecb6f5ce5f7dfd51",
@@ -48,6 +49,6 @@
     "rust-toolchain.toml": "a28f5dcc5cbeb3fe45425efaf10a4bb1a46cd22b50af04328f394b39a3fd1636",
     "scripts/dependency-licenses.md.in": "72ab8376ded63ba694598929695bd30df80b5ebd860a6fbd9a054befc6c296a0",
     "scripts/update_dependency_licenses.py": "e5c304cc555982817a64a7ef97b50740b5e5cd508a65660fc2cbcc5b3136f18f",
-    "xtask/Cargo.toml": "c142d9bda73f26e5377bcfa0dc8f21dae38505960e63751547bdfea3d152bbb8"
+    "xtask/Cargo.toml": "82562d1131c6587fa9f57fb8a93195f04a8996df0329491b8ed673c08b40eca8"
   }
 }

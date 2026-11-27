@@ -1,6 +1,6 @@
 # Rust dependency licenses
 
-Generated with **cargo-about 0.9.3** for 317 packages in the active
+Generated with **cargo-about 0.9.3** for 320 packages in the active
 locked workspace graph, including all targets, activated workspace features,
 and build/development dependencies. Inactive optional entries that exist only
 in Cargo.lock are not a claim of code included in the binaries.
@@ -1266,7 +1266,7 @@ Apache License
 
 ## 7. Apache License 2.0 (Apache-2.0)
 
-Applies to: `accesskit_winit@0.34.2`, `gl_generator@0.14.0`, `khronos_api@3.1.0`.
+Applies to: `accesskit_winit@0.34.2`, `constant_time_eq@0.6.2`, `gl_generator@0.14.0`, `khronos_api@3.1.0`.
 
 Standard SPDX terms; original source notices are retained in the companion inventory.
 
@@ -2650,6 +2650,38 @@ DEALINGS IN THE SOFTWARE.
 
 ## 50. MIT License (MIT)
 
+Applies to: `zeroize@1.9.2`.
+
+````text
+Copyright (c) 2018-2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+````
+
+## 51. MIT License (MIT)
+
 Applies to: `getrandom@0.4.3`.
 
 ````text
@@ -2681,7 +2713,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 51. MIT License (MIT)
+## 52. MIT License (MIT)
 
 Applies to: `slab@0.4.12`.
 
@@ -2713,7 +2745,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 52. MIT License (MIT)
+## 53. MIT License (MIT)
 
 Applies to: `font-types@0.12.7`, `read-fonts@0.41.0`, `skrifa@0.44.0`.
 
@@ -2745,7 +2777,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 53. MIT License (MIT)
+## 54. MIT License (MIT)
 
 Applies to: `bumpalo@3.20.4`.
 
@@ -2777,7 +2809,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 54. MIT License (MIT)
+## 55. MIT License (MIT)
 
 Applies to: `tracing-attributes@0.1.31`, `tracing-core@0.1.36`, `tracing@0.1.44`.
 
@@ -2809,7 +2841,39 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 55. MIT License (MIT)
+## 56. MIT License (MIT)
+
+Applies to: `zeroize_derive@1.5.0`.
+
+````text
+Copyright (c) 2019-2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+````
+
+## 57. MIT License (MIT)
 
 Applies to: `downcast-rs@1.2.1`.
 
@@ -2841,7 +2905,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 56. MIT License (MIT)
+## 58. MIT License (MIT)
 
 Applies to: `document-features@0.2.12`.
 
@@ -2867,7 +2931,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 57. MIT License (MIT)
+## 59. MIT License (MIT)
 
 Applies to: `litrs@1.1.0`.
 
@@ -2899,7 +2963,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 58. MIT License (MIT)
+## 60. MIT License (MIT)
 
 Applies to: `memmap2@0.9.12`.
 
@@ -2932,7 +2996,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 59. MIT License (MIT)
+## 61. MIT License (MIT)
 
 Applies to: `cpufeatures@0.2.17`.
 
@@ -2964,7 +3028,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 60. MIT License (MIT)
+## 62. MIT License (MIT)
 
 Applies to: `crypto-common@0.1.7`.
 
@@ -2996,7 +3060,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 61. MIT License (MIT)
+## 63. MIT License (MIT)
 
 Applies to: `atspi-common@0.13.0`, `atspi-proxies@0.13.0`, `atspi@0.29.0`.
 
@@ -3022,7 +3086,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ````
 
-## 62. MIT License (MIT)
+## 64. MIT License (MIT)
 
 Applies to: `xkeysym@0.2.1`.
 
@@ -3048,7 +3112,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 63. MIT License (MIT)
+## 65. MIT License (MIT)
 
 Applies to: `calloop-wayland-source@0.3.0`.
 
@@ -3074,7 +3138,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ````
 
-## 64. MIT License (MIT)
+## 66. MIT License (MIT)
 
 Applies to: `cursor-icon@1.2.0`, `wayland-csd-frame@0.3.0`.
 
@@ -3100,7 +3164,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 65. MIT License (MIT)
+## 67. MIT License (MIT)
 
 Applies to: `zbus@5.19.0`, `zbus_macros@5.19.0`, `zbus_names@4.3.5`, `zbus_xml@5.2.1`, `zvariant@5.15.1`, `zvariant_derive@5.15.1`.
 
@@ -3132,7 +3196,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 66. MIT License (MIT)
+## 68. MIT License (MIT)
 
 Applies to: `zcheapstr@1.4.0`.
 
@@ -3164,7 +3228,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 67. MIT License (MIT)
+## 69. MIT License (MIT)
 
 Applies to: `toml_datetime@1.1.3+spec-1.1.0`, `toml_edit@0.25.21+spec-1.1.0`, `toml_parser@1.1.7+spec-1.1.0`.
 
@@ -3190,7 +3254,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 68. MIT License (MIT)
+## 70. MIT License (MIT)
 
 Applies to: `libc@0.2.191`.
 
@@ -3222,7 +3286,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 69. MIT License (MIT)
+## 71. MIT License (MIT)
 
 Applies to: `tar@0.4.46`.
 
@@ -3254,7 +3318,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 70. MIT License (MIT)
+## 72. MIT License (MIT)
 
 Applies to: `arrayvec@0.7.8`.
 
@@ -3286,7 +3350,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 71. MIT License (MIT)
+## 73. MIT License (MIT)
 
 Applies to: `nohash-hasher@0.2.0`.
 
@@ -3311,7 +3375,7 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
-## 72. MIT License (MIT)
+## 74. MIT License (MIT)
 
 Applies to: `as-raw-xcb-connection@1.0.1`.
 
@@ -3343,7 +3407,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 73. MIT License (MIT)
+## 75. MIT License (MIT)
 
 Applies to: `x11rb-protocol@0.13.2`, `x11rb@0.13.2`.
 
@@ -3375,7 +3439,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 74. MIT License (MIT)
+## 76. MIT License (MIT)
 
 Applies to: `vello_common@0.2.0`, `vello_cpu@0.2.0`.
 
@@ -3407,7 +3471,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 75. MIT License (MIT)
+## 77. MIT License (MIT)
 
 Applies to: `zerocopy@0.8.66`.
 
@@ -3440,7 +3504,7 @@ DEALINGS IN THE SOFTWARE.
 
 ````
 
-## 76. MIT License (MIT)
+## 78. MIT License (MIT)
 
 Applies to: `wayland-protocols@0.32.13`.
 
@@ -3480,7 +3544,7 @@ The above is the version of the MIT "Expat" License used by X.org:
     http://cgit.freedesktop.org/xorg/xserver/tree/COPYING
 ````
 
-## 77. MIT License (MIT)
+## 79. MIT License (MIT)
 
 Applies to: `glutin-winit@0.5.0`.
 
@@ -3506,7 +3570,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 78. MIT License (MIT)
+## 80. MIT License (MIT)
 
 Applies to: `epaint_default_fonts@0.37.0`.
 
@@ -3522,7 +3586,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
-## 79. MIT License (MIT)
+## 81. MIT License (MIT)
 
 Applies to: `static_assertions@1.1.0`.
 
@@ -3550,7 +3614,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 80. MIT License (MIT)
+## 82. MIT License (MIT)
 
 Applies to: `crc32fast@1.5.6`.
 
@@ -3578,7 +3642,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 81. MIT License (MIT)
+## 83. MIT License (MIT)
 
 Applies to: `bytemuck@1.25.2`, `bytemuck_derive@1.12.1`.
 
@@ -3594,41 +3658,7 @@ The above copyright notice and this permission notice (including the next paragr
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
-## 82. MIT License (MIT)
-
-Applies to: `arbitrary@1.5.0`, `derive_arbitrary@1.5.0`.
-
-````text
-MIT License
-
-Copyright (c) 2019 Manish Goregaokar
-
-Permission is hereby granted, free of charge, to any
-person obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without
-limitation the rights to use, copy, modify, merge,
-publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software
-is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice
-shall be included in all copies or substantial portions
-of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-````
-
-## 83. MIT License (MIT)
+## 84. MIT License (MIT)
 
 Applies to: `raw-window-handle@0.6.2`.
 
@@ -3656,7 +3686,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 84. MIT License (MIT)
+## 85. MIT License (MIT)
 
 Applies to: `cfg_aliases@0.2.2`.
 
@@ -3672,7 +3702,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
-## 85. MIT License (MIT)
+## 86. MIT License (MIT)
 
 Applies to: `android-properties@0.2.2`.
 
@@ -3700,7 +3730,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 86. MIT License (MIT)
+## 87. MIT License (MIT)
 
 Applies to: `xcursor@0.3.11`.
 
@@ -3728,7 +3758,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 87. MIT License (MIT)
+## 88. MIT License (MIT)
 
 Applies to: `libredox@0.1.25`.
 
@@ -3756,7 +3786,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 88. MIT License (MIT)
+## 89. MIT License (MIT)
 
 Applies to: `web-time@1.1.0`.
 
@@ -3784,7 +3814,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 89. MIT License (MIT)
+## 90. MIT License (MIT)
 
 Applies to: `accesskit@0.25.2`, `accesskit_atspi_common@0.21.1`, `accesskit_consumer@0.39.2`, `accesskit_ios@0.2.2`, `accesskit_macos@0.27.2`, `accesskit_unix@0.24.1`, `accesskit_windows@0.35.2`, `arcforge-cli@0.1.0-dev`, `arcforge-core@0.1.0-dev`, `arcforge-ui-egui@0.1.0-dev`, `arcforge@0.1.0-dev`, `block2@0.5.1`, `block2@0.6.2`, `dispatch2@0.3.1`, `dispatch@0.2.0`, `dpi@0.1.2`, `ecolor@0.37.0`, `eframe@0.37.0`, `egui-winit@0.37.0`, `egui@0.37.0`, `egui_glow@0.37.0`, `emath@0.37.0`, `epaint@0.37.0`, `jni-macros@0.22.4`, `jni-sys-macros@0.4.1`, `jni@0.22.4`, `ndk-context@0.1.1`, `ndk-sys@0.6.0+11769913`, `ndk@0.9.0`, `objc-sys@0.3.5`, `objc2-app-kit@0.2.2`, `objc2-app-kit@0.3.2`, `objc2-core-foundation@0.3.2`, `objc2-encode@4.1.0`, `objc2-foundation@0.2.2`, `objc2-foundation@0.3.2`, `objc2-ui-kit@0.2.2`, `objc2-ui-kit@0.3.2`, `objc2@0.5.3`, `objc2@0.6.5`, `profiling@1.0.18`, `r-efi@6.0.0`, `windows-collections@0.3.2`, `windows-core@0.62.2`, `windows-future@0.3.2`, `windows-implement@0.60.2`, `windows-interface@0.59.3`, `windows-link@0.2.1`, `windows-numerics@0.3.1`, `windows-result@0.4.1`, `windows-strings@0.5.1`, `windows-sys@0.52.0`, `windows-sys@0.59.0`, `windows-sys@0.61.2`, `windows-targets@0.52.6`, `windows-threading@0.2.1`, `windows@0.62.2`, `windows_aarch64_gnullvm@0.52.6`, `windows_aarch64_msvc@0.52.6`, `windows_i686_gnu@0.52.6`, `windows_i686_gnullvm@0.52.6`, `windows_i686_msvc@0.52.6`, `windows_x86_64_gnu@0.52.6`, `windows_x86_64_gnullvm@0.52.6`, `windows_x86_64_msvc@0.52.6`.
 
@@ -3809,7 +3839,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTI
 USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
-## 90. MIT License (MIT)
+## 91. MIT License (MIT)
 
 Applies to: `tokio@1.54.1`.
 
@@ -3837,7 +3867,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 91. MIT License (MIT)
+## 92. MIT License (MIT)
 
 Applies to: `simd-adler32@0.3.10`.
 
@@ -3845,38 +3875,6 @@ Applies to: `simd-adler32@0.3.10`.
 MIT License
 
 Copyright (c) [2021] [Marvin Countryman]
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-````
-
-## 92. MIT License (MIT)
-
-Applies to: `miniz_oxide@0.8.9`, `miniz_oxide@0.9.1`.
-
-````text
-MIT License
-
-Copyright 2013-2014 RAD Game Tools and Valve Software
-Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
-Copyright (c) 2017 Frommi
-Copyright (c) 2017-2024 oyvindln
-
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -3909,6 +3907,7 @@ Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
 Copyright (c) 2017 Frommi
 Copyright (c) 2017-2024 oyvindln
 
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -3929,6 +3928,37 @@ SOFTWARE.
 ````
 
 ## 94. MIT License (MIT)
+
+Applies to: `miniz_oxide@0.8.9`, `miniz_oxide@0.9.1`.
+
+````text
+MIT License
+
+Copyright 2013-2014 RAD Game Tools and Valve Software
+Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
+Copyright (c) 2017 Frommi
+Copyright (c) 2017-2024 oyvindln
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+````
+
+## 95. MIT License (MIT)
 
 Applies to: `fdeflate@0.3.7`, `image@0.25.10`.
 
@@ -3960,7 +3990,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 95. MIT License (MIT)
+## 96. MIT License (MIT)
 
 Applies to: `simdutf8@0.1.5`.
 
@@ -3986,7 +4016,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 96. MIT License (MIT)
+## 97. MIT License (MIT)
 
 Applies to: `android-activity@0.6.1`, `color@0.3.3`, `linebender_resource_handle@0.1.1`.
 
@@ -4012,7 +4042,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 97. MIT License (MIT)
+## 98. MIT License (MIT)
 
 Applies to: `wayland-protocols-plasma@0.3.12`.
 
@@ -4040,39 +4070,9 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
 OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
-## 98. MIT License (MIT)
-
-Applies to: `adler2@2.0.1`, `async-channel@2.5.0`, `async-executor@1.14.1`, `async-io@2.6.0`, `async-lock@3.5.0`, `async-process@2.5.0`, `async-signal@0.2.14`, `async-task@4.7.1`, `async-trait@0.1.92`, `atomic-waker@1.1.2`, `blocking@1.7.0`, `concurrent-queue@2.5.0`, `endi@1.1.1`, `event-listener-strategy@0.5.4`, `event-listener@5.4.2`, `fastrand@2.5.0`, `futures-lite@2.6.1`, `hermit-abi@0.5.3`, `itoa@1.0.19`, `linux-raw-sys@0.12.1`, `linux-raw-sys@0.4.15`, `num_enum@0.7.6`, `num_enum_derive@0.7.6`, `once_cell@1.21.4`, `ordered-stream@0.2.0`, `parking@2.2.1`, `pin-project-internal@1.2.0`, `pin-project-lite@0.2.18`, `pin-project@1.2.0`, `piper@0.2.5`, `polling@3.11.0`, `proc-macro-crate@3.5.0`, `proc-macro2@1.0.107`, `quote@1.0.47`, `rustix@0.38.44`, `rustix@1.1.6`, `rustversion@1.0.23`, `semver@1.0.28`, `send_wrapper@0.6.0`, `serde@1.0.229`, `serde_core@1.0.229`, `serde_derive@1.0.229`, `serde_json@1.0.154`, `serde_repr@0.1.21`, `simd_cesu8@1.2.0`, `smol_str@0.2.2`, `syn@2.0.119`, `syn@3.0.10`, `thiserror-impl@1.0.69`, `thiserror-impl@2.0.21`, `thiserror@1.0.69`, `thiserror@2.0.21`, `unicode-ident@1.0.27`, `x11-dl@2.21.0`, `zbus-lockstep-macros@0.5.2`, `zbus-lockstep@0.5.2`, `zmij@1.0.23`, `zvariant_utils@4.2.0`.
-
-````text
-Permission is hereby granted, free of charge, to any
-person obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without
-limitation the rights to use, copy, modify, merge,
-publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software
-is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice
-shall be included in all copies or substantial portions
-of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-````
-
 ## 99. MIT License (MIT)
 
-Applies to: `async-recursion@1.2.0`, `glow@0.17.0`.
+Applies to: `adler2@2.0.1`, `async-channel@2.5.0`, `async-executor@1.14.1`, `async-io@2.6.0`, `async-lock@3.5.0`, `async-process@2.5.0`, `async-signal@0.2.14`, `async-task@4.7.1`, `async-trait@0.1.92`, `atomic-waker@1.1.2`, `blocking@1.7.0`, `concurrent-queue@2.5.0`, `endi@1.1.1`, `event-listener-strategy@0.5.4`, `event-listener@5.4.2`, `fastrand@2.5.0`, `futures-lite@2.6.1`, `hermit-abi@0.5.3`, `itoa@1.0.19`, `linux-raw-sys@0.12.1`, `linux-raw-sys@0.4.15`, `num_enum@0.7.6`, `num_enum_derive@0.7.6`, `once_cell@1.21.4`, `ordered-stream@0.2.0`, `parking@2.2.1`, `pin-project-internal@1.2.0`, `pin-project-lite@0.2.18`, `pin-project@1.2.0`, `piper@0.2.5`, `polling@3.11.0`, `proc-macro-crate@3.5.0`, `proc-macro2@1.0.107`, `quote@1.0.47`, `rustix@0.38.44`, `rustix@1.1.6`, `rustversion@1.0.23`, `semver@1.0.28`, `send_wrapper@0.6.0`, `serde@1.0.229`, `serde_core@1.0.229`, `serde_derive@1.0.229`, `serde_json@1.0.154`, `serde_repr@0.1.21`, `simd_cesu8@1.2.0`, `smol_str@0.2.2`, `syn@2.0.119`, `syn@3.0.10`, `thiserror-impl@1.0.69`, `thiserror-impl@2.0.21`, `thiserror@1.0.69`, `thiserror@2.0.21`, `typed-path@0.13.0`, `unicode-ident@1.0.27`, `x11-dl@2.21.0`, `zbus-lockstep-macros@0.5.2`, `zbus-lockstep@0.5.2`, `zmij@1.0.23`, `zvariant_utils@4.2.0`.
 
 ````text
 Permission is hereby granted, free of charge, to any
@@ -4102,6 +4102,36 @@ DEALINGS IN THE SOFTWARE.
 
 ## 100. MIT License (MIT)
 
+Applies to: `async-recursion@1.2.0`, `glow@0.17.0`.
+
+````text
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+````
+
+## 101. MIT License (MIT)
+
 Applies to: `winnow@1.0.5`.
 
 ````text
@@ -4125,7 +4155,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
-## 101. MIT License (MIT)
+## 102. MIT License (MIT)
 
 Applies to: `siphasher@1.0.4`.
 
@@ -4149,37 +4179,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 102. MIT License (MIT)
-
-Applies to: `tracing-core@0.1.36`.
-
-````text
-The MIT License (MIT)
-
-Copyright (c) 2014 Mathijs van de Nes
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-````
-
 ## 103. MIT License (MIT)
 
-Applies to: `zip@2.6.1`.
+Applies to: `tracing-core@0.1.36`, `zip@9.8.2`.
 
 ````text
 The MIT License (MIT)
@@ -4203,9 +4205,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-Some files in the "tests/data" subdirectory of this repository are under other
-licences; see files named LICENSE.*.txt for details.
 ````
 
 ## 104. MIT License (MIT)
@@ -4321,6 +4320,34 @@ THE SOFTWARE.
 
 ## 108. MIT License (MIT)
 
+Applies to: `nix@0.31.4`.
+
+````text
+The MIT License (MIT)
+
+Copyright (c) 2015 Carl Lerche + nix-rust Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+````
+
+## 109. MIT License (MIT)
+
 Applies to: `combine@4.6.9`.
 
 ````text
@@ -4348,7 +4375,7 @@ THE SOFTWARE.
 
 ````
 
-## 109. MIT License (MIT)
+## 110. MIT License (MIT)
 
 Applies to: `shlex@2.0.1`.
 
@@ -4376,7 +4403,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ````
 
-## 110. MIT License (MIT)
+## 111. MIT License (MIT)
 
 Applies to: `orbclient@0.3.55`.
 
@@ -4404,7 +4431,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 111. MIT License (MIT)
+## 112. MIT License (MIT)
 
 Applies to: `same-file@1.0.6`, `winapi-util@0.1.11`.
 
@@ -4432,7 +4459,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ````
 
-## 112. MIT License (MIT)
+## 113. MIT License (MIT)
 
 Applies to: `guillotiere@0.7.0`.
 
@@ -4459,7 +4486,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
-## 113. MIT License (MIT)
+## 114. MIT License (MIT)
 
 Applies to: `crossbeam-utils@0.8.23`.
 
@@ -4493,7 +4520,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
-## 114. MIT License (MIT)
+## 115. MIT License (MIT)
 
 Applies to: `async-broadcast@0.7.2`.
 
@@ -4521,7 +4548,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 115. MIT License (MIT)
+## 116. MIT License (MIT)
 
 Applies to: `xkbcommon-dl@0.4.2`.
 
@@ -4549,7 +4576,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 116. MIT License (MIT)
+## 117. MIT License (MIT)
 
 Applies to: `harfrust@0.12.0`.
 
@@ -4578,7 +4605,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 117. MIT License (MIT)
+## 118. MIT License (MIT)
 
 Applies to: `version_check@0.9.5`.
 
@@ -4604,7 +4631,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
-## 118. MIT License (MIT)
+## 119. MIT License (MIT)
 
 Applies to: `generic-array@0.14.7`.
 
@@ -4632,7 +4659,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## 119. MIT License (MIT)
+## 120. MIT License (MIT)
 
 Applies to: `quick-xml@0.41.0`.
 
@@ -4662,7 +4689,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ````
 
-## 120. SIL Open Font License 1.1 (OFL-1.1)
+## 121. SIL Open Font License 1.1 (OFL-1.1)
 
 Applies to: `epaint_default_fonts@0.37.0`.
 
@@ -4761,7 +4788,7 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 ````
 
-## 121. Ubuntu Font Licence v1.0 (Ubuntu-font-1.0)
+## 122. Ubuntu Font Licence v1.0 (Ubuntu-font-1.0)
 
 Applies to: `epaint_default_fonts@0.37.0`.
 
@@ -4864,7 +4891,7 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER
 DEALINGS IN THE FONT SOFTWARE.
 ````
 
-## 122. Unicode License v3 (Unicode-3.0)
+## 123. Unicode License v3 (Unicode-3.0)
 
 Applies to: `unicode-ident@1.0.27`.
 
@@ -4910,7 +4937,7 @@ dealings in these Data Files or Software without prior written
 authorization of the copyright holder.
 ````
 
-## 123. Unicode License v3 (Unicode-3.0)
+## 124. Unicode License v3 (Unicode-3.0)
 
 Applies to: `unicode-properties@0.1.5`.
 
@@ -4956,7 +4983,7 @@ dealings in these Data Files or Software without prior written
 authorization of the copyright holder.
 ````
 
-## 124. zlib License (Zlib)
+## 125. zlib License (Zlib)
 
 Applies to: `slotmap@1.1.1`.
 
@@ -4982,7 +5009,7 @@ the following restrictions:
  3. This notice may not be removed or altered from any source distribution.
 ````
 
-## 125. zlib License (Zlib)
+## 126. zlib License (Zlib)
 
 Applies to: `foldhash@0.2.0`.
 
