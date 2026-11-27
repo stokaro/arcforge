@@ -1,0 +1,24 @@
+# cargo-about 0.9.3. The order selects the preferred branch of SPDX OR expressions;
+# every required term in an AND expression is still included.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "0BSD",
+    "BSL-1.0",
+    "Zlib",
+    "Unicode-3.0",
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+]
+
+# No targets filter: include dependencies for every target in the locked graph.
+# Include build/dev dependencies as a conservative superset of runtime code.
+ignore-build-dependencies = false
+ignore-dev-dependencies = false
+ignore-transitive-dependencies = false
+
+# Workspace packages have the repository's own LICENSE and source-reuse notices.
+private = { ignore = true }

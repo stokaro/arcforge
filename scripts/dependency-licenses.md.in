@@ -1,0 +1,19 @@
+# Rust dependency licenses
+
+Generated with **cargo-about 0.9.3** for ${package_count} packages in the active
+locked workspace graph, including all targets, activated workspace features,
+and build/development dependencies. Inactive optional entries that exist only
+in Cargo.lock are not a claim of code included in the binaries.
+
+SPDX OR alternatives follow `about.toml`; all required AND terms are retained.
+The companion [source notices](dependency-source-notices.md) retain exact
+packaged/upstream notices and their crate mappings. [Font notices](fonts/README.md)
+include complete licenses and copyright metadata from the embedded font files.
+
+For crates that omit a license file, standard SPDX terms below are identified
+as such; the companion source inventory records original available notices.
+No placeholder copyright holder is substituted for an author's actual notice.
+
+Regeneration: [README.md](README.md). Snapshot: [dependencies.lock.json](dependencies.lock.json).
+
+${body}

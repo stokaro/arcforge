@@ -1,0 +1,11 @@
+# Keep source and notice hashes identical on Unix and Windows checkouts.
+* text=auto eol=lf
+
+# Preserve whitespace in original third-party license notices.
+licenses/** -whitespace
+
+*.png binary
+*.ico binary
+*.icns binary
+*.zip binary
+*.gz binary

@@ -1,0 +1,15 @@
+[package]
+name = "arcforge-ui-egui"
+description = "ArcForge desktop workspace presentation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+arcforge-core.workspace = true
+egui.workspace = true
+
+[lints]
+workspace = true
