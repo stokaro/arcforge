@@ -198,26 +198,6 @@ SHA-256: `e6cf2125132847ba7e2f46d64e64869873d0c097493329e2b4af3db04793151f`.
 
 [Full notice](#notice-e6cf2125132847ba7e2f46d64e64869873d0c097493329e2b4af3db04793151f).
 
-## arbitrary@1.5.0
-
-Declared license: `MIT OR Apache-2.0`.
-
-Upstream: <https://github.com/rust-fuzz/arbitrary/>.
-
-Manifest authors (not a substituted copyright notice): The Rust-Fuzz Project Developers; Nick Fitzgerald <fitzgen@gmail.com>; Manish Goregaokar <manishsmail@gmail.com>; Simonas Kazlauskas <arbitrary@kazlauskas.me>; Brian L. Troutwine <brian@troutwine.us>; Corey Farwell <coreyf@rwell.org>.
-
-### Packaged source: LICENSE-APACHE
-
-SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
-
-[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
-
-### Packaged source: LICENSE-MIT
-
-SHA-256: `15656cc11a8331f28c0986b8ab97220d3e76f98e60ed388b5ffad37dfac4710c`.
-
-[Full notice](#notice-15656cc11a8331f28c0986b8ab97220d3e76f98e60ed388b5ffad37dfac4710c).
-
 ## arcforge-cli@0.1.0-dev
 
 Declared license: `MIT`.
@@ -980,6 +960,32 @@ SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
 
 [Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
 
+## constant_time_eq@0.6.2
+
+Declared license: `CC0-1.0 OR MIT-0 OR Apache-2.0`.
+
+Upstream: <https://codeberg.org/cesarb/constant_time_eq>.
+
+Manifest authors (not a substituted copyright notice): Cesar Eduardo Barros <cesarb@cesarb.eti.br>.
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a`.
+
+[Full notice](#notice-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a).
+
+### Packaged source: LICENSE-CC0
+
+SHA-256: `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`.
+
+[Full notice](#notice-a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499).
+
+### Packaged source: LICENSE-MIT0
+
+SHA-256: `9a3aeb3f63659c4c6302d315e1d98784d1e8559858a47ff9562e091bb922d28d`.
+
+[Full notice](#notice-9a3aeb3f63659c4c6302d315e1d98784d1e8559858a47ff9562e091bb922d28d).
+
 ## core-foundation-sys@0.8.7
 
 Declared license: `MIT OR Apache-2.0`.
@@ -1169,26 +1175,6 @@ SHA-256: `c138726a726ac37bae09d0f8a48e74e8e3aa8a8952fcd10fae0fb224cc1c05f1`.
 SHA-256: `01e533bd94e8f1c32b2c2531e2c398de7d35d7804add3d574b4e1fe581d53537`.
 
 [Full notice](#notice-01e533bd94e8f1c32b2c2531e2c398de7d35d7804add3d574b4e1fe581d53537).
-
-## derive_arbitrary@1.5.0
-
-Declared license: `MIT OR Apache-2.0`.
-
-Upstream: <https://github.com/rust-fuzz/arbitrary>.
-
-Manifest authors (not a substituted copyright notice): The Rust-Fuzz Project Developers; Nick Fitzgerald <fitzgen@gmail.com>; Manish Goregaokar <manishsmail@gmail.com>; Andre Bogus <bogusandre@gmail.com>; Corey Farwell <coreyf@rwell.org>.
-
-### Packaged source: LICENSE-APACHE
-
-SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
-
-[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
-
-### Packaged source: LICENSE-MIT
-
-SHA-256: `15656cc11a8331f28c0986b8ab97220d3e76f98e60ed388b5ffad37dfac4710c`.
-
-[Full notice](#notice-15656cc11a8331f28c0986b8ab97220d3e76f98e60ed388b5ffad37dfac4710c).
 
 ## digest@0.10.7
 
@@ -2833,6 +2819,18 @@ Manifest authors (not a substituted copyright notice): The Rust Mobile contribut
 Source: <https://github.com/rust-mobile/ndk/blob/49bbbba16c58ff63cb8a0ad0eca5a9fb7ecaec25/LICENSE-MIT>.
 
 [Full notice](#notice-92798b9082a3ffab53ad3495460f53abcf0ac30e1408f2edd88d5119726ff6c4).
+
+## nix@0.31.4
+
+Declared license: `MIT`.
+
+Upstream: <https://github.com/nix-rust/nix>.
+
+### Packaged source: LICENSE
+
+SHA-256: `66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70`.
+
+[Full notice](#notice-66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70).
 
 ## nohash-hasher@0.2.0
 
@@ -4544,6 +4542,26 @@ SHA-256: `898b1ae9821e98daf8964c8d6c7f61641f5f5aa78ad500020771c0939ee0dea1`.
 
 [Full notice](#notice-898b1ae9821e98daf8964c8d6c7f61641f5f5aa78ad500020771c0939ee0dea1).
 
+## typed-path@0.13.0
+
+Declared license: `MIT OR Apache-2.0`.
+
+Upstream: <https://github.com/chipsenkbeil/typed-path>.
+
+Manifest authors (not a substituted copyright notice): Chip Senkbeil <chip@senkbeil.org>.
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a`.
+
+[Full notice](#notice-62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
+
+[Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
 ## typenum@1.20.1
 
 Declared license: `MIT OR Apache-2.0`.
@@ -6248,19 +6266,59 @@ SHA-256: `1a2f5c12ddc934d58956aa5dbdd3255fe55fd957633ab7d0d39e4f0daa73f7df`.
 
 [Full notice](#notice-1a2f5c12ddc934d58956aa5dbdd3255fe55fd957633ab7d0d39e4f0daa73f7df).
 
-## zip@2.6.1
+## zeroize@1.9.2
+
+Declared license: `Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/RustCrypto/utils>.
+
+Manifest authors (not a substituted copyright notice): The RustCrypto Project Developers.
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`.
+
+[Full notice](#notice-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `8c7516d4b27b1e495be5e38b612298b63de48d05f49cdac94f70f3cd70f8864b`.
+
+[Full notice](#notice-8c7516d4b27b1e495be5e38b612298b63de48d05f49cdac94f70f3cd70f8864b).
+
+## zeroize_derive@1.5.0
+
+Declared license: `Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/RustCrypto/utils>.
+
+Manifest authors (not a substituted copyright notice): The RustCrypto Project Developers.
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`.
+
+[Full notice](#notice-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `b8c6939380a400f53e11923d50fcc4dd2fa1ba8339fd9d04cda38a0251b6c9b0`.
+
+[Full notice](#notice-b8c6939380a400f53e11923d50fcc4dd2fa1ba8339fd9d04cda38a0251b6c9b0).
+
+## zip@9.8.2
 
 Declared license: `MIT`.
 
-Upstream: <https://github.com/zip-rs/zip2.git>.
+Upstream: <https://github.com/zip-rs/zip2>.
 
 Manifest authors (not a substituted copyright notice): Mathijs van de Nes <git@mathijs.vd-nes.nl>; Marli Frost <marli@frost.red>; Ryan Levick <ryan.levick@gmail.com>; Chris Hennick <hennickc@amazon.com>.
 
 ### Packaged source: LICENSE
 
-SHA-256: `04dc52136d82400b11df5f474949863a70a5d05d2278dec45b99c479494450a6`.
+SHA-256: `58545fed1565e42d687aecec6897d35c6d37ccb71479a137c0deb2203e125c79`.
 
-[Full notice](#notice-04dc52136d82400b11df5f474949863a70a5d05d2278dec45b99c479494450a6).
+[Full notice](#notice-58545fed1565e42d687aecec6897d35c6d37ccb71479a137c0deb2203e125c79).
 
 ## zmij@1.0.23
 
@@ -6487,35 +6545,6 @@ DEALINGS IN THE SOFTWARE.
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
   </copyright>
-````
-
-## Notice 04dc52136d82400b11df5f474949863a70a5d05d2278dec45b99c479494450a6
-
-````text
-The MIT License (MIT)
-
-Copyright (c) 2014 Mathijs van de Nes
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-Some files in the "tests/data" subdirectory of this repository are under other
-licences; see files named LICENSE.*.txt for details.
 ````
 
 ## Notice 04ea4849dba9dcae07113850c6f1b1a69052c625210639914eee352023f750ad
@@ -7605,38 +7634,6 @@ THE SOFTWARE.
     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
   </copyright>
-````
-
-## Notice 15656cc11a8331f28c0986b8ab97220d3e76f98e60ed388b5ffad37dfac4710c
-
-````text
-MIT License
-
-Copyright (c) 2019 Manish Goregaokar
-
-Permission is hereby granted, free of charge, to any
-person obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without
-limitation the rights to use, copy, modify, merge,
-publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software
-is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice
-shall be included in all copies or substantial portions
-of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
 ````
 
 ## Notice 169507e7ee2cd24113d51c9173aa63a4c3956a14176777729f36890ea5be6dea
@@ -11930,6 +11927,32 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
+## Notice 66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70
+
+````text
+The MIT License (MIT)
+
+Copyright (c) 2015 Carl Lerche + nix-rust Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+````
+
 ## Notice 6798ab38df8a874ddcd956833596112530c8a9a2c9a21d3f623756b0abdec695
 
 ````text
@@ -13953,6 +13976,36 @@ DEALINGS IN THE SOFTWARE.
 
 ````
 
+## Notice 8c7516d4b27b1e495be5e38b612298b63de48d05f49cdac94f70f3cd70f8864b
+
+````text
+Copyright (c) 2018-2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+````
+
 ## Notice 8ca6b96cea9e67c6c5c63f452c31bd396db8bd2406231fdea5d48ef462b48077
 
 ````text
@@ -14856,6 +14909,25 @@ All other code is dual-licensed under either
 - Apache License, Version 2.0 (LICENSE-APACHE or <http://www.apache.org/licenses/LICENSE-2.0>)
 
 at your option.
+````
+
+## Notice 9a3aeb3f63659c4c6302d315e1d98784d1e8559858a47ff9562e091bb922d28d
+
+````text
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
 ## Notice 9a6d7a3c1b8edcc706c4b6c37f8dae9a77f02c7f9051df603f975db136b55419
@@ -18242,6 +18314,36 @@ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+````
+
+## Notice b8c6939380a400f53e11923d50fcc4dd2fa1ba8339fd9d04cda38a0251b6c9b0
+
+````text
+Copyright (c) 2019-2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 ````
 
 ## Notice b9d2c1d909aa149996fd4c91dcb92b2362a04431640c1d200959da94caf8cde1

@@ -269,6 +269,9 @@ fn write_zip(staging: &Path, stem: &str, output: &Path) -> Result<()> {
         let name = format!("{stem}/{}", components.join("/"));
         let options = SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Stored)
+            // Preserve Unix mode metadata on Windows too, as zip 2.x did.
+            .system(zip::System::Unix)
+            .last_modified_time(zip::DateTime::default())
             .unix_permissions(mode(&path))
             .large_file(fs::metadata(&path)?.len() >= u64::from(u32::MAX));
         archive.start_file(name, options)?;

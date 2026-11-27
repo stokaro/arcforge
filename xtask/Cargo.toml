@@ -10,7 +10,8 @@ publish = false
 serde_json.workspace = true
 flate2 = "1"
 tar = "0.4"
-zip = { version = "2.4", default-features = false }
+# Build-time bundle writer only; Stored entries need no optional codecs.
+zip = { version = "9.8.2", default-features = false }
 sha2 = "0.10"
 
 [lints]
