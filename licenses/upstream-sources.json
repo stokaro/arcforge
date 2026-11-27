@@ -1,0 +1,249 @@
+{
+  "schema": 1,
+  "sources": [
+    {
+      "repo": "AccessKit/accesskit",
+      "ref": "f3026222559c7f5f46d8f25cb7404de68eb149f0",
+      "license": "Apache-2.0",
+      "packages": [
+        "accesskit_winit@0.34.2"
+      ],
+      "path": "LICENSE-APACHE",
+      "file": "licenses/upstream/AccessKit-accesskit-f3026222559c-LICENSE-APACHE",
+      "source_url": "https://github.com/AccessKit/accesskit/blob/f3026222559c7f5f46d8f25cb7404de68eb149f0/LICENSE-APACHE"
+    },
+    {
+      "repo": "AccessKit/accesskit",
+      "ref": "f3026222559c7f5f46d8f25cb7404de68eb149f0",
+      "license": "MIT",
+      "packages": [
+        "accesskit@0.25.2",
+        "accesskit_atspi_common@0.21.1",
+        "accesskit_consumer@0.39.2",
+        "accesskit_ios@0.2.2",
+        "accesskit_macos@0.27.2",
+        "accesskit_unix@0.24.1",
+        "accesskit_windows@0.35.2"
+      ],
+      "path": "LICENSE-MIT",
+      "file": "licenses/upstream/AccessKit-accesskit-f3026222559c-LICENSE-MIT",
+      "source_url": "https://github.com/AccessKit/accesskit/blob/f3026222559c7f5f46d8f25cb7404de68eb149f0/LICENSE-MIT"
+    },
+    {
+      "repo": "madsmtm/objc2",
+      "ref": "4fc083f1c6d6784577e38b0ee8dbd344481e2fd2",
+      "license": "MIT",
+      "packages": [
+        "block2@0.5.1",
+        "objc-sys@0.3.5"
+      ],
+      "path": "LICENSE.txt",
+      "file": "licenses/upstream/madsmtm-objc2-4fc083f1c6d6-LICENSE.txt",
+      "source_url": "https://github.com/madsmtm/objc2/blob/4fc083f1c6d6784577e38b0ee8dbd344481e2fd2/LICENSE.txt"
+    },
+    {
+      "repo": "madsmtm/objc2",
+      "ref": "b4167b582b2f75f9a1be75495c41b765344fd03c",
+      "license": "MIT",
+      "packages": [
+        "block2@0.6.2"
+      ],
+      "path": "LICENSE.md",
+      "file": "licenses/upstream/madsmtm-objc2-b4167b582b2f-LICENSE.md",
+      "source_url": "https://github.com/madsmtm/objc2/blob/b4167b582b2f75f9a1be75495c41b765344fd03c/LICENSE.md"
+    },
+    {
+      "repo": "madsmtm/objc2",
+      "ref": "8852b424193ca41602281b3d7540d7c8ed51e49a",
+      "license": "MIT",
+      "packages": [
+        "dispatch2@0.3.1"
+      ],
+      "path": "LICENSE.md",
+      "file": "licenses/upstream/madsmtm-objc2-8852b424193c-LICENSE.md",
+      "source_url": "https://github.com/madsmtm/objc2/blob/8852b424193ca41602281b3d7540d7c8ed51e49a/LICENSE.md"
+    },
+    {
+      "repo": "rust-windowing/winit",
+      "ref": "587ade844dfb0eada3696ba1cb263c66eea80581",
+      "license": "MIT",
+      "packages": [
+        "dpi@0.1.2"
+      ],
+      "path": "LICENSE",
+      "file": "licenses/upstream/rust-windowing-winit-587ade844dfb-LICENSE",
+      "source_url": "https://github.com/rust-windowing/winit/blob/587ade844dfb0eada3696ba1cb263c66eea80581/LICENSE"
+    },
+    {
+      "repo": "emilk/egui",
+      "ref": "3c6eb8261c3293ad9c7ea1ed58487e038860ebef",
+      "license": "MIT",
+      "packages": [
+        "eframe@0.37.0",
+        "ecolor@0.37.0",
+        "egui-winit@0.37.0",
+        "egui@0.37.0",
+        "egui_glow@0.37.0",
+        "emath@0.37.0",
+        "epaint@0.37.0"
+      ],
+      "path": "LICENSE-MIT",
+      "file": "licenses/upstream/emilk-egui-3c6eb8261c32-LICENSE-MIT",
+      "source_url": "https://github.com/emilk/egui/blob/3c6eb8261c3293ad9c7ea1ed58487e038860ebef/LICENSE-MIT",
+      "note": "Shared egui 0.37 release license, pinned to eframe's published source revision; the other crate metadata revision was not available from upstream."
+    },
+    {
+      "repo": "jni-rs/jni-rs",
+      "ref": "33045a124105c939d1e2cbdcb5a39e5d868ffa03",
+      "license": "MIT",
+      "packages": [
+        "jni-macros@0.22.4"
+      ],
+      "path": "LICENSE-MIT",
+      "file": "licenses/upstream/jni-rs-jni-rs-33045a124105-LICENSE-MIT",
+      "source_url": "https://github.com/jni-rs/jni-rs/blob/33045a124105c939d1e2cbdcb5a39e5d868ffa03/LICENSE-MIT"
+    },
+    {
+      "repo": "jni-rs/jni-sys",
+      "ref": "64d77b7a5f119d7b55b4e2c169a4668067ff59e6",
+      "license": "MIT",
+      "packages": [
+        "jni-sys-macros@0.4.1"
+      ],
+      "path": "LICENSE-MIT",
+      "file": "licenses/upstream/jni-rs-jni-sys-64d77b7a5f11-LICENSE-MIT",
+      "source_url": "https://github.com/jni-rs/jni-sys/blob/64d77b7a5f119d7b55b4e2c169a4668067ff59e6/LICENSE-MIT"
+    },
+    {
+      "repo": "jni-rs/jni-rs",
+      "ref": "5ae9458a4ec44c5318f37ddc7569c1d4ae8a69e7",
+      "license": "MIT",
+      "packages": [
+        "jni@0.22.4"
+      ],
+      "path": "LICENSE-MIT",
+      "file": "licenses/upstream/jni-rs-jni-rs-5ae9458a4ec4-LICENSE-MIT",
+      "source_url": "https://github.com/jni-rs/jni-rs/blob/5ae9458a4ec44c5318f37ddc7569c1d4ae8a69e7/LICENSE-MIT"
+    },
+    {
+      "repo": "rust-mobile/ndk",
+      "ref": "49bbbba16c58ff63cb8a0ad0eca5a9fb7ecaec25",
+      "license": "MIT",
+      "packages": [
+        "ndk-sys@0.6.0+11769913",
+        "ndk@0.9.0"
+      ],
+      "path": "LICENSE-MIT",
+      "file": "licenses/upstream/rust-mobile-ndk-49bbbba16c58-LICENSE-MIT",
+      "source_url": "https://github.com/rust-mobile/ndk/blob/49bbbba16c58ff63cb8a0ad0eca5a9fb7ecaec25/LICENSE-MIT"
+    },
+    {
+      "repo": "madsmtm/objc2",
+      "ref": "e282618be4c3a3b9542957e0c8540e9588472ce8",
+      "license": "MIT",
+      "packages": [
+        "objc2-app-kit@0.2.2",
+        "objc2-foundation@0.2.2",
+        "objc2-ui-kit@0.2.2"
+      ],
+      "path": "LICENSE.txt",
+      "file": "licenses/upstream/madsmtm-objc2-e282618be4c3-LICENSE.txt",
+      "source_url": "https://github.com/madsmtm/objc2/blob/e282618be4c3a3b9542957e0c8540e9588472ce8/LICENSE.txt"
+    },
+    {
+      "repo": "madsmtm/objc2",
+      "ref": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+      "license": "MIT",
+      "packages": [
+        "objc2-app-kit@0.3.2",
+        "objc2-core-foundation@0.3.2",
+        "objc2-foundation@0.3.2",
+        "objc2-ui-kit@0.3.2"
+      ],
+      "path": "LICENSE.md",
+      "file": "licenses/upstream/madsmtm-objc2-7b1abfd750a2-LICENSE.md",
+      "source_url": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+    },
+    {
+      "repo": "madsmtm/objc2",
+      "ref": "8d214f5477365ffcbcbb7de058c86ed9a518efb7",
+      "license": "MIT",
+      "packages": [
+        "objc2-encode@4.1.0"
+      ],
+      "path": "LICENSE.md",
+      "file": "licenses/upstream/madsmtm-objc2-8d214f547736-LICENSE.md",
+      "source_url": "https://github.com/madsmtm/objc2/blob/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md"
+    },
+    {
+      "repo": "madsmtm/objc2",
+      "ref": "5237cbf081d04ef75a1f6a207b4018e7c1ae7438",
+      "license": "MIT",
+      "packages": [
+        "objc2@0.5.3"
+      ],
+      "path": "LICENSE.txt",
+      "file": "licenses/upstream/madsmtm-objc2-5237cbf081d0-LICENSE.txt",
+      "source_url": "https://github.com/madsmtm/objc2/blob/5237cbf081d04ef75a1f6a207b4018e7c1ae7438/LICENSE.txt"
+    },
+    {
+      "repo": "madsmtm/objc2",
+      "ref": "d7d2fa23ceaa5e6096c923b081040e5d81b3b9df",
+      "license": "MIT",
+      "packages": [
+        "objc2@0.6.5"
+      ],
+      "path": "LICENSE.md",
+      "file": "licenses/upstream/madsmtm-objc2-d7d2fa23ceaa-LICENSE.md",
+      "source_url": "https://github.com/madsmtm/objc2/blob/d7d2fa23ceaa5e6096c923b081040e5d81b3b9df/LICENSE.md"
+    },
+    {
+      "repo": "aclysma/profiling",
+      "ref": "8271551172eb6fa4cba47369aedd93790c623df9",
+      "license": "MIT",
+      "packages": [
+        "profiling@1.0.18"
+      ],
+      "path": "LICENSE-MIT",
+      "file": "licenses/upstream/aclysma-profiling-8271551172eb-LICENSE-MIT",
+      "source_url": "https://github.com/aclysma/profiling/blob/8271551172eb6fa4cba47369aedd93790c623df9/LICENSE-MIT"
+    },
+    {
+      "repo": "rust-windowing/gl-rs",
+      "ref": "ea503e8d5fb6d73c6030e6191ce738cd3bf3433e",
+      "path": "LICENSE",
+      "license": "Apache-2.0",
+      "packages": [
+        "gl_generator@0.14.0",
+        "khronos_api@3.1.0"
+      ],
+      "file": "licenses/upstream/rust-windowing-gl-rs-ea503e8d5fb6-LICENSE",
+      "source_url": "https://github.com/rust-windowing/gl-rs/blob/ea503e8d5fb6d73c6030e6191ce738cd3bf3433e/LICENSE"
+    },
+    {
+      "repo": "rust-mobile/ndk",
+      "ref": "10f2ba388fca20f7349996ebae26ccda7a6fda5c",
+      "path": "LICENSE-MIT",
+      "license": "MIT",
+      "packages": [
+        "ndk-context@0.1.1"
+      ],
+      "file": "licenses/upstream/rust-mobile-ndk-10f2ba388fca-LICENSE-MIT",
+      "source_url": "https://github.com/rust-mobile/ndk/blob/10f2ba388fca20f7349996ebae26ccda7a6fda5c/LICENSE-MIT"
+    }
+  ],
+  "metadata_only": [
+    {
+      "package": "dispatch@0.2.0",
+      "license": "MIT",
+      "source_url": "https://github.com/SSheldon/rust-dispatch/tree/82d6c7a5b75dc0c71c3f46f87bb6c16a476f7748",
+      "note": "Published crate and pinned repository declare MIT but contain no standalone license/copyright file; standard MIT terms and manifest authors are retained."
+    },
+    {
+      "package": "r-efi@6.0.0",
+      "license": "MIT",
+      "source_url": "https://github.com/r-efi/r-efi/blob/7e1b0322d31d625f81a5656096330934f9cd835d/README.md",
+      "note": "Published manifest and pinned README offer MIT OR Apache-2.0 OR LGPL-2.1-or-later without separate license files. MIT is selected; standard terms and manifest authors are retained."
+    }
+  ]
+}

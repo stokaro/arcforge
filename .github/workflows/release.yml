@@ -1,0 +1,52 @@
+name: Development release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+  draft:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify tag matches workspace version
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, tomllib
+          version = tomllib.loads(pathlib.Path('Cargo.toml').read_text())['workspace']['package']['version']
+          tag = os.environ['GITHUB_REF_NAME']
+          if tag != f'v{version}':
+              raise SystemExit(f'Tag {tag!r} must match workspace version v{version}')
+          PY
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: arcforge-*
+          path: dist
+          merge-multiple: true
+      - name: Check all development bundle checksums
+        working-directory: dist
+        run: sha256sum --check --strict *.sha256
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > release-notes.txt <<'EOF'
+          Unsigned ArcForge development bundles for macOS, Windows and Linux, on x86-64 and ARM64.
+
+          These are portable bootstrap builds, not production installers. They do not configure file associations or include signing/notarization. Consult the bundled README for currently implemented functionality.
+
+          SHA-256 checksums and license notices are provided. Native CI command smoke tests do not establish full GUI or archive-feature parity.
+          EOF
+          gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --draft --title "ArcForge $GITHUB_REF_NAME" --notes-file release-notes.txt

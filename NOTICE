@@ -1,0 +1,15 @@
+ArcForge
+Copyright (c) 2026 Stokaro
+
+ArcForge's original source is licensed under the MIT License in LICENSE.
+
+This project includes selected source adapted from PhotoCraft, licensed under
+the MIT option offered by its authors:
+Copyright (c) 2026 ArtCraft Team and the PhotoCraft contributors.
+
+See THIRD_PARTY_NOTICES.md and docs/artcraft-reuse.md for exact upstream
+revisions, file mappings, modifications, and architectural references.
+The complete source-reuse notices are in licenses/.
+
+Third-party Rust dependencies and embedded assets retain their own licenses.
+Development packages include dependency notices and the relevant font notices.
