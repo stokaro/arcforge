@@ -14,28 +14,15 @@ use crate::{Options, Result};
 #[cfg(test)]
 mod tests;
 
-const TARGETS: &[&str] = &[
-    "x86_64-unknown-linux-gnu",
-    "aarch64-unknown-linux-gnu",
-    "x86_64-pc-windows-msvc",
-    "aarch64-pc-windows-msvc",
-    "x86_64-apple-darwin",
-    "aarch64-apple-darwin",
-];
-
 pub fn run(root: &Path, options: &Options) -> Result<()> {
     crate::notices::run(root)?;
+    let manifest = crate::release::Manifest::load(root)?;
     let target = match &options.target {
         Some(target) => target.clone(),
         None => host_target(root)?,
     };
-    if !TARGETS.contains(&target.as_str()) {
-        return Err(format!(
-            "packaging target {target} is not supported; expected one of {}",
-            TARGETS.join(", ")
-        )
-        .into());
-    }
+    let delivery = manifest.target(&target)?;
+    crate::release::remove_if_present(&root.join("dist").join(delivery.evidence_filename()))?;
     let mut build = crate::cargo(root);
     build.args([
         "build",
@@ -56,8 +43,8 @@ pub fn run(root: &Path, options: &Options) -> Result<()> {
             .as_str()
             .ok_or("metadata has no target_directory")?,
     );
-    let version = env!("CARGO_PKG_VERSION");
-    let stem = format!("arcforge-{version}-{target}");
+    let version = crate::release::VERSION;
+    let stem = delivery.stem();
     let staging = target_dir.join("arcforge-package").join(&stem);
     if staging.exists() {
         fs::remove_dir_all(&staging)?;
@@ -73,10 +60,10 @@ pub fn run(root: &Path, options: &Options) -> Result<()> {
         let filename = format!("{name}{suffix}");
         let source = binary_dir.join(&filename);
         verify_binary(&source, &target)?;
-        let destination = if target.contains("apple") && name == "arcforge" {
-            staging.join("ArcForge.app/Contents/MacOS/arcforge")
+        let destination = if name == "arcforge" {
+            staging.join(&delivery.gui)
         } else {
-            staging.join(filename)
+            staging.join(&delivery.cli)
         };
         copy_file(&source, &destination)?;
     }
@@ -119,6 +106,16 @@ pub fn run(root: &Path, options: &Options) -> Result<()> {
             "ArcForge {version}\nTarget: {target}\n\nUnsigned development bundle, not a production installer.\nNo file associations, shell extensions, signing or notarization are installed.\nThe current application is a bootstrap; consult README.md for implemented commands.\n"
         ),
     )?;
+    let (commit, dirty) = crate::release::source_state(root)?;
+    fs::write(
+        staging.join("BUILD-INFO.json"),
+        serde_json::to_vec_pretty(&crate::release::build_info(
+            &manifest,
+            delivery,
+            commit.as_deref(),
+            dirty,
+        ))?,
+    )?;
 
     // Preserve notices when a macOS user moves only the application bundle.
     if target.contains("apple") {
@@ -128,6 +125,7 @@ pub fn run(root: &Path, options: &Options) -> Result<()> {
             "NOTICE",
             "THIRD_PARTY_NOTICES.md",
             "DEPENDENCIES.json",
+            "BUILD-INFO.json",
         ] {
             copy_file(&staging.join(filename), &resources.join(filename))?;
         }
@@ -136,12 +134,8 @@ pub fn run(root: &Path, options: &Options) -> Result<()> {
 
     let dist = root.join("dist");
     fs::create_dir_all(&dist)?;
-    let extension = if target.contains("linux") {
-        "tar.gz"
-    } else {
-        "zip"
-    };
-    let archive = dist.join(format!("{stem}.{extension}"));
+    let extension = delivery.archive.as_str();
+    let archive = dist.join(delivery.filename());
     let temporary_archive = archive.with_extension(format!("{extension}.partial"));
     if extension == "tar.gz" {
         write_tar(&staging, &stem, &temporary_archive)?;
@@ -165,7 +159,7 @@ pub fn run(root: &Path, options: &Options) -> Result<()> {
     Ok(())
 }
 
-fn host_target(root: &Path) -> Result<String> {
+pub(crate) fn host_target(root: &Path) -> Result<String> {
     let output = Command::new(std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into()))
         .arg("-vV")
         .current_dir(root)
@@ -235,7 +229,7 @@ fn mode(path: &Path) -> u32 {
     }
 }
 
-fn write_tar(staging: &Path, stem: &str, output: &Path) -> Result<()> {
+pub(crate) fn write_tar(staging: &Path, stem: &str, output: &Path) -> Result<()> {
     let gzip = GzBuilder::new()
         .mtime(0)
         .write(File::create(output)?, Compression::default());
@@ -258,7 +252,7 @@ fn write_tar(staging: &Path, stem: &str, output: &Path) -> Result<()> {
     Ok(())
 }
 
-fn write_zip(staging: &Path, stem: &str, output: &Path) -> Result<()> {
+pub(crate) fn write_zip(staging: &Path, stem: &str, output: &Path) -> Result<()> {
     let mut archive = zip::ZipWriter::new(File::create(output)?);
     for path in files(staging)? {
         let relative = path.strip_prefix(staging)?;
@@ -281,7 +275,7 @@ fn write_zip(staging: &Path, stem: &str, output: &Path) -> Result<()> {
     Ok(())
 }
 
-fn hash_file(path: &Path) -> Result<String> {
+pub(crate) fn hash_file(path: &Path) -> Result<String> {
     let mut file = File::open(path)?;
     let mut hash = Sha256::new();
     let mut buffer = [0_u8; 64 * 1024];
@@ -295,7 +289,7 @@ fn hash_file(path: &Path) -> Result<String> {
     Ok(format!("{:x}", hash.finalize()))
 }
 
-fn verify_binary(path: &Path, target: &str) -> Result<()> {
+pub(crate) fn verify_binary(path: &Path, target: &str) -> Result<()> {
     let mut file = File::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
     let mut header = [0_u8; 64];
     file.read_exact(&mut header)?;

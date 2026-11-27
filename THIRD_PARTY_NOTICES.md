@@ -36,7 +36,20 @@ Four repository agent skills adapt focused workflows from:
 - License: **MIT**.
 - Full unchanged notice: [licenses/superpowers-MIT.txt](licenses/superpowers-MIT.txt).
 
-The exact file mappings, changes, and scope are in [docs/agent-skills.md](docs/agent-skills.md). These adaptations are development instructions; no upstream hooks, installer, or plugin configuration is imported. The project-specific archive-safety skill and Rust skill tooling are original ArcForge work.
+The exact file mappings, changes, and scope are in [docs/agent-skills.md](docs/agent-skills.md). These adaptations are development instructions; no upstream hooks, installer, or plugin configuration is imported. The project-specific archive-safety skill and the skill validator/generator are original ArcForge work.
+
+## hiewbie, Apollo, and OpenAI adaptations
+
+ArcForge adapts focused Rust and CI instructions through [stokaro/hiewbie](https://github.com/stokaro/hiewbie) at commit `058d5b4a9775a4ee2a7ec09db9493b9dc8a3650f`. hiewbie's original repository/specification material is MIT-licensed, **Copyright (c) 2026 Stokaro**; its full notice is identical to ArcForge's root [LICENSE](LICENSE). The inherited skill components retain their upstream terms. Document-generation, checked-offset, and release-verification ideas are adapted from its specification. No hiewbie application implementation or build script is copied.
+
+The underlying third-party skill sources retain their own terms:
+
+| Material | Original source | Terms and full notice |
+| --- | --- | --- |
+| `arcforge-rust/SKILL.md` and nine unchanged `references/chapter_*.md` files | [apollographql/skills](https://github.com/apollographql/skills), `8d0129fdc96a1b80d999a6682e48fc11e137dc09`, `skills/rust-best-practices/` | **MIT**, **Copyright (c) 2024 Apollo Graph, Inc.**; [licenses/apollo-MIT.txt](licenses/apollo-MIT.txt) |
+| Modified `arcforge-ci/SKILL.md` | [openai/skills](https://github.com/openai/skills), `49f948faa9258a0c61caceaf225e179651397431`, `skills/.curated/gh-fix-ci/SKILL.md` | **Apache-2.0**; [licenses/openai-skills-Apache-2.0.txt](licenses/openai-skills-Apache-2.0.txt) |
+
+Paths above are relative to `.agents/skills/` in ArcForge. The Rust entry is rewritten for ArcForge and the CI entry is modified to use exact revision/run evidence and repository checks. The CI instruction is a development component under Apache-2.0; the project MIT license does not replace those terms. Its generated Claude entry point loads the canonical instruction. The Python helper, upstream agent metadata, hooks, and plugin configuration are not imported. Exact intermediate paths, revisions, changes, and architectural references are in [docs/hiewbie-reuse.md](docs/hiewbie-reuse.md).
 
 ## Assets and dependencies
 

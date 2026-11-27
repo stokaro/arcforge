@@ -4,6 +4,9 @@
 # Preserve whitespace in original third-party license notices.
 licenses/** -whitespace
 
+# Preserve byte-identical pinned third-party Rust reference chapters.
+.agents/skills/arcforge-rust/references/** -whitespace
+
 *.png binary
 *.ico binary
 *.icns binary

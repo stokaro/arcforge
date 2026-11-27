@@ -6,6 +6,7 @@ mod cargo_env;
 mod layers;
 mod notices;
 mod package;
+mod release;
 mod skills;
 
 use std::ffi::OsString;
@@ -16,7 +17,7 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 const HELP: &str = "ArcForge workspace tooling
 
-Usage: cargo xtask <command> [--target TARGET] [--release]
+Usage: cargo xtask <command> [options]
 
   check    Check formatting, skills, dependency layers, notices, Clippy, tests and builds
   layers   Check workspace layering and headless core/CLI dependencies
@@ -26,6 +27,15 @@ Usage: cargo xtask <command> [--target TARGET] [--release]
   build    Build the workspace with the committed dependency lockfile
   test     Run workspace tests (requires a runnable target)
   package  Build unsigned release development bundles and SHA-256 checksums
+  ci-matrix  Print native target/runner matrix from release/targets.json
+  verify-package  Inspect and smoke-test an unpacked native development bundle
+  verify-release  Check the exact complete release assets and native evidence
+
+check/build/test: [--target TARGET] [--release]
+package: [--target TARGET] [--release] (always uses release profile)
+verify-package: [--target TARGET] [--directory DIR] (default: dist)
+verify-release: --commit FULL_SHA [--directory DIR] (default: dist)
+Other commands take no options.
 
 package always uses the release profile. Cross-compilation requires an installed
 target and its toolchain; test requires a native target or a configured runner.
@@ -35,6 +45,8 @@ Development bundles are portable archives, not signed production installers.";
 struct Options {
     target: Option<String>,
     release: bool,
+    directory: Option<PathBuf>,
+    commit: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -58,6 +70,7 @@ fn execute() -> Result<()> {
         return Ok(());
     }
     let options = parse_options(args)?;
+    validate_options(command.to_str().unwrap_or(""), &options)?;
     let root = workspace_root()?;
     match command.to_str() {
         Some("check") => {
@@ -85,6 +98,9 @@ fn execute() -> Result<()> {
         Some("skills-sync") => skills::sync(&root),
         Some(operation @ ("build" | "test")) => cargo_operation(&root, operation, &options),
         Some("package") => package::run(&root, &options),
+        Some("ci-matrix") => release::matrix(&root),
+        Some("verify-package") => release::verify_package(&root, &options),
+        Some("verify-release") => release::verify_release(&root, &options),
         _ => Err(format!("unknown command {:?}; use cargo xtask --help", command).into()),
     }
 }
@@ -94,7 +110,36 @@ fn parse_options(args: impl Iterator<Item = OsString>) -> Result<Options> {
     let mut options = Options::default();
     while let Some(arg) = args.next() {
         match arg.to_str() {
-            Some("--release") => options.release = true,
+            Some("--release") => {
+                if options.release {
+                    return Err("--release may be supplied only once".into());
+                }
+                options.release = true;
+            }
+            Some("--directory") => {
+                if options.directory.is_some() {
+                    return Err("--directory may be supplied only once".into());
+                }
+                let path = args.next().ok_or("--directory requires a path")?;
+                if path.is_empty() {
+                    return Err("--directory requires a nonempty path".into());
+                }
+                options.directory = Some(PathBuf::from(path));
+            }
+            Some("--commit") => {
+                if options.commit.is_some() {
+                    return Err("--commit may be supplied only once".into());
+                }
+                let commit = args
+                    .next()
+                    .ok_or("--commit requires a full Git SHA")?
+                    .into_string()
+                    .map_err(|_| "commit must be valid UTF-8")?;
+                if !release::valid_commit(&commit) {
+                    return Err("--commit requires a full lowercase 40-character Git SHA".into());
+                }
+                options.commit = Some(commit);
+            }
             Some("--target") => {
                 if options.target.is_some() {
                     return Err("--target may be supplied only once".into());
@@ -118,6 +163,26 @@ fn parse_options(args: impl Iterator<Item = OsString>) -> Result<Options> {
         }
     }
     Ok(options)
+}
+
+fn validate_options(command: &str, options: &Options) -> Result<()> {
+    let supports_target = matches!(
+        command,
+        "check" | "build" | "test" | "package" | "verify-package"
+    );
+    let supports_release = matches!(command, "check" | "build" | "test" | "package");
+    let supports_directory = matches!(command, "verify-package" | "verify-release");
+    if (options.target.is_some() && !supports_target)
+        || (options.release && !supports_release)
+        || (options.directory.is_some() && !supports_directory)
+        || (options.commit.is_some() && command != "verify-release")
+    {
+        return Err(format!("unsupported option for {command}; use cargo xtask --help").into());
+    }
+    if command == "verify-release" && options.commit.is_none() {
+        return Err("verify-release requires --commit FULL_SHA".into());
+    }
+    Ok(())
 }
 
 fn workspace_root() -> Result<PathBuf> {
@@ -197,5 +262,28 @@ mod tests {
         ] {
             assert!(parse_options(args.into_iter().map(OsString::from)).is_err());
         }
+    }
+
+    #[test]
+    fn release_flags_are_unambiguous_and_command_specific() -> Result<()> {
+        for args in [
+            vec!["--commit"],
+            vec!["--commit", "HEAD"],
+            vec!["--directory"],
+            vec!["--directory", ""],
+            vec!["--release", "--release"],
+        ] {
+            assert!(parse_options(args.into_iter().map(OsString::from)).is_err());
+        }
+        let options = parse_options(
+            ["--target", "x86_64-unknown-linux-gnu"]
+                .into_iter()
+                .map(OsString::from),
+        )?;
+        assert!(validate_options("verify-package", &options).is_ok());
+        assert!(validate_options("verify-release", &options).is_err());
+        assert!(validate_options("ci-matrix", &options).is_err());
+        assert!(validate_options("verify-release", &Options::default()).is_err());
+        Ok(())
     }
 }

@@ -15,5 +15,17 @@ Four repository agent workflows are adapted from Superpowers under the MIT Licen
 Copyright (c) 2025 Jesse Vincent.
 See docs/agent-skills.md and licenses/superpowers-MIT.txt for provenance and terms.
 
+Rust repository guidance and reference chapters originate in Apollo skills:
+Copyright (c) 2024 Apollo Graph, Inc. MIT License.
+See licenses/apollo-MIT.txt for the complete unchanged notice.
+
+The arcforge-ci development instruction is modified from OpenAI's gh-fix-ci
+through hiewbie and retains Apache License 2.0 terms, not the project MIT terms.
+See licenses/openai-skills-Apache-2.0.txt for the complete unchanged license.
+
+hiewbie's original repository/specification material is MIT:
+Copyright (c) 2026 Stokaro. Its notice is identical to the root LICENSE.
+See docs/hiewbie-reuse.md for pinned paths and ArcForge modifications.
+
 Third-party Rust dependencies and embedded assets retain their own licenses.
 Development packages include dependency notices and the relevant font notices.

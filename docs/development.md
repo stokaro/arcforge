@@ -19,9 +19,11 @@ cargo xtask build
 cargo xtask test
 cargo xtask build --release
 cargo xtask package --release
+cargo xtask ci-matrix
+cargo xtask verify-package --target x86_64-unknown-linux-gnu
 ```
 
-`check` is the standard local gate: formatting, scoped skills, dependency boundaries, license notices, Clippy, tests, and builds. `layers`, `notices`, and `skills` run their respective checks alone. `skills-sync` regenerates Claude entry points from canonical repository skills; see [skill maintenance](agent-skills.md). `build`, `test`, and `package` use the shared Rust orchestration rather than requiring a particular shell. The supported interface is `cargo xtask {check,build,test,package,layers,notices,skills,skills-sync} [--target TARGET] [--release]`; target/profile options affect Cargo build/test steps, not source-only checks. Packaging always builds the release profile; supplying `--release` to `package` is optional. The target and profile can be supplied explicitly:
+`check` is the standard local gate: formatting, scoped skills, dependency boundaries, license notices, Clippy, tests, and builds. `layers`, `notices`, and `skills` run their respective checks alone. `skills-sync` regenerates Claude entry points from canonical repository skills; see [skill maintenance](agent-skills.md). `build`, `test`, and `package` use the shared Rust orchestration rather than requiring a particular shell. Target/profile options affect Cargo build/test steps, not source-only checks. Packaging always builds the release profile; supplying `--release` to `package` is optional. `ci-matrix`, `verify-package`, and `verify-release` share the [target manifest and release contract](release.md); see `cargo xtask --help` for their options. The target and profile can be supplied explicitly:
 
 ```sh
 cargo xtask build --target x86_64-unknown-linux-gnu --release
@@ -52,7 +54,7 @@ The desktop opens a bootstrap workspace. The CLI currently implements `version`,
 | Windows | `x86_64-pc-windows-msvc` | `aarch64-pc-windows-msvc` |
 | Linux | `x86_64-unknown-linux-gnu` | `aarch64-unknown-linux-gnu` |
 
-The workflow matrix expresses the intended build/test coverage. Treat a target as verified only after its job has run successfully. A Linux local build does not validate macOS application startup or Windows integration.
+[`release/targets.json`](../release/targets.json) defines the native CI matrix and package layouts. Treat a target as verified only after its job has run successfully. A Linux local build does not validate macOS application startup or Windows integration.
 
 ## Development packages
 
@@ -63,6 +65,8 @@ The bootstrap packages **unsigned portable development bundles** containing the 
 - Linux: a `.tar.gz` containing the executables.
 
 Each bundle includes the repository documentation and applicable source-reuse notices, with a SHA-256 sidecar for the artifact. These bundles are for testing the scaffold. DMG, MSI/NSIS, AppImage, DEB/RPM, signing/notarization, automatic updates, and production installation/upgrade tests remain work in the epic. Development packaging must not require signing credentials.
+
+CI runs commands from the unpacked bundle and writes native evidence for its archive hash and source revision. A final job requires the complete six-target set of archives, checksums, and evidence. Tag builds verify that set before creating a draft release and compare the downloaded uploaded assets with the prepared files. See [release verification](release.md) for the commands, exact asset inventory, and limits of the evidence.
 
 The desktop enables the default fonts in egui/eframe 0.37. The bundle includes the [dependency terms](../licenses/dependencies.md), [original source notices](../licenses/dependency-source-notices.md), and [font licenses/metadata](../licenses/fonts/README.md), alongside the direct-source reuse notices. `cargo xtask notices` checks their hashes against Cargo.lock and the workspace configuration; `check` and `package` run that gate too.
 

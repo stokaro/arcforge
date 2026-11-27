@@ -15,26 +15,35 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  matrix:
+    name: Release target manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.targets.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.100.1 --profile minimal
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: release-tools
+      - name: Generate native matrix
+        id: targets
+        run: |
+          matrix="$(cargo xtask ci-matrix)"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
   native:
     name: Native ${{ matrix.target }}
+    needs: matrix
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-          - runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-          - runner: windows-2025
-            target: x86_64-pc-windows-msvc
-          - runner: windows-11-arm
-            target: aarch64-pc-windows-msvc
-          - runner: macos-15-intel
-            target: x86_64-apple-darwin
-          - runner: macos-15
-            target: aarch64-apple-darwin
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
     defaults:
       run:
         shell: bash
@@ -42,9 +51,11 @@ jobs:
       CARGO_TERM_COLOR: always
       RUST_BACKTRACE: "1"
       TARGET: ${{ matrix.target }}
+      RUSTUP_TOOLCHAIN: 1.100.1-${{ matrix.target }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Install Linux development libraries
         if: runner.os == 'Linux'
@@ -52,7 +63,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libegl1-mesa-dev
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.100.1 --profile minimal --component clippy --component rustfmt --target "$TARGET"
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component clippy --component rustfmt --target "$TARGET"
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           key: ${{ matrix.target }}
@@ -60,14 +71,8 @@ jobs:
         run: cargo xtask check --target "$TARGET"
       - name: Package unsigned development bundle
         run: cargo xtask package --target "$TARGET"
-      - name: Native command smoke test
-        run: |
-          suffix=""
-          if [[ "$RUNNER_OS" == "Windows" ]]; then suffix=".exe"; fi
-          "target/$TARGET/release/arcforge-cli$suffix" --version
-          "target/$TARGET/release/arcforge-cli$suffix" commands --json
-          "target/$TARGET/release/arcforge-cli$suffix" doctor --json
-          "target/$TARGET/release/arcforge$suffix" --version
+      - name: Verify and run the unpacked development bundle
+        run: cargo xtask verify-package --target "$TARGET"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: arcforge-${{ matrix.target }}
@@ -75,3 +80,25 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
+  bundles:
+    name: Complete release bundle set
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.100.1 --profile minimal
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: release-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: arcforge-*
+          path: dist
+          merge-multiple: true
+      - name: Verify all targets, checksums, source revisions and native evidence
+        run: cargo xtask verify-release --directory dist --commit "$(git rev-parse HEAD)"
