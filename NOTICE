@@ -11,5 +11,9 @@ See THIRD_PARTY_NOTICES.md and docs/artcraft-reuse.md for exact upstream
 revisions, file mappings, modifications, and architectural references.
 The complete source-reuse notices are in licenses/.
 
+Four repository agent workflows are adapted from Superpowers under the MIT License:
+Copyright (c) 2025 Jesse Vincent.
+See docs/agent-skills.md and licenses/superpowers-MIT.txt for provenance and terms.
+
 Third-party Rust dependencies and embedded assets retain their own licenses.
 Development packages include dependency notices and the relevant font notices.

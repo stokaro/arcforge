@@ -1,0 +1,20 @@
+---
+name: arcforge-archive-safety
+description: "Protect data and filesystem boundaries when implementing or reviewing ArcForge archive providers, extraction, mutation, external helpers, or file placement. Use for archive behavior and safety-sensitive changes; ordinary prose and visual styling do not require archive stress tests."
+---
+
+# Preserve archive data and contain writes
+
+Read `AGENTS.md` and the changed operation's contract. Keep policy in shared core/platform adapters so GUI and CLI receive the same outcomes. The current bootstrap has no archive providers; these are requirements for implementation, not claims of existing protection.
+
+1. **Preserve the source.** Stage mutations on the destination volume where possible. Validate output and perform required flushes before replacement. Never delete the original to make a failed replacement succeed. Pre-commit failure or cancellation must leave the original unchanged. Define the commit boundary, source-change detection, recovery artifacts, and post-commit error reporting. Test actual platform replacement semantics. For extraction into existing directories, report precisely which entries were placed, skipped, or failed; do not claim whole-operation rollback unless implemented.
+2. **Validate names against the destination.** Check decoded archive names before creating anything: traversal, NUL, absolute paths, Windows drive-relative paths such as `C:foo`, UNC/device namespaces, alternate streams, reserved devices, and trailing-dot/space aliases. Detect duplicate entries and case/normalization collisions according to the destination filesystem. Use an explicit collision policy; renaming must preserve entries and never silently discard data.
+3. **Contain placement throughout the operation.** Lexical validation and one-time canonicalization are insufficient. Account for pre-existing and archive-created symlinks, hardlinks, junctions, reparse points, and concurrent path-component replacement. Use appropriate directory-handle/OS containment primitives. Do not truncate an existing hardlink that aliases an outside file. Treat special files and privileged metadata as explicit capabilities. A provider's convenience unpack function alone does not prove containment.
+4. **Bound actual work.** Enforce limits on streamed output, total/per-entry sizes, entry count, nesting, memory, and execution time, using checked arithmetic. Declared sizes and compression ratios alone are insufficient. Include sparse TAR expansion and solid 7z workloads when relevant. Check cancellation during work; keep decoding and filesystem I/O off the GUI thread.
+5. **Constrain helpers.** Pass structured arguments without a shell. Handle option-like and newline-containing filenames deliberately. Bound captured output and terminate the operation's child processes on cancellation. Prefer supported protected password channels, redact secrets from diagnostics, and document unavoidable argument exposure.
+6. **Keep capabilities truthful.** Declare list/read/create/rewrite, content versus filename encryption, volumes, and preservation limits per provider/version/platform. Return consistent typed unsupported errors through both interfaces. Do not imply safety or format support based solely on a dependency name.
+7. **Test the changed boundary.** Use isolated temporary directories, synthetic or redistributable malformed fixtures, targeted property tests, failure injection, and independent format interoperability checks. Cover relevant path escapes, collisions, link races, truncation/CRC failure, wrong passwords, cancellation, and disk failures. Compare original hashes after failed saves. Give larger ZIP64/stress/platform suites explicit budgets and run them when the change requires them. Run `cargo xtask check` before a code PR and report the actual platforms and limits tested.
+
+Continue within existing authorization. Use existing valid evidence until relevant inputs change; documentation-only edits do not require archive stress tests.
+
+[Platform/provider references and maintenance](../../../docs/agent-skills.md#archive-safety-references)

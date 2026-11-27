@@ -10,6 +10,8 @@ The [implementation epic](https://github.com/stokaro/arcforge/issues/1) defines 
 4. Add automated tests for the changed contract, including failure cases relevant to archive contents or source preservation.
 5. Run `cargo xtask check` and the affected tests. For build or packaging changes, exercise the appropriate native platform and record the artifact produced.
 
+Agent-assisted contributions use the scoped workflows linked from `AGENTS.md`. See [repository skills](docs/agent-skills.md) for Codex/Claude discovery, targeted verification, and upstream attribution. Edit canonical skills under `.agents/skills`, run `cargo xtask skills-sync`, and validate them with `cargo xtask skills`. Prose-only changes need content/link checks and applicable metadata checks; they do not require new behavioral tests.
+
 ## Reviewable changes
 
 Keep PRs focused. Explain why the change is needed, the before/after behavior, and how it was verified. Add a small Mermaid diagram when a processing or user flow changes. Include screenshots for visible UI changes using repeatable fixtures and window sizes. Distinguish a tested result from an intended capability.

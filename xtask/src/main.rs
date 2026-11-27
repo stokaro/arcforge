@@ -6,6 +6,7 @@ mod cargo_env;
 mod layers;
 mod notices;
 mod package;
+mod skills;
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -17,9 +18,11 @@ const HELP: &str = "ArcForge workspace tooling
 
 Usage: cargo xtask <command> [--target TARGET] [--release]
 
-  check    Check formatting, dependency layers, notices, Clippy, tests and builds
+  check    Check formatting, skills, dependency layers, notices, Clippy, tests and builds
   layers   Check workspace layering and headless core/CLI dependencies
   notices  Verify license notice snapshot hashes match the committed inputs
+  skills   Verify scoped agent skills and generated Claude entry points
+  skills-sync  Update generated Claude entry points from canonical skills
   build    Build the workspace with the committed dependency lockfile
   test     Run workspace tests (requires a runnable target)
   package  Build unsigned release development bundles and SHA-256 checksums
@@ -59,6 +62,7 @@ fn execute() -> Result<()> {
     match command.to_str() {
         Some("check") => {
             run(cargo(&root).args(["fmt", "--all", "--", "--check"]))?;
+            skills::check(&root)?;
             layers::run(&root)?;
             notices::run(&root)?;
             let mut clippy = cargo(&root);
@@ -77,6 +81,8 @@ fn execute() -> Result<()> {
         }
         Some("layers") => layers::run(&root),
         Some("notices") => notices::run(&root),
+        Some("skills") => skills::check(&root),
+        Some("skills-sync") => skills::sync(&root),
         Some(operation @ ("build" | "test")) => cargo_operation(&root, operation, &options),
         Some("package") => package::run(&root, &options),
         _ => Err(format!("unknown command {:?}; use cargo xtask --help", command).into()),
