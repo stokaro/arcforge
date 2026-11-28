@@ -272,7 +272,7 @@ fn evidence_requires_the_actual_native_command_contract() -> Result<()> {
     let build = build_info(&manifest, target, Some(COMMIT), false);
     let digest = "a".repeat(64);
     let evidence = evidence_fixture(target, &build, &digest);
-    assert_eq!(smoke_commands(target).len(), 7);
+    assert_eq!(smoke_commands(target).len(), 9);
     validate_evidence(&evidence, target, &build, &digest)?;
     for key in ["host_target", "evidence_class"] {
         let mut invalid = evidence.clone();
@@ -288,19 +288,19 @@ fn evidence_requires_the_actual_native_command_contract() -> Result<()> {
     assert!(validate_smoke_output(0, b"wrong version").is_err());
     validate_smoke_output(
         0,
-        format!("ArcForge {VERSION} (zip-extraction)\n").as_bytes(),
+        format!("ArcForge {VERSION} (zip-staged-delete)\n").as_bytes(),
     )?;
     assert!(validate_smoke_output(1, br#"{"kind":"commands","data":[]}"#).is_err());
     let command_rows: Vec<_> = [
         "version", "commands", "doctor", "list", "info", "preview", "create", "extract", "test",
-        "update", "convert", "hash",
+        "update", "convert", "hash", "delete",
     ]
     .iter()
     .enumerate()
     .map(|(index, name)| {
         json!({
             "name": name,
-            "availability": if index < 6 || *name == "extract" { "implemented" } else { "planned" }
+            "availability": if index < 6 || matches!(*name, "extract" | "delete") { "implemented" } else { "planned" }
         })
     })
     .collect();
@@ -316,6 +316,15 @@ fn evidence_requires_the_actual_native_command_contract() -> Result<()> {
     validate_smoke_output(5, &serde_json::to_vec(&preview)?)?;
     preview["data"]["preview"]["crc32_verified"] = json!(false);
     assert!(validate_smoke_output(5, &serde_json::to_vec(&preview)?).is_err());
+    preview["data"]["preview"]["crc32_verified"] = json!(true);
+    preview["data"]["preview"]["entry_id"] = json!(0);
+    validate_smoke_output(8, &serde_json::to_vec(&preview)?)?;
+    let mut deletion = json!({"kind":"delete","data":{
+        "entries_removed":1,"entries_retained":1,"bytes_written":100,"retained_crc32_verified":true,
+    }});
+    validate_smoke_output(7, &serde_json::to_vec(&deletion)?)?;
+    deletion["data"]["retained_crc32_verified"] = json!(false);
+    assert!(validate_smoke_output(7, &serde_json::to_vec(&deletion)?).is_err());
     let extraction = json!({"kind":"extract","data":{"report":{
         "status":"completed","destination_created":true,"entries_planned":2,
         "completed_entries":[0,1],"files_written":2,"directories_created":1,

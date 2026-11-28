@@ -284,6 +284,14 @@ pub(in crate::archive) fn rewrite(
     reader.check()?;
     staging.publish()?;
     // The file is published. A late cancel cannot undo the result.
+    // Where possible, keep the verified identity through the published name.
+    // A Windows handle opened through the staging link can delay its removal.
+    if let Ok(file) = target.parent.open_with(&target.leaf, &read)
+        && let Ok(published) = Handle::from_file(file.into_std())
+        && published == identity
+    {
+        state.identity = published;
+    }
     Ok(SavedZip {
         report: ZipEditReport {
             destination: saved.source.clone(),
@@ -332,10 +340,17 @@ fn write_footer(
 }
 
 struct StagingZip<'a> {
-    target: &'a DestinationParent,
-    leaf: PathBuf,
     directory: Dir,
     identity: Handle,
+    // Fields drop in declaration order. Windows denies directory removal
+    // until both capability handles to this directory have closed.
+    cleanup: StagingLocation<'a>,
+}
+
+struct StagingLocation<'a> {
+    target: &'a DestinationParent,
+    leaf: PathBuf,
+    remove_on_drop: bool,
 }
 
 impl<'a> StagingZip<'a> {
@@ -351,27 +366,37 @@ impl<'a> StagingZip<'a> {
         let directory = target.parent.open_dir_nofollow(&leaf)?;
         let identity = directory_identity(&directory)?;
         Ok(Self {
-            target,
-            leaf,
             directory,
             identity,
+            cleanup: StagingLocation {
+                target,
+                leaf,
+                remove_on_drop: false,
+            },
         })
     }
 
     fn verify(&self) -> Result<(), ArchiveError> {
-        self.target.verify_directory(&self.leaf, &self.identity)
+        self.cleanup
+            .target
+            .verify_directory(&self.cleanup.leaf, &self.identity)
     }
 
     fn path(&self) -> PathBuf {
-        self.target.parent_path.join(&self.leaf).join(STAGED_FILE)
+        self.cleanup
+            .target
+            .parent_path
+            .join(&self.cleanup.leaf)
+            .join(STAGED_FILE)
     }
 
     fn publish(&self) -> Result<(), ArchiveError> {
+        let target = self.cleanup.target;
         self.directory
-            .hard_link(STAGED_FILE, &self.target.parent, &self.target.leaf)
+            .hard_link(STAGED_FILE, &target.parent, &target.leaf)
             .map_err(|error| {
                 if error.kind() == io::ErrorKind::AlreadyExists {
-                    self.target.exists_error()
+                    target.exists_error()
                 } else {
                     ArchiveError::Io(format!(
                         "could not publish the new ZIP using an exclusive hard link: {error}"
@@ -384,7 +409,13 @@ impl<'a> StagingZip<'a> {
 impl Drop for StagingZip<'_> {
     fn drop(&mut self) {
         let _ = self.directory.remove_file(STAGED_FILE);
-        if self.verify().is_ok() {
+        self.cleanup.remove_on_drop = self.verify().is_ok();
+    }
+}
+
+impl Drop for StagingLocation<'_> {
+    fn drop(&mut self) {
+        if self.remove_on_drop {
             let _ = self.target.parent.remove_dir(&self.leaf);
         }
     }

@@ -1644,6 +1644,7 @@ fn rewrite_preserves_retained_raw_headers_payloads_and_comments_and_remaps_entry
     let locals = &fixture.bytes[before.local_header_offset as usize..fixture.central_offset];
     assert_eq!(&bytes[..locals.len()], locals);
     assert_eq!(fs::read(&file.path).unwrap(), fixture.bytes);
+    assert_eq!(fs::read_dir(&file.directory).unwrap().count(), 2);
 }
 
 #[test]

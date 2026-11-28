@@ -21,7 +21,7 @@ The packager checks executable architecture before archiving. `verify-package` r
 
 The current limits are 512 MiB for the archive or any individual file, 2 GiB for the expanded stream/content, and 10,000 entries. ZIP uses stored regular files and a classic bounded central directory; ZIP64 is outside these development-bundle limits. TAR permits regular files and bounded GNU long-name records (up to 1,200 bytes), rejecting PAX, links, and other special records before their payloads can be expanded into metadata buffers. Increasing package size or changing the writer's format requires an explicit matching verifier change.
 
-Native verification runs these seven commands from the unpacked bundle and checks their exit/output contracts:
+Native verification runs these nine commands from the unpacked bundle and checks their exit and output contracts.
 
 | Executable | Arguments | Evidence |
 | --- | --- | --- |
@@ -32,10 +32,12 @@ Native verification runs these seven commands from the unpacked bundle and check
 | CLI | `list arcforge-smoke.zip --json` | Expected entries and metadata from the independent ZIP fixture |
 | CLI | `preview arcforge-smoke.zip --entry 1 --json` | Expected Deflate entry bytes and verified CRC32 |
 | CLI | `extract arcforge-smoke.zip --output arcforge-smoke-output --json` | Completed report, exact contents of both files, and unchanged source fixture |
+| CLI | `delete arcforge-smoke.zip --entry 0 --output arcforge-smoke-edited.zip --json` | One removed record, one retained record, CRC verification |
+| CLI | `preview arcforge-smoke-edited.zip --entry 0 --json` | The saved copy has the original Deflate entry at ID 0 and returns the expected bytes |
 
 The ZIP commands use `arcforge-smoke.zip`, materialized in the isolated verification directory from the committed [Python zipfile fixture](../tests/fixtures/python-zipfile.hex). It contains independently generated Stored and Deflate entries. The optional [fixture generator](../scripts/generate_zip_fixture.py) uses Python; package verification consumes the committed bytes without requiring Python.
 
-The verifier writes an evidence sidecar only after all checks pass, and removes previous evidence before a new attempt. The record binds the artifact name/hash, build metadata, native host target, and seven successful command records. Its evidence class is **`native-command-smoke`**. This proves those packaged commands ran on that target. It does not prove window rendering, accessibility, file associations, drag-and-drop, installer behavior, or archive-feature parity.
+The verifier removes previous evidence before a new attempt and writes a sidecar after every check passes. The record binds the artifact name and hash, build metadata, native host target, and nine successful command records. The evidence class **`native-command-smoke`** covers packaged command execution on the recorded target.
 
 Local packages may record a dirty source tree for development. Such a package cannot satisfy the release gate. Run native verification only for a bundle you intentionally built from trusted source: executing its binaries is part of the command.
 
