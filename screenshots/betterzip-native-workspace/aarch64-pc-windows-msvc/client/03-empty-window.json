@@ -1,0 +1,59 @@
+{
+  "architecture": "aarch64",
+  "archive_open": false,
+  "capture_api": "egui::Context::request_screenshot",
+  "capture_kind": "native-client-area",
+  "fonts": {
+    "regular": {
+      "embedded": false,
+      "face_index": 0,
+      "font_name": "Segoe UI",
+      "source_path": "C:\\Windows\\Fonts\\segoeui.ttf",
+      "variation_coordinates": [],
+      "weight": 400.0
+    },
+    "semibold": {
+      "embedded": false,
+      "face_index": 0,
+      "font_name": "Segoe UI Semibold",
+      "source_path": "C:\\Windows\\Fonts\\seguisb.ttf",
+      "variation_coordinates": [],
+      "weight": 600.0
+    }
+  },
+  "native_picker_pending": false,
+  "native_shell_attached": false,
+  "native_window_chrome": false,
+  "native_window_id": null,
+  "os": "windows",
+  "pixel_dimensions": [
+    1024,
+    768
+  ],
+  "pixels_per_point": 1.0,
+  "process_id": 10316,
+  "rendered_frames_after_ready": 2,
+  "renderer": "eframe Glow",
+  "scene": "03-empty-window",
+  "schema_version": 2,
+  "theme": "light",
+  "unix_timestamp_seconds": 1795863690,
+  "viewport": {
+    "focused": false,
+    "inner_rect_points": [
+      86.0,
+      109.0,
+      1024.0,
+      768.0
+    ],
+    "minimized": false,
+    "native_pixels_per_point": 1.0,
+    "occluded": null,
+    "outer_rect_points": [
+      78.0,
+      78.0,
+      1040.0,
+      807.0
+    ]
+  }
+}

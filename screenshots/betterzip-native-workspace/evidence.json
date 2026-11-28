@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "captured_pr_head": "2a231383216c71624d8706ff7247901fa9800730",
+  "captured_source_commit": "ecdc089feeb7d106cb802e3945fc8be04f4c2745",
+  "captured_source_tree": "9eb4afa9ece1bd36b8eca82f097a2550d00601df",
+  "source_merge_parents": [
+    "069ea705dc1a0fbe908cb0dd568d2aa8250f71b4",
+    "2a231383216c71624d8706ff7247901fa9800730"
+  ],
+  "ci_run_url": "https://github.com/stokaro/arcforge/actions/runs/46137611405",
+  "ci_run_id": 46137611405,
+  "ci_run_attempt": 1,
+  "images_modified": false,
+  "captures": [
+    {
+      "directory": "macos-26-aarch64-apple-darwin",
+      "artifact_id": 15260536441,
+      "artifact_zip_sha256": "dc6bb08b2263e7967e96f9b168348ca60066b6660a69eaa128029888ede94b6a",
+      "files": [
+        {
+          "path": "client/01-text-preview.png",
+          "sha256": "1f371fd32eee63159c18656686d9846d67445d098a0bddecc445701eab7a6901"
+        },
+        {
+          "path": "client/01-text-preview.json",
+          "sha256": "71ff154db69658912e475b74a01dc7af5bcb7d1c9b4ee5c82265d4c37e61f4e6"
+        },
+        {
+          "path": "01-text-preview-native-window.png",
+          "sha256": "09e9b87d94bc4b05ac3cb1e08c88919ba17e537ecea96f2e23b4dd1b83a33dfc"
+        },
+        {
+          "path": "client/02-image-preview.png",
+          "sha256": "deb7bef44dfefc6202fc9071f552e6bd5b8b4d0e49f46b961264b3e201410f70"
+        },
+        {
+          "path": "client/02-image-preview.json",
+          "sha256": "47fecaf84c1166e6ed625a75ca0546704235913508e43dcfc285af4d6328faad"
+        },
+        {
+          "path": "02-image-preview-native-window.png",
+          "sha256": "27dcb44953a4ca34e7ec40d93ae64f87869c67062d08da1f9d90c8814fd17379"
+        },
+        {
+          "path": "client/03-empty-window.png",
+          "sha256": "acf667bc2ffb907d16dc125ffb27201b23a42ab02a3a18bcb94651988115468f"
+        },
+        {
+          "path": "client/03-empty-window.json",
+          "sha256": "2ed833def0766be25a8676d7896a403941f0798382bc666e52477f8a040a08d7"
+        },
+        {
+          "path": "03-empty-window-native-window.png",
+          "sha256": "b9e0cd185d95d241a96486cb36ad629e390d72f5d94f789603c99887b0776fb1"
+        },
+        {
+          "path": "client/04-open-panel.json",
+          "sha256": "9b901f4d2e58e0aa8cd7d5f0fbe2469de9c2792e672e1229e9ada67ca8365121"
+        },
+        {
+          "path": "04-open-panel-native-window.png",
+          "sha256": "1f017d5c7f87d5e9d34919de5d85227b917fd8777c192720486754c5685d4065"
+        }
+      ]
+    },
+    {
+      "directory": "aarch64-pc-windows-msvc",
+      "artifact_id": 15260163681,
+      "artifact_zip_sha256": "5169482f1efd99abb96bc0376fb48f5d6f7d61afec9c1dada921ebd50606d1fa",
+      "files": [
+        {
+          "path": "client/01-text-preview.png",
+          "sha256": "7e003de9ffd76340238ef475ab6b12b7fd3a0f99a7bf239c197d9eb82c78bebe"
+        },
+        {
+          "path": "client/01-text-preview.json",
+          "sha256": "5e6d9bfa3c42ed445ddff37dac67ff659600ac0432f0e14cf9333f2526643544"
+        },
+        {
+          "path": "client/02-image-preview.png",
+          "sha256": "55cadcb053239f56adb739a1c9d7e444bfdf5bf5120a2ffc13692e827ce60cce"
+        },
+        {
+          "path": "client/02-image-preview.json",
+          "sha256": "fc585c93526643fc1c904b2d1415b60e128534da50b5aafe2f3621b6e1f7941e"
+        },
+        {
+          "path": "client/03-empty-window.png",
+          "sha256": "cea34d50d89839c1ba7ed3d70df2a708d9a6a6642fe46f8906d111427e4bc5de"
+        },
+        {
+          "path": "client/03-empty-window.json",
+          "sha256": "b81548a165c8b40259454bfa6deaa517c2ef42bb70d94fe1ef40990345cbdcf9"
+        }
+      ]
+    },
+    {
+      "directory": "x86_64-unknown-linux-gnu",
+      "artifact_id": 15260362890,
+      "artifact_zip_sha256": "539126583d9cbc2158e8ef5f2be7f064527e322cb962c838a768eee4953ce77e",
+      "files": [
+        {
+          "path": "client/01-text-preview.png",
+          "sha256": "f65f502c143ac376e61757ca2d6a99d041f3f688c46ef7248e877d813cd1ec4e"
+        },
+        {
+          "path": "client/01-text-preview.json",
+          "sha256": "2aa7b23ff1fa0ef821ab4a18fa12a97610112cb97b8169f60a9492fcec04c416"
+        },
+        {
+          "path": "client/02-image-preview.png",
+          "sha256": "5210f8e4f5d89f077ec0a9daf76a2497bed9fad59739e8f117c984003d89f73f"
+        },
+        {
+          "path": "client/02-image-preview.json",
+          "sha256": "61cd0d9461240d0000c1252f49804695d5be79d2837d65d30e1f92e65d816045"
+        },
+        {
+          "path": "client/03-empty-window.png",
+          "sha256": "00ba9647a617eaec7fa264ea4734ffb9ecd70f25abf7bae5e1750014d00e1464"
+        },
+        {
+          "path": "client/03-empty-window.json",
+          "sha256": "1668dc8261012983906bf26db49a720f31e5910b67e0c4fe86dd539c0e88f448"
+        }
+      ]
+    }
+  ]
+}

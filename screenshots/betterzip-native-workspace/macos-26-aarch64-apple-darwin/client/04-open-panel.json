@@ -1,0 +1,78 @@
+{
+  "architecture": "aarch64",
+  "archive_open": false,
+  "capture_api": "owned NSOpenPanel observation; external native window capture required",
+  "capture_kind": "native-panel-request",
+  "fonts": {
+    "regular": {
+      "embedded": false,
+      "face_index": 0,
+      "font_name": "System Font",
+      "source_path": "/System/Library/Fonts/SFNS.ttf",
+      "variation_coordinates": [
+        [
+          "wght",
+          400.0
+        ],
+        [
+          "opsz",
+          17.0
+        ]
+      ],
+      "weight": 400.0
+    },
+    "semibold": {
+      "embedded": false,
+      "face_index": 0,
+      "font_name": "System Font",
+      "source_path": "/System/Library/Fonts/SFNS.ttf",
+      "variation_coordinates": [
+        [
+          "wght",
+          600.0
+        ],
+        [
+          "opsz",
+          17.0
+        ]
+      ],
+      "weight": 600.0
+    }
+  },
+  "native_panel": {
+    "class": "NSOpenPanel",
+    "parent_window_id": 30,
+    "window_id": 43
+  },
+  "native_picker_pending": true,
+  "native_shell_attached": true,
+  "native_window_chrome": false,
+  "native_window_id": 30,
+  "os": "macos",
+  "pixels_per_point": 1.0,
+  "process_id": 2000,
+  "rendered_frames_after_ready": 0,
+  "renderer": "eframe Glow",
+  "scene": "04-open-panel",
+  "schema_version": 2,
+  "theme": "light",
+  "unix_timestamp_seconds": 1795863559,
+  "viewport": {
+    "focused": true,
+    "inner_rect_points": [
+      160.0,
+      148.0,
+      1280.0,
+      832.0
+    ],
+    "minimized": false,
+    "native_pixels_per_point": 1.0,
+    "occluded": false,
+    "outer_rect_points": [
+      160.0,
+      96.0,
+      1280.0,
+      884.0
+    ]
+  }
+}

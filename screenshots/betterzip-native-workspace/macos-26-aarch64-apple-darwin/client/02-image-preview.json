@@ -1,0 +1,86 @@
+{
+  "architecture": "aarch64",
+  "archive_open": true,
+  "capture_api": "egui::Context::request_screenshot",
+  "capture_kind": "native-client-area",
+  "fonts": {
+    "regular": {
+      "embedded": false,
+      "face_index": 0,
+      "font_name": "System Font",
+      "source_path": "/System/Library/Fonts/SFNS.ttf",
+      "variation_coordinates": [
+        [
+          "wght",
+          400.0
+        ],
+        [
+          "opsz",
+          17.0
+        ]
+      ],
+      "weight": 400.0
+    },
+    "semibold": {
+      "embedded": false,
+      "face_index": 0,
+      "font_name": "System Font",
+      "source_path": "/System/Library/Fonts/SFNS.ttf",
+      "variation_coordinates": [
+        [
+          "wght",
+          600.0
+        ],
+        [
+          "opsz",
+          17.0
+        ]
+      ],
+      "weight": 600.0
+    }
+  },
+  "metadata_revision": "ee533dac86a919672b88a8df962a74307c36de67bac8ae255ef935dbdb81e93d",
+  "native_shell_attached": true,
+  "native_window_chrome": false,
+  "native_window_id": 30,
+  "os": "macos",
+  "pixel_dimensions": [
+    1280,
+    832
+  ],
+  "pixels_per_point": 1.0,
+  "preview_bytes": 7782,
+  "preview_crc32_verified": true,
+  "preview_image_size": [
+    960,
+    640
+  ],
+  "process_id": 2000,
+  "rendered_frames_after_ready": 2,
+  "renderer": "eframe Glow",
+  "scene": "02-image-preview",
+  "schema_version": 2,
+  "selected_entry_id": 13,
+  "selected_entry_name": "Photos/Color-study.png",
+  "snapshot_id": "7d0-18ec30618618b380-0",
+  "theme": "light",
+  "unix_timestamp_seconds": 1795863552,
+  "viewport": {
+    "focused": true,
+    "inner_rect_points": [
+      160.0,
+      148.0,
+      1280.0,
+      832.0
+    ],
+    "minimized": false,
+    "native_pixels_per_point": 1.0,
+    "occluded": false,
+    "outer_rect_points": [
+      160.0,
+      96.0,
+      1280.0,
+      884.0
+    ]
+  }
+}

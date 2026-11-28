@@ -1,0 +1,98 @@
+{
+  "binary_sha256": "ab4fafff862db47563b662f050a3052a0bee7693cb0dbf28916c0b1dc987160d",
+  "binary_sha256_after_capture": "ab4fafff862db47563b662f050a3052a0bee7693cb0dbf28916c0b1dc987160d",
+  "build": {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--target",
+      "aarch64-pc-windows-msvc",
+      "-p",
+      "arcforge",
+      "--features",
+      "native-capture"
+    ],
+    "feature": "native-capture",
+    "profile": "debug",
+    "release_bundle": false
+  },
+  "display_configuration": {
+    "reason": "desktop mode selection is limited to macOS CI",
+    "status": "not-requested"
+  },
+  "fixture": {
+    "file": "workspace-demo.zip",
+    "generator": "scripts/generate_ui_fixture.py --images",
+    "generator_sha256": "f08427b3389702f953b7bbf84c14dc37dfe1a82b982864f3897ac7290a157aec",
+    "original_content": true,
+    "sha256": "eef9fd6de48a3e465ab99dae9cdb5df13353e25056fe9365584d9e722d0da70e",
+    "unchanged_after_capture": true
+  },
+  "host_target": "aarch64-pc-windows-msvc",
+  "process_id": 10316,
+  "runtime": {
+    "architecture": "aarch64",
+    "environment": {
+      "ARCFORGE_CAPTURE_DISPLAY": "GitHub-hosted native desktop session",
+      "ARCFORGE_CAPTURE_GL_DRIVER": "Mesa 26.3.1 llvmpipe; software OpenGL; CI-only WGL driver",
+      "ARCFORGE_CAPTURE_GL_LIBRARY_PATH": "C:\\a\\arcforge\\arcforge\\target\\aarch64-pc-windows-msvc\\debug\\opengl32.dll",
+      "ARCFORGE_CAPTURE_GL_LIBRARY_SHA256": "7cd18f3d4e1a62d38951f19063d7d0017526c05d024490507357b2272860f55c",
+      "ARCFORGE_CAPTURE_GL_LICENSES": "Mesa component licenses (mostly MIT); LLVM Apache-2.0 WITH LLVM-exception",
+      "ARCFORGE_CAPTURE_GL_PACKAGE_SHA256": "c74c960c0416f3fa7f55dd877c34bbb1408f097cdf20a5638cd10ac1c90ae3c5",
+      "ARCFORGE_CAPTURE_GL_SOURCE_COMMIT": "73f7cfb6d2ec725d1c036c33eba62f420f87818e",
+      "GITHUB_ACTIONS": "true",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_RUN_ID": "46137611405",
+      "GITHUB_SHA": "ecdc089feeb7d106cb802e3945fc8be04f4c2745",
+      "ImageOS": "win11-vs2026-arm64",
+      "ImageVersion": "20261123.225.2",
+      "RUNNER_ARCH": "ARM64",
+      "RUNNER_OS": "Windows"
+    },
+    "os": "windows",
+    "os_version": "Microsoft Windows [Version 10.0.26200.9974]",
+    "renderer": "production Glow backend; no offscreen or alternate renderer",
+    "window": "actual native eframe window with shared platform::native_options"
+  },
+  "scenes": [
+    {
+      "client_png": "client/01-text-preview.png",
+      "client_sha256": "7e003de9ffd76340238ef475ab6b12b7fd3a0f99a7bf239c197d9eb82c78bebe",
+      "metadata": "client/01-text-preview.json",
+      "metadata_sha256": "5e6d9bfa3c42ed445ddff37dac67ff659600ac0432f0e14cf9333f2526643544",
+      "native_window": {
+        "reason": "OS window capture is implemented only for macOS; native client pixels are captured on every OS",
+        "status": "unavailable"
+      },
+      "scene": "01-text-preview"
+    },
+    {
+      "client_png": "client/02-image-preview.png",
+      "client_sha256": "55cadcb053239f56adb739a1c9d7e444bfdf5bf5120a2ffc13692e827ce60cce",
+      "metadata": "client/02-image-preview.json",
+      "metadata_sha256": "fc585c93526643fc1c904b2d1415b60e128534da50b5aafe2f3621b6e1f7941e",
+      "native_window": {
+        "reason": "OS window capture is implemented only for macOS; native client pixels are captured on every OS",
+        "status": "unavailable"
+      },
+      "scene": "02-image-preview"
+    },
+    {
+      "client_png": "client/03-empty-window.png",
+      "client_sha256": "cea34d50d89839c1ba7ed3d70df2a708d9a6a6642fe46f8906d111427e4bc5de",
+      "metadata": "client/03-empty-window.json",
+      "metadata_sha256": "b81548a165c8b40259454bfa6deaa517c2ef42bb70d94fe1ef40990345cbdcf9",
+      "native_window": {
+        "reason": "OS window capture is implemented only for macOS; native client pixels are captured on every OS",
+        "status": "unavailable"
+      },
+      "scene": "03-empty-window"
+    }
+  ],
+  "schema_version": 1,
+  "source_commit": "ecdc089feeb7d106cb802e3945fc8be04f4c2745",
+  "source_dirty": false,
+  "status": "completed",
+  "target": "aarch64-pc-windows-msvc"
+}

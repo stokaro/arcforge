@@ -1,0 +1,94 @@
+{
+  "binary_sha256": "19b0e75c609bf221a8a88835324e4401949ec0ef8af0b32b4c2df7e03e90ca72",
+  "binary_sha256_after_capture": "19b0e75c609bf221a8a88835324e4401949ec0ef8af0b32b4c2df7e03e90ca72",
+  "build": {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--target",
+      "x86_64-unknown-linux-gnu",
+      "-p",
+      "arcforge",
+      "--features",
+      "native-capture"
+    ],
+    "feature": "native-capture",
+    "profile": "debug",
+    "release_bundle": false
+  },
+  "display_configuration": {
+    "reason": "desktop mode selection is limited to macOS CI",
+    "status": "not-requested"
+  },
+  "fixture": {
+    "file": "workspace-demo.zip",
+    "generator": "scripts/generate_ui_fixture.py --images",
+    "generator_sha256": "f08427b3389702f953b7bbf84c14dc37dfe1a82b982864f3897ac7290a157aec",
+    "original_content": true,
+    "sha256": "eef9fd6de48a3e465ab99dae9cdb5df13353e25056fe9365584d9e722d0da70e",
+    "unchanged_after_capture": true
+  },
+  "host_target": "x86_64-unknown-linux-gnu",
+  "process_id": 4282,
+  "runtime": {
+    "architecture": "x86_64",
+    "environment": {
+      "ARCFORGE_CAPTURE_DISPLAY": "Xvfb X11; Mesa software OpenGL requested",
+      "DISPLAY": ":99",
+      "GITHUB_ACTIONS": "true",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_RUN_ID": "46137611405",
+      "GITHUB_SHA": "ecdc089feeb7d106cb802e3945fc8be04f4c2745",
+      "ImageOS": "ubuntu24",
+      "ImageVersion": "20261122.23.1",
+      "LIBGL_ALWAYS_SOFTWARE": "1",
+      "RUNNER_ARCH": "X64",
+      "RUNNER_OS": "Linux"
+    },
+    "os": "linux",
+    "os_version": "Linux runnervm0j63q 7.0.0-1020-azure #21~24.04.2-Ubuntu SMP PREEMPT Tue Nov 10 01:36:36 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux",
+    "renderer": "production Glow backend; no offscreen or alternate renderer",
+    "window": "actual native eframe window with shared platform::native_options"
+  },
+  "scenes": [
+    {
+      "client_png": "client/01-text-preview.png",
+      "client_sha256": "f65f502c143ac376e61757ca2d6a99d041f3f688c46ef7248e877d813cd1ec4e",
+      "metadata": "client/01-text-preview.json",
+      "metadata_sha256": "2aa7b23ff1fa0ef821ab4a18fa12a97610112cb97b8169f60a9492fcec04c416",
+      "native_window": {
+        "reason": "OS window capture is implemented only for macOS; native client pixels are captured on every OS",
+        "status": "unavailable"
+      },
+      "scene": "01-text-preview"
+    },
+    {
+      "client_png": "client/02-image-preview.png",
+      "client_sha256": "5210f8e4f5d89f077ec0a9daf76a2497bed9fad59739e8f117c984003d89f73f",
+      "metadata": "client/02-image-preview.json",
+      "metadata_sha256": "61cd0d9461240d0000c1252f49804695d5be79d2837d65d30e1f92e65d816045",
+      "native_window": {
+        "reason": "OS window capture is implemented only for macOS; native client pixels are captured on every OS",
+        "status": "unavailable"
+      },
+      "scene": "02-image-preview"
+    },
+    {
+      "client_png": "client/03-empty-window.png",
+      "client_sha256": "00ba9647a617eaec7fa264ea4734ffb9ecd70f25abf7bae5e1750014d00e1464",
+      "metadata": "client/03-empty-window.json",
+      "metadata_sha256": "1668dc8261012983906bf26db49a720f31e5910b67e0c4fe86dd539c0e88f448",
+      "native_window": {
+        "reason": "OS window capture is implemented only for macOS; native client pixels are captured on every OS",
+        "status": "unavailable"
+      },
+      "scene": "03-empty-window"
+    }
+  ],
+  "schema_version": 1,
+  "source_commit": "ecdc089feeb7d106cb802e3945fc8be04f4c2745",
+  "source_dirty": false,
+  "status": "completed",
+  "target": "x86_64-unknown-linux-gnu"
+}
