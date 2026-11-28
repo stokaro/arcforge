@@ -68,6 +68,8 @@ Every completed capture contains these client scenes, plus two native file panel
 
 The file-open scene uses the same controller action as a double-click. On macOS and Windows the developer harness uses the machine's current text-file association. On Linux it supplies a process-local XDG text handler that copies the file it receives into the evidence directory. The gate compares that copy independently against the fixture with Python's `zipfile`. The capture records the ArcForge workspace after the handoff.
 
+The capture parent gives the ArcForge child a dedicated temporary directory and observes two separate copies of Guide.txt. Both copies must still exist after Close Archive. The parent then waits for the real desktop process to exit normally and fails the run if any ArcForge open-copy directory remains or a neighboring sentinel directory was modified. The `temporary_open_cleanup` fields in `capture-run.json` record the observations.
+
 The harness cancels the inspected Save As panel and submits the collision and
 success destinations through the workspace's save controller. It verifies the
 new ZIP with Python's independent `zipfile` reader and checks the input SHA-256.
