@@ -60,6 +60,10 @@ impl BudgetReader {
         self.timeout.saturating_sub(self.started.elapsed())
     }
 
+    pub fn bytes_read(&self) -> u64 {
+        self.bytes_read
+    }
+
     /// Freeze only the bounded directory/footer and the dependency's small
     /// discovery window. A second preflight must validate this exact copy before
     /// exposing it to the dependency: the source can change during this copy.

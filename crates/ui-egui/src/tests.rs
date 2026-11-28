@@ -103,9 +103,18 @@ fn document_reply(ticket: Ticket, document: Arc<PreparedDocument>) -> Reply {
     Reply {
         ticket,
         result: Ok(Completed::Document {
-            rows: (0..document.snapshot.entries.len()).collect(),
+            rows: document
+                .view_rows(
+                    "",
+                    None,
+                    ViewMode::Outline,
+                    &BTreeSet::new(),
+                    &CancellationToken::new(),
+                )
+                .expect("outline rows"),
             document,
             query: String::new(),
+            mode: ViewMode::Outline,
         }),
     }
 }
@@ -290,6 +299,251 @@ fn search_preserves_pending_name_policy_and_cancel_restores_the_applied_view() {
 }
 
 #[test]
+fn extraction_waits_for_its_terminal_result_and_cannot_be_superseded() {
+    let fixture = Fixture::new(b"entry.txt");
+    let document = fixture.document();
+    let (worker, incoming, _outgoing) = Worker::test_channels();
+    let mut workspace = ArchiveWorkspace {
+        worker: Some(worker),
+        document: Some(document.clone()),
+        rows: vec![ViewRow {
+            entry: Some(0),
+            folder: None,
+            depth: 0,
+        }],
+        selected: Some(0),
+        selected_entries: BTreeSet::from([0]),
+        generation: 1,
+        ..Default::default()
+    };
+    let context = egui::Context::default();
+    workspace.open_extraction(ExtractionScope::Selected);
+    workspace.start_extraction(&context);
+    let request = incoming.try_recv().expect("extraction request");
+    assert!(matches!(request.task, Task::Extract { .. }));
+    let ticket = workspace.current.expect("pending extraction");
+    workspace.close();
+    workspace.open("another.zip".into(), &context);
+    workspace.filter(&context);
+    workspace.change_policy(FilenamePolicy::default(), &context);
+    workspace.preview_selected(&context);
+    assert_eq!(workspace.current, Some(ticket));
+    assert_eq!(
+        workspace
+            .document
+            .as_ref()
+            .expect("archive retained")
+            .snapshot
+            .id,
+        document.snapshot.id
+    );
+    assert!(
+        !request.cancel.is_cancelled(),
+        "read actions must not cancel filesystem work"
+    );
+    assert!(incoming.try_recv().is_err());
+    workspace.cancel();
+    assert!(request.cancel.is_cancelled());
+    assert_eq!(
+        workspace.current,
+        Some(ticket),
+        "cancellation still awaits a filesystem report"
+    );
+    assert!(matches!(
+        workspace.extraction.state,
+        ExtractionState::Running {
+            cancel_requested: true,
+            ..
+        }
+    ));
+    workspace.apply(Reply {
+        ticket,
+        result: Ok(Completed::Extraction(extraction_report(
+            ExtractionStatus::Completed,
+        ))),
+    });
+    assert!(workspace.current.is_none());
+    assert!(matches!(
+        workspace.extraction.state,
+        ExtractionState::Finished(Ok(ExtractionReport {
+            status: ExtractionStatus::Completed,
+            ..
+        }))
+    ));
+    assert!(
+        workspace.status.starts_with("Extracted"),
+        "completion racing cancellation must remain truthful"
+    );
+    assert_eq!(workspace.selected_entries, BTreeSet::from([0]));
+}
+
+fn extraction_report(status: ExtractionStatus) -> ExtractionReport {
+    ExtractionReport {
+        destination: "new-output".into(),
+        destination_created: true,
+        status,
+        entries_planned: 1,
+        completed_entries: vec![0],
+        files_written: 1,
+        directories_created: 0,
+        bytes_written: 16,
+        incomplete: None,
+        error: None,
+    }
+}
+
+#[test]
+fn extraction_progress_is_ticket_bound_and_preflight_failure_retains_selection() {
+    let fixture = Fixture::new(b"entry.txt");
+    let ticket = Ticket {
+        generation: 3,
+        request: 1,
+    };
+    let mut workspace = ArchiveWorkspace {
+        document: Some(fixture.document()),
+        selected: Some(0),
+        selected_entries: BTreeSet::from([0]),
+        current: Some(ticket),
+        extraction: ExtractionDialog {
+            open: true,
+            state: ExtractionState::Running {
+                progress: None,
+                cancel_requested: false,
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let progress = ExtractionProgress {
+        phase: ExtractionPhase::Extracting,
+        completed_entries: 0,
+        total_entries: 1,
+        bytes_written: 8,
+        total_bytes: 16,
+        current_entry: Some(0),
+    };
+    workspace.apply_progress(ProgressReply {
+        ticket: Ticket {
+            generation: 2,
+            request: 1,
+        },
+        progress: progress.clone(),
+    });
+    assert!(matches!(
+        workspace.extraction.state,
+        ExtractionState::Running { progress: None, .. }
+    ));
+    workspace.apply_progress(ProgressReply { ticket, progress });
+    assert!(matches!(
+        workspace.extraction.state,
+        ExtractionState::Running {
+            progress: Some(ExtractionProgress {
+                bytes_written: 8,
+                ..
+            }),
+            ..
+        }
+    ));
+    workspace.apply(Reply {
+        ticket,
+        result: Err(ArchiveError::Unsupported(
+            "ambiguous filename; choose an encoding".into(),
+        )),
+    });
+    assert!(matches!(
+        workspace.extraction.state,
+        ExtractionState::Finished(Err(_))
+    ));
+    assert_eq!(workspace.selected_entries, BTreeSet::from([0]));
+    assert!(workspace.document.is_some());
+    assert!(workspace.status.contains("did not create"));
+}
+
+#[test]
+fn worker_keeps_a_cancelled_pending_extraction_until_its_result() {
+    let fixture = Fixture::new(b"entry.txt");
+    let (mut worker, incoming, outgoing) = Worker::test_channels();
+    let readonly = Ticket {
+        generation: 1,
+        request: 1,
+    };
+    let extraction = Ticket {
+        generation: 1,
+        request: 2,
+    };
+    let next = Ticket {
+        generation: 1,
+        request: 3,
+    };
+    let open_request = |ticket| Request {
+        ticket,
+        cancel: CancellationToken::new(),
+        task: Task::Open {
+            path: "unused.zip".into(),
+            policy: FilenamePolicy::default(),
+        },
+    };
+    worker
+        .submit(open_request(readonly))
+        .expect("occupy request slot");
+    let cancel = CancellationToken::new();
+    worker
+        .submit(Request {
+            ticket: extraction,
+            cancel: cancel.clone(),
+            task: Task::Extract {
+                document: fixture.document(),
+                selection: ExtractionSelection::All,
+                folders: BTreeSet::new(),
+                destination: "new-output".into(),
+            },
+        })
+        .expect("pending extraction");
+    assert!(worker.submit(open_request(next)).is_err());
+    assert!(
+        !cancel.is_cancelled(),
+        "rejected request must not cancel extraction"
+    );
+    worker.cancel();
+    assert!(cancel.is_cancelled());
+    assert_eq!(
+        incoming.try_recv().expect("old queued request").ticket,
+        readonly
+    );
+    worker.poll().expect("flush cancelled extraction");
+    let request = incoming
+        .try_recv()
+        .expect("cancelled extraction still reaches worker");
+    assert_eq!(request.ticket, extraction);
+    assert!(request.cancel.is_cancelled());
+    outgoing
+        .send(Reply {
+            ticket: extraction,
+            result: Err(ArchiveError::Cancelled),
+        })
+        .expect("terminal result");
+    assert_eq!(worker.poll().expect("collect terminal result").len(), 1);
+    worker
+        .submit(open_request(next))
+        .expect("next operation allowed after result");
+}
+
+#[cfg(unix)]
+#[test]
+fn default_extraction_path_preserves_native_non_utf8_bytes() {
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+
+    let source = PathBuf::from(std::ffi::OsString::from_vec(
+        b"/tmp/archive-\xff.zip".to_vec(),
+    ));
+    let destination = default_extraction_destination(&source);
+    assert_eq!(
+        destination.as_os_str().as_bytes(),
+        b"/tmp/archive-\xff-extracted"
+    );
+}
+
+#[test]
 fn prepared_views_search_full_names_and_include_implicit_directories() {
     let fixture = Fixture::new(b"outer/inner/Report.txt");
     let document = fixture.document();
@@ -312,6 +566,128 @@ fn prepared_views_search_full_names_and_include_implicit_directories() {
         document.filter("", None, &cancel),
         Err(ArchiveError::Cancelled)
     ));
+}
+
+#[test]
+fn outline_disclosures_search_and_flat_view_preserve_archive_identity() {
+    let fixture = Fixture::new(b"outer/inner/Report.txt");
+    let document = fixture.document();
+    let cancel = CancellationToken::new();
+    let rows = |query: &str, folder: Option<&str>, mode: ViewMode, expanded: &[&str]| {
+        document
+            .view_rows(
+                query,
+                folder,
+                mode,
+                &expanded.iter().map(|path| (*path).to_owned()).collect(),
+                &cancel,
+            )
+            .expect("prepared view")
+    };
+    let collapsed = rows("", None, ViewMode::Outline, &[]);
+    assert_eq!(collapsed.len(), 1);
+    assert_eq!(row_full_path(&document, collapsed[0]), "outer/");
+    let first_level = rows("", None, ViewMode::Outline, &["outer/"]);
+    assert_eq!(first_level.len(), 2);
+    assert_eq!(first_level[1].depth, 1);
+    let expanded = rows("", None, ViewMode::Outline, &["outer/", "outer/inner/"]);
+    assert_eq!(expanded.len(), 3);
+    assert_eq!(row_key(&document, expanded[2]), RowKey::Entry(0));
+    assert_eq!(expanded[2].depth, 2);
+    assert_eq!(
+        rows("REPORT", None, ViewMode::Outline, &[]),
+        expanded,
+        "search reveals the matching hierarchy without losing its entry id"
+    );
+    let flat = rows("", None, ViewMode::Flat, &[]);
+    assert_eq!(flat.len(), 1);
+    assert_eq!(row_key(&document, flat[0]), RowKey::Entry(0));
+    assert_eq!(flat[0].depth, 0);
+    assert_eq!(
+        row_display_name(&document, flat[0], ViewMode::Flat),
+        "outer/inner/Report.txt"
+    );
+    let within = rows("", Some("outer/"), ViewMode::Outline, &[]);
+    assert_eq!(within.len(), 1);
+    assert_eq!(row_full_path(&document, within[0]), "outer/inner/");
+    assert_eq!(within[0].depth, 0);
+}
+
+#[test]
+fn ratio_column_reports_packed_size_instead_of_space_saved() {
+    let fixture = Fixture::new(b"entry.txt");
+    let mut entry = fixture.document().snapshot.entries[0].clone();
+    assert_eq!(
+        compression_ratio(&entry),
+        "100%",
+        "stored entries preserve their full size"
+    );
+    entry.size = 106_398;
+    entry.compressed_size = 106_056;
+    assert_eq!(compression_ratio(&entry), "99%");
+    entry.size = 1_000;
+    entry.compressed_size = 250;
+    assert_eq!(compression_ratio(&entry), "25%");
+    entry.size = 0;
+    assert_eq!(compression_ratio(&entry), "—");
+}
+
+#[test]
+fn modifier_and_range_selection_include_synthetic_folders_without_checkboxes() {
+    let fixture = Fixture::new(b"outer/inner/Report.txt");
+    let document = fixture.document();
+    let expanded = BTreeSet::from(["outer/".into(), "outer/inner/".into()]);
+    let rows = document
+        .view_rows(
+            "",
+            None,
+            ViewMode::Outline,
+            &expanded,
+            &CancellationToken::new(),
+        )
+        .expect("expanded rows");
+    let mut workspace = ArchiveWorkspace {
+        document: Some(document),
+        rows,
+        ..Default::default()
+    };
+    workspace.select_row(0, egui::Modifiers::NONE);
+    assert_eq!(
+        workspace.selected_folders,
+        BTreeSet::from(["outer/".into()])
+    );
+    workspace.select_row(1, egui::Modifiers::COMMAND);
+    assert_eq!(workspace.selection_count(), 2);
+    workspace.select_row(1, egui::Modifiers::COMMAND);
+    assert_eq!(
+        workspace.selected_folders,
+        BTreeSet::from(["outer/".into()])
+    );
+    workspace.select_row(2, egui::Modifiers::SHIFT);
+    assert_eq!(
+        workspace.selected_folders,
+        BTreeSet::from(["outer/inner/".into()])
+    );
+    assert_eq!(workspace.selected_entries, BTreeSet::from([0]));
+    assert_eq!(workspace.selected, Some(0));
+    workspace.select_all_visible();
+    assert_eq!(workspace.selection_count(), 3);
+    let (worker, incoming, _outgoing) = Worker::test_channels();
+    workspace.worker = Some(worker);
+    workspace.open_extraction(ExtractionScope::Selected);
+    workspace.start_extraction(&egui::Context::default());
+    match incoming.try_recv().expect("selected extraction").task {
+        Task::Extract {
+            selection, folders, ..
+        } => {
+            assert_eq!(selection, ExtractionSelection::Entries(vec![0]));
+            assert_eq!(
+                folders,
+                BTreeSet::from(["outer/".into(), "outer/inner/".into()])
+            );
+        }
+        _ => panic!("selected extraction must reach the shared extraction worker"),
+    }
 }
 
 fn frame(workspace: &mut ArchiveWorkspace) -> String {
@@ -355,11 +731,16 @@ fn empty_populated_and_error_workspaces_render_without_a_native_window() {
     assert!(frame(&mut workspace).contains("No archive open"));
     let fixture = Fixture::new(b"folder/entry.txt");
     workspace.document = Some(fixture.document());
-    workspace.rows = vec![0];
+    workspace.rows = vec![ViewRow {
+        entry: Some(0),
+        folder: None,
+        depth: 0,
+    }];
     workspace.selected = Some(0);
     let text = frame(&mut workspace);
     assert!(text.contains("folder/entry.txt"));
-    assert!(text.contains("Entry ID: 0"));
+    assert!(text.contains("Info"));
+    assert!(text.contains("CRC32"));
     assert!(text.contains("Load preview"));
     workspace.error = Some("Fixture archive is truncated".into());
     assert!(frame(&mut workspace).contains("Fixture archive is truncated"));
@@ -367,6 +748,58 @@ fn empty_populated_and_error_workspaces_render_without_a_native_window() {
         workspace.worker.is_none(),
         "rendering existing state does not perform archive I/O"
     );
+}
+
+#[test]
+fn extraction_form_and_retained_output_report_render_without_filesystem_work() {
+    let fixture = Fixture::new(b"entry.txt");
+    let mut workspace = ArchiveWorkspace {
+        document: Some(fixture.document()),
+        selected: Some(0),
+        selected_entries: BTreeSet::from([0]),
+        ..Default::default()
+    };
+    workspace.open_extraction(ExtractionScope::Selected);
+    let text = frame(&mut workspace);
+    assert!(text.contains("Selected (1)"));
+    assert!(text.contains("destination must not exist"));
+    assert!(text.contains("Extract Here"));
+    workspace.extraction.state = ExtractionState::Running {
+        progress: None,
+        cancel_requested: true,
+    };
+    let text = frame(&mut workspace);
+    assert!(text.contains("Cancelling extraction"));
+    assert!(text.contains("Waiting for the worker"));
+    assert!(
+        !text.contains("0 of 0"),
+        "checking with unknown totals must stay indeterminate"
+    );
+    let mut report = extraction_report(ExtractionStatus::Failed);
+    report.error = Some(ArchiveError::InvalidArchive("CRC32 mismatch".into()));
+    report.incomplete = Some(arcforge_core::archive::IncompleteExtractionEntry {
+        entry_id: 0,
+        path: "entry.txt".into(),
+        bytes_written: 8,
+    });
+    workspace.extraction.state = ExtractionState::Finished(Ok(report));
+    let text = frame(&mut workspace);
+    assert!(text.contains("Extraction failed"));
+    assert!(text.contains("new directory is retained"));
+    assert!(text.contains("Incomplete file: entry.txt"));
+    assert!(text.contains("CRC32 mismatch"));
+    workspace.extraction.open = false;
+    assert!(frame(&mut workspace).contains("Details"));
+    assert!(
+        matches!(workspace.extraction.state, ExtractionState::Finished(Ok(_))),
+        "dismissing the result keeps its report available"
+    );
+    workspace.extraction.open = true;
+    workspace.extraction.state = ExtractionState::Interrupted("worker disconnected".into());
+    let text = frame(&mut workspace);
+    assert!(text.contains("final output state is unknown"));
+    assert!(!text.contains("No destination directory was created"));
+    assert!(workspace.worker.is_none());
 }
 
 #[test]

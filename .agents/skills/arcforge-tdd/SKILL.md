@@ -5,7 +5,7 @@ description: "Develop or repair ArcForge behavior through focused regression tes
 
 # Develop behavior with focused tests
 
-Follow `AGENTS.md`. Select an observable contract and describe the production defect that would make its test fail. Keep core tests independent of UI; exercise real CLI processes for exit codes, stdout/stderr, and JSON contracts. Test actual read-only ZIP/ZIP64 metadata, bounded previews, and worker state alongside truthful rejection of planned extraction or editing operations.
+Follow `AGENTS.md`. Select an observable contract and describe the production defect that would make its test fail. Keep core tests independent of UI; exercise real CLI processes for exit codes, stdout/stderr, and JSON contracts. Test actual ZIP/ZIP64 metadata, bounded previews, new-directory extraction, and worker state alongside truthful rejection of planned archive editing. Cover output preservation and partial reports when extraction fails or is cancelled.
 
 1. **Specify one behavior.** Use a descriptive test name and minimal input. Prefer real code and isolated temporary fixtures. Mock only an unavoidable boundary, with its side effects understood. Avoid assertions that merely repeat implementation details.
 2. **Establish the regression.** Run the focused test against the faulty or missing behavior and inspect the failure. A compiler error, missing tool, or broken fixture does not demonstrate the product defect. If implementation already exists, preserve it; compare against a known baseline in an isolated worktree when useful. Never delete working code to satisfy test order. State when a failing baseline was not observed.

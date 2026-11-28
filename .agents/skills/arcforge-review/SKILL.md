@@ -5,7 +5,7 @@ description: "Review a coherent ArcForge code change or PR for correctness, regr
 
 # Review a coherent ArcForge change
 
-Read `AGENTS.md` and the affected requirements. Establish the review boundary with base/head commits or a working-tree diff. Include untracked files when they belong to the proposed change. Evaluate claims against current read-only ZIP/ZIP64 metadata, bounded previews, shared CLI, and desktop worker; extraction, editing, and full reference fidelity remain planned.
+Read `AGENTS.md` and the affected requirements. Establish the review boundary with base/head commits or a working-tree diff. Include untracked files when they belong to the proposed change. Evaluate claims against current ZIP/ZIP64 metadata, bounded previews, new-directory extraction, shared CLI, and desktop worker. Existing-directory merge, archive editing, and full BetterZip 6 fidelity remain planned.
 
 ## Independent pass
 

@@ -55,6 +55,10 @@ Paths above are relative to `.agents/skills/` in ArcForge. The Rust entry is rew
 
 The CP437 high-byte mapping in `crates/core/src/archive/names.rs` is adapted from [zip-rs/zip2](https://github.com/zip-rs/zip2/blob/37a9a8156893c7bce8ac3bf5c3c7cf264f7242ba/src/cp437.rs), commit `37a9a8156893c7bce8ac3bf5c3c7cf264f7242ba` (published zip 9.8.2). The match table becomes a 128-character lookup table with an ASCII branch. Copyright **(c) 2014 Mathijs van de Nes**; **MIT**. The full unchanged [upstream license](licenses/zip-rs-MIT.txt) is retained. See [provider rationale](docs/zip-browser.md#provider-and-source-provenance) for the adapter boundary.
 
+## OpenZip design reference
+
+OpenZip is the secondary interface/implementation reference for details unresolved by BetterZip 6 evidence. The reviewed source is [burakgon/openzip-mac](https://github.com/burakgon/openzip-mac/tree/83f27d3fd2d753779797b60311c2986f8f034e04), commit `83f27d3fd2d753779797b60311c2986f8f034e04`, MIT, **Copyright (c) 2026 Burak Goncu**. The complete [MIT notice](licenses/openzip-MIT.txt) is retained. [Source paths and adaptation boundaries](docs/reference/openzip-reuse.md) distinguish source-informed UX from copied implementation. No OpenZip application code, icon assets, system symbols, helpers, or Swift dependencies are copied by this slice. BetterZip remains a visual/behavior reference, with original ArcForge code and artwork.
+
 ## Assets and dependencies
 
 ArtCraft marks, wordmarks, and the shared raven app icon are excluded from the upstream code licenses and are not included in ArcForge. The source reuse above does not import upstream fonts, icon packs, image assets, or their unrelated third-party dependencies.

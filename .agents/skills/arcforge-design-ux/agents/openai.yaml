@@ -1,0 +1,4 @@
+interface:
+  display_name: "ArcForge Design and UX"
+  short_description: "Build ArcForge with BetterZip 6 fidelity"
+  default_prompt: "Use $arcforge-design-ux to implement and verify an ArcForge interface change against BetterZip 6, using OpenZip for unresolved details."

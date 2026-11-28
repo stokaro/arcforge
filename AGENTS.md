@@ -1,6 +1,6 @@
 # Working on ArcForge
 
-ArcForge currently provides read-only ZIP/ZIP64 browsing and small-entry previews in Rust. Extraction, creation, editing, and saving remain planned; see [current ZIP contracts](docs/zip-browser.md). [Issue #1](https://github.com/stokaro/arcforge/issues/1) defines the planned behavior and acceptance criteria.
+ArcForge currently provides ZIP/ZIP64 browsing, small-entry previews, and bounded extraction into a new directory in Rust. Creation, editing, and saving remain planned; see [current ZIP contracts](docs/zip-browser.md). [Issue #1](https://github.com/stokaro/arcforge/issues/1) defines the planned behavior and acceptance criteria.
 
 ## Boundaries
 
@@ -9,6 +9,7 @@ ArcForge currently provides read-only ZIP/ZIP64 browsing and small-entry preview
 - Keep portable build orchestration in `xtask`. Register workspace crates/dependencies in its boundary checker; correct an accidental dependency direction instead of disabling the check.
 - Keep capabilities truthful: planned, unsupported, and implemented operations are distinct. Preserve the source archive on failed/cancelled updates. Keep blocking I/O and archive processing off the UI thread.
 - Use the pinned toolchain and `Cargo.lock`. Document native prerequisites. Record source adaptations with pinned paths, revisions, modifications, and full license notices in the relevant reuse inventory linked from `THIRD_PARTY_NOTICES.md`.
+- Require **BetterZip 6 look and feel** for the desktop interface. Use OpenZip only to resolve details that BetterZip evidence leaves unclear; retain attribution and full notices for any MIT-covered source/asset adaptation. The [reference inventory](docs/reference/betterzip-6.md) records evidence, decisions, and remaining differences.
 
 ## Load only the relevant skills
 
@@ -19,6 +20,7 @@ Read the matching canonical `SKILL.md` when its task arises. Do not preload the 
 | Diagnose a concrete failure or regression | [arcforge-debug](.agents/skills/arcforge-debug/SKILL.md) |
 | Diagnose GitHub Actions checks or a failed native CI leg | [arcforge-ci](.agents/skills/arcforge-ci/SKILL.md) |
 | Implement or review Rust ownership, APIs, errors, or performance | [arcforge-rust](.agents/skills/arcforge-rust/SKILL.md) |
+| Design, implement, or review interface appearance, interaction, or UX code | [arcforge-design-ux](.agents/skills/arcforge-design-ux/SKILL.md) |
 | Change observable behavior or a preservation guarantee | [arcforge-tdd](.agents/skills/arcforge-tdd/SKILL.md) |
 | Implement/review archive providers, extraction, mutation, helpers, or placement | [arcforge-archive-safety](.agents/skills/arcforge-archive-safety/SKILL.md) |
 | Assess a coherent code change or requested review | [arcforge-review](.agents/skills/arcforge-review/SKILL.md) |
@@ -42,6 +44,8 @@ Keep requirements proportional to the change. A contract for a future provider d
 Use targeted tests during iteration. Add meaningful regression coverage for changed archive behavior, command contracts, and data-preservation guarantees with isolated temporary fixtures. Before a code PR, run `cargo xtask check` for the final relevant code state. For documentation/skill-text changes, validate content, links, `cargo xtask skills`, and `cargo xtask notices` when license inputs change. See [development commands](docs/development.md).
 
 Record the verified snapshot, exact commands, results, and platform. Reuse evidence while its relevant inputs remain unchanged; rerun affected checks after a change invalidates it. Report failed/skipped gates honestly. Compilation and startup flags do not prove native desktop behavior.
+
+For visible interface changes, commit actual application screenshots under `screenshots/<topic>/`, following the [screenshot evidence conventions](screenshots/README.md). Include reproducible scenes, fixture, source snapshot, and OS/window/scale/theme details. Review the images against BetterZip 6 and record unresolved parity; screenshots supplement behavioral checks.
 
 For a substantial code change, request one independent review when available; otherwise identify the self-review. Follow up on concrete findings rather than repeating broad reviews indefinitely. PRs explain the problem, resulting behavior, verification, and limitations; include a compact Mermaid diagram when a flow changes. Update epic checkboxes only for completed work.
 
