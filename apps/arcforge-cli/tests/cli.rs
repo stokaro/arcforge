@@ -21,16 +21,18 @@ fn version_does_not_require_a_display() {
 }
 
 #[test]
-fn doctor_reports_unavailable_archive_operations_in_json() {
+fn doctor_reports_read_only_zip_capabilities_in_json() {
     let output = cli(&["doctor", "--json"]);
     assert!(output.status.success());
     let report: serde_json::Value = serde_json::from_slice(&output.stdout).expect("valid JSON");
     assert_eq!(report["kind"], "doctor");
-    assert_eq!(report["data"]["ready_for_archive_operations"], false);
-    assert_eq!(report["data"]["archive_provider_count"], 0);
+    assert_eq!(report["data"]["providers"][0]["write"], false);
+    assert_eq!(report["data"]["providers"][0]["encrypted_content"], false);
+    assert_eq!(report["data"]["ready_for_archive_operations"], true);
+    assert_eq!(report["data"]["archive_provider_count"], 1);
     assert_eq!(
         report["data"]["supported_archive_formats"],
-        serde_json::json!([])
+        serde_json::json!(["zip", "zip64"])
     );
 }
 

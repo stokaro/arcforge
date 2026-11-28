@@ -8,11 +8,11 @@ publish = false
 
 [dependencies]
 serde_json.workspace = true
-flate2 = "1"
+flate2.workspace = true
 tar = "0.4"
-# Build-time bundle writer only; Stored entries need no optional codecs.
-zip = { version = "9.8.2", default-features = false }
-sha2 = "0.10"
+# Bundle writer uses Stored; the core enables the shared Deflate backend.
+zip.workspace = true
+sha2.workspace = true
 
 [lints]
 workspace = true
