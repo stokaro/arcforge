@@ -1,0 +1,121 @@
+{
+  "target": "aarch64-apple-darwin",
+  "source_commit": "d44ba0cb1b652a0484af89b8009fa7e0cdf24eb7",
+  "source_dirty": false,
+  "github_actions_run": 46153692964,
+  "capture_run_sha256": "093589c90d7f336fc4237b86cf32a0f0c171018690dcb28f04a36a172023077e",
+  "scene_metadata_sha256": "93e29e16b43565e2d0cb6e29f934b5a435cd85101616ede1f81c6a860c574028",
+  "runtime": {
+    "architecture": "aarch64",
+    "environment": {
+      "ARCFORGE_CAPTURE_DISPLAY": "GitHub-hosted macOS 26 native desktop session",
+      "GITHUB_ACTIONS": "true",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_RUN_ID": "46153692964",
+      "GITHUB_SHA": "d44ba0cb1b652a0484af89b8009fa7e0cdf24eb7",
+      "ImageOS": "macos26",
+      "ImageVersion": "20261123.0526.1",
+      "RUNNER_ARCH": "ARM64",
+      "RUNNER_OS": "macOS"
+    },
+    "os": "macos",
+    "os_version": "ProductName:\t\tmacOS\nProductVersion:\t\t26.7.2\nBuildVersion:\t\t25G332",
+    "renderer": "production Glow backend; no offscreen or alternate renderer",
+    "window": "actual native eframe window with shared platform::native_options"
+  },
+  "build": {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--target",
+      "aarch64-apple-darwin",
+      "-p",
+      "arcforge",
+      "--features",
+      "native-capture"
+    ],
+    "feature": "native-capture",
+    "profile": "debug",
+    "release_bundle": false
+  },
+  "binary_sha256": "a4403d4159b4e72bf6d4468a9eaa12aacc95886d2c95a5885d0ca16f57976a42",
+  "fixture": {
+    "file": "workspace-demo.zip",
+    "generator": "scripts/generate_ui_fixture.py --images",
+    "generator_sha256": "f08427b3389702f953b7bbf84c14dc37dfe1a82b982864f3897ac7290a157aec",
+    "original_content": true,
+    "sha256": "eef9fd6de48a3e465ab99dae9cdb5df13353e25056fe9365584d9e722d0da70e",
+    "unchanged_after_capture": true
+  },
+  "scene": {
+    "file": "01-context-menu.png",
+    "source_scene": "11-entry-context-menu",
+    "capture_kind": "macOS native window including AppKit chrome",
+    "sha256": "3c322f868f59079f9afb700b4f7f4964a93c29ddffa3a03cfbc65713d2dc9db2",
+    "pixel_dimensions": [
+      1280,
+      884
+    ],
+    "scale": 1.0,
+    "theme": "light",
+    "process_id": 3980,
+    "viewport": {
+      "focused": true,
+      "inner_rect_points": [
+        160.0,
+        148.0,
+        1280.0,
+        832.0
+      ],
+      "minimized": false,
+      "native_pixels_per_point": 1.0,
+      "occluded": false,
+      "outer_rect_points": [
+        160.0,
+        96.0,
+        1280.0,
+        884.0
+      ]
+    },
+    "fonts": {
+      "regular": {
+        "embedded": false,
+        "face_index": 0,
+        "font_name": "System Font",
+        "source_path": "/System/Library/Fonts/SFNS.ttf",
+        "variation_coordinates": [
+          [
+            "wght",
+            400.0
+          ],
+          [
+            "opsz",
+            17.0
+          ]
+        ],
+        "weight": 400.0
+      },
+      "semibold": {
+        "embedded": false,
+        "face_index": 0,
+        "font_name": "System Font",
+        "source_path": "/System/Library/Fonts/SFNS.ttf",
+        "variation_coordinates": [
+          [
+            "wght",
+            600.0
+          ],
+          [
+            "opsz",
+            17.0
+          ]
+        ],
+        "weight": 600.0
+      }
+    },
+    "selected_entry": "Documents/Guide.txt",
+    "entry_context_menu_open": true,
+    "rendered_frames_after_ready": 2
+  }
+}

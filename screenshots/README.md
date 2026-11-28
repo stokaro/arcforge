@@ -7,6 +7,7 @@ Real ArcForge application captures are grouped by feature. This organization fol
 | [BetterZip native workspace](betterzip-native-workspace/README.md) | Actual macOS 26 window/Open panel and Windows/Linux client scenes; source hashes and remaining fidelity differences |
 | [Staged ZIP deletion and Save As](zip-editing/README.md) | Native macOS 26 window and Save As sheet, plus Windows and Linux staging, discard, collision and success scenes |
 | [Open an archive file](zip-file-open/README.md) | ArcForge after handing a verified temporary copy to the default application on macOS 26, Windows and Linux |
+| [Archive context menu](archive-context-menu/README.md) | Right-click menu on a file row in the macOS 26, Windows and Linux application |
 | [ZIP extraction](zip-extraction/README.md) | Earlier Linux workspace and extraction states; known visual differences from BetterZip 6 |
 
 ## Add or update a scene
