@@ -123,6 +123,35 @@ fn independent_python_zip_lists_inspects_and_previews_without_changing_source() 
 }
 
 #[test]
+fn delete_writes_a_new_archive_without_changing_the_original() {
+    let fixture = Fixture::new();
+    let source = fixture.path();
+    let original = fs::read(&source).unwrap();
+    let output = fixture.0.join("edited.zip");
+    let args = [
+        "--json",
+        "--entry",
+        "0",
+        "--output",
+        output.to_str().unwrap(),
+    ];
+    let deleted = success(cli("delete", &source, &args));
+    assert_eq!(deleted["kind"], "delete");
+    assert_eq!(deleted["data"]["entries_removed"], 1);
+    let listed = success(cli("list", &output, &["--json"]));
+    let entries = listed["data"]["entries"].as_array().unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["name"]["display"], "folder/Привет.txt");
+    let preview = success(cli("preview", &output, &["--entry", "0", "--json"]));
+    assert_eq!(preview["data"]["preview"]["text"], "Привет из ZIP.\n");
+    let saved = fs::read(&output).unwrap();
+    let failed = archive_failure(cli("delete", &source, &args));
+    assert_eq!(failed["data"]["error"]["kind"], "destination_exists");
+    assert_eq!(fs::read(&source).unwrap(), original);
+    assert_eq!(fs::read(&output).unwrap(), saved);
+}
+
+#[test]
 fn per_entry_choices_bind_metadata_across_processes_and_reject_stale_revisions() {
     let fixture = Fixture::new();
     let listing = success(cli("list", &fixture.path(), &["--json"]));

@@ -1,5 +1,6 @@
 //! Byte-level fixtures intentionally do not use the ZIP dependency's writer.
 
+use std::collections::BTreeSet;
 use std::fs::{self, File, FileTimes, OpenOptions};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -1585,4 +1586,175 @@ fn streaming_session_honors_cancel_and_timeout_before_reads() {
         begin_stream(&snapshot, &limits, &CancellationToken::new()),
         Err(ArchiveError::LimitExceeded(_))
     ));
+}
+
+#[test]
+fn rewrite_preserves_retained_raw_headers_payloads_and_comments_and_remaps_entry_ids() {
+    let mut kept = EntryFixture::deflated(b"\x82.txt", b"first duplicate");
+    kept.descriptor = Some(true);
+    kept.extra = vec![0x55, 0x54, 5, 0, 1, 1, 0, 0, 0];
+    kept.comment = b"entry \xff".to_vec();
+    let mut last = EntryFixture::stored(b"last.txt", b"last");
+    last.descriptor = Some(false);
+    let fixture = zip_fixture(
+        &[
+            EntryFixture::stored(b"\x82.txt", b"remove duplicate"),
+            kept,
+            last,
+        ],
+        b"archive \xff",
+    );
+    let file = TempArchive::new(&fixture.bytes);
+    let mut policy = FilenamePolicy::default();
+    policy.entries.insert(
+        1,
+        FilenameChoice {
+            encoding: Some(FilenameEncoding::Cp866),
+            recovery: false,
+        },
+    );
+    let cancel = CancellationToken::new();
+    let source = open_archive(&file.path, &policy, &ArchiveLimits::default(), &cancel).unwrap();
+    let output = file.directory.join("edited.zip");
+    let saved = save_zip_without_entries(
+        &source,
+        &BTreeSet::from([0]),
+        &output,
+        &StreamLimits::default(),
+        &cancel,
+    )
+    .unwrap();
+    let before = &source.entries[1];
+    let after = &saved.snapshot.entries[0];
+    assert_eq!(before.raw_name_hex, after.raw_name_hex);
+    assert_eq!(before.raw_extra_hex, after.raw_extra_hex);
+    assert_eq!(before.raw_comment_hex, after.raw_comment_hex);
+    assert_eq!(before.flags, after.flags);
+    assert_eq!(before.name.display, after.name.display);
+    assert_eq!(
+        saved.snapshot.policy.entries.get(&0),
+        policy.entries.get(&1)
+    );
+    assert_eq!(saved.snapshot.comment_hex, source.comment_hex);
+    assert_eq!(saved.snapshot.path(), output);
+    assert_eq!(saved.report.entries_retained, 2);
+    assert_eq!(preview(&saved.snapshot, 0).bytes, b"first duplicate");
+    assert_eq!(preview(&saved.snapshot, 1).bytes, b"last");
+    let bytes = fs::read(output).unwrap();
+    let locals = &fixture.bytes[before.local_header_offset as usize..fixture.central_offset];
+    assert_eq!(&bytes[..locals.len()], locals);
+    assert_eq!(fs::read(&file.path).unwrap(), fixture.bytes);
+    assert_eq!(fs::read_dir(&file.directory).unwrap().count(), 2);
+}
+
+#[test]
+fn rewrite_can_remove_every_record_but_refuses_zip64_and_corrupt_retained_data() {
+    let fixture = zip_fixture(
+        &[
+            EntryFixture::stored(b"damaged", b"data"),
+            EntryFixture::stored(b"other", b"data"),
+        ],
+        b"archive comment",
+    );
+    let mut corrupt = fixture.bytes.clone();
+    corrupt[fixture.data_offsets[0]] ^= 1;
+    let file = TempArchive::new(&corrupt);
+    let snapshot = file.open();
+    let destination = file.directory.join("copy.zip");
+    let limits = StreamLimits::default();
+    let cancel = CancellationToken::new();
+    assert!(
+        save_zip_without_entries(
+            &snapshot,
+            &BTreeSet::from([1]),
+            &destination,
+            &limits,
+            &cancel
+        )
+        .is_err()
+    );
+    assert!(!destination.exists());
+    assert_eq!(fs::read_dir(&file.directory).unwrap().count(), 1);
+    let saved = save_zip_without_entries(
+        &snapshot,
+        &BTreeSet::from([0, 1]),
+        &destination,
+        &limits,
+        &cancel,
+    )
+    .unwrap();
+    assert!(saved.snapshot.entries.is_empty());
+    assert_eq!(saved.snapshot.comment_hex, snapshot.comment_hex);
+    assert_eq!(fs::read(&file.path).unwrap(), corrupt);
+    assert_eq!(fs::read_dir(&file.directory).unwrap().count(), 2);
+    let zip64 = TempArchive::new(&zip64_fixture().bytes);
+    let snapshot = zip64.open();
+    assert!(!supports_zip_removal(&snapshot));
+    assert!(matches!(
+        save_zip_without_entries(
+            &snapshot,
+            &BTreeSet::from([0]),
+            &zip64.directory.join("copy.zip"),
+            &limits,
+            &cancel
+        ),
+        Err(ArchiveError::Unsupported(_))
+    ));
+}
+
+#[test]
+fn cancellation_and_a_concurrent_name_claim_cannot_publish_or_overwrite_the_copy() {
+    let original = zip_fixture(&[EntryFixture::stored(b"source", b"data")], b"");
+    let file = TempArchive::new(&original.bytes);
+    let source = file.open();
+    let path = file.directory.join("copy.zip");
+    let ids = BTreeSet::from([0]);
+    let limits = StreamLimits::default();
+    let cancel = CancellationToken::new();
+    let result = provider::save_with_publish_hook(&source, &ids, &path, &limits, &cancel, || {
+        cancel.cancel()
+    });
+    assert_eq!(result.unwrap_err(), ArchiveError::Cancelled);
+    assert!(!path.exists());
+    assert_eq!(fs::read_dir(&file.directory).unwrap().count(), 1);
+    let result = provider::save_with_publish_hook(
+        &source,
+        &ids,
+        &path,
+        &limits,
+        &CancellationToken::new(),
+        || fs::write(&path, b"concurrent").unwrap(),
+    );
+    assert!(matches!(result, Err(ArchiveError::DestinationExists(_))));
+    assert_eq!(fs::read(&path).unwrap(), b"concurrent");
+    assert_eq!(fs::read(&file.path).unwrap(), original.bytes);
+    assert_eq!(fs::read_dir(&file.directory).unwrap().count(), 2);
+}
+
+#[test]
+fn rewrite_rechecks_source_metadata_before_publishing_the_verified_copy() {
+    let fixture = zip_fixture(&[EntryFixture::stored(b"entry", b"data")], b"o");
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    let modified = fs::metadata(&file.path).unwrap().modified().unwrap();
+    let destination = file.directory.join("copy.zip");
+    let result = provider::save_with_publish_hook(
+        &snapshot,
+        &BTreeSet::from([0]),
+        &destination,
+        &StreamLimits::default(),
+        &CancellationToken::new(),
+        || {
+            let mut writer = OpenOptions::new().write(true).open(&file.path).unwrap();
+            writer.seek(SeekFrom::End(-1)).unwrap();
+            writer.write_all(b"n").unwrap();
+            writer
+                .set_times(FileTimes::new().set_modified(modified))
+                .unwrap();
+        },
+    );
+    assert_eq!(result.unwrap_err(), ArchiveError::SourceChanged);
+    assert!(!destination.exists());
+    assert_eq!(fs::read_dir(&file.directory).unwrap().count(), 1);
+    assert_eq!(fs::read(&file.path).unwrap().last(), Some(&b'n'));
 }

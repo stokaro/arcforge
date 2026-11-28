@@ -631,3 +631,4 @@ fn unicode_destination_and_empty_archive_work_without_lossy_path_reopening() {
     assert!(destination.is_dir());
     assert_eq!(report.bytes_written, 0);
 }
+use std::path::PathBuf;

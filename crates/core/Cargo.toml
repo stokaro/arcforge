@@ -17,6 +17,7 @@ same-file.workspace = true
 encoding_rs.workspace = true
 cap-std.workspace = true
 cap-fs-ext.workspace = true
+getrandom.workspace = true
 caseless.workspace = true
 unicode-normalization.workspace = true
 

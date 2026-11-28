@@ -1,5 +1,6 @@
-//! Desktop presentation over shared archive browsing and extraction commands.
+//! Desktop presentation over shared archive operations.
 
+mod edits;
 mod filesystem;
 mod jobs;
 mod preview_image;
@@ -25,6 +26,7 @@ use arcforge_core::archive::{
     FilenameChoice, FilenameEncoding, FilenamePolicy, NameProvenance, NameState, escape_display,
 };
 use arcforge_core::{Availability, COMMANDS, VERSION};
+use edits::{DiscardAction, EditAction};
 use filesystem::FilesystemBrowser;
 use jobs::{
     Completed, PreparedDocument, PreparedPreview, ProgressReply, Reply, Request, Task, Ticket,
@@ -58,6 +60,11 @@ pub enum WorkspaceCommand {
     OpenByPath,
     OpenSettings,
     CloseArchive,
+    CloseWindow,
+    DeleteSelected,
+    Undo,
+    Redo,
+    SaveAs,
     ExtractAll,
     ExtractSelected,
     TestArchive,
@@ -81,6 +88,11 @@ pub enum WorkspaceCommand {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ToolbarState {
     pub title: String,
+    pub dirty: bool,
+    pub can_delete: bool,
+    pub can_undo: bool,
+    pub can_redo: bool,
+    pub can_save_as: bool,
     pub can_open: bool,
     pub can_close: bool,
     pub can_extract_all: bool,
@@ -115,6 +127,7 @@ enum ExtractionScope {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum NativePickerPurpose {
     OpenArchive,
+    SaveAs,
     ExtractionParent {
         scope: ExtractionScope,
         keep_name: bool,
@@ -193,6 +206,9 @@ pub struct ArchiveWorkspace {
     native_toolbar_attached: bool,
     style_initialized: bool,
     extraction: ExtractionDialog,
+    saving: Option<bool>,
+    edit_pending: bool,
+    discard: Option<DiscardAction>,
     preview: Option<PreparedPreview>,
     preview_texture: Option<egui::TextureHandle>,
     preview_show_image: bool,
@@ -258,6 +274,9 @@ impl ArchiveWorkspace {
             native_toolbar_attached: false,
             style_initialized: false,
             extraction: ExtractionDialog::default(),
+            saving: None,
+            edit_pending: false,
+            discard: None,
             preview: None,
             preview_texture: None,
             preview_show_image: false,
@@ -284,26 +303,37 @@ impl ArchiveWorkspace {
     }
 
     pub fn toolbar_state(&self) -> ToolbarState {
-        let idle = !self.extraction_active() && !self.native_picker_pending();
+        let idle = self.workspace_idle();
         let has_archive = self.document.is_some();
         let ready = has_archive && !self.blocks_selection && !self.source_changed && idle;
+        let can_history = has_archive && idle && !self.blocks_selection;
+        let editable = self.document.as_ref().is_some_and(|doc| doc.editable);
+        let dirty = self.has_staged_edits();
         ToolbarState {
             title: self.document.as_ref().map_or_else(
                 || "Untitled".into(),
-                |document| {
-                    bounded_display(
-                        &document
-                            .snapshot
-                            .path()
-                            .file_name()
-                            .unwrap_or(OsStr::new("Archive"))
-                            .to_string_lossy(),
-                    )
-                },
+                |document| archive_label(document.snapshot.path()),
             ),
+            dirty,
+            can_delete: ready && editable && self.selection_count() > 0,
+            can_undo: can_history
+                && self
+                    .document
+                    .as_ref()
+                    .is_some_and(|doc| doc.edits.can_undo()),
+            can_redo: can_history
+                && self
+                    .document
+                    .as_ref()
+                    .is_some_and(|doc| doc.edits.can_redo()),
+            can_save_as: ready && dirty && editable,
             can_open: idle,
             can_close: has_archive && idle,
-            can_extract_all: ready,
+            can_extract_all: ready
+                && self
+                    .document
+                    .as_ref()
+                    .is_some_and(|doc| doc.totals.entries != 0 || !dirty),
             can_extract_selected: ready && self.selection_count() > 0,
             can_test: false,
             can_preview: ready
@@ -314,6 +344,7 @@ impl ArchiveWorkspace {
             can_select_all: has_archive && !self.blocks_selection && idle,
             can_cancel: self.current.is_some()
                 && !self.native_picker_pending()
+                && self.saving != Some(true)
                 && !matches!(
                     self.extraction.state,
                     ExtractionState::Running {
@@ -453,6 +484,33 @@ impl ArchiveWorkspace {
                 self.show_settings = true
             }
             WorkspaceCommand::CloseArchive if !self.native_picker_pending() => self.close(),
+            WorkspaceCommand::CloseWindow => {
+                if !self.hold_window_close() {
+                    context.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+            }
+            WorkspaceCommand::DeleteSelected => self.delete_selection(context),
+            WorkspaceCommand::Undo | WorkspaceCommand::Redo if context.text_edit_focused() => {
+                context.input_mut(|input| {
+                    input.events.push(egui::Event::Key {
+                        key: egui::Key::Z,
+                        physical_key: None,
+                        pressed: true,
+                        repeat: false,
+                        modifiers: egui::Modifiers {
+                            shift: command == WorkspaceCommand::Redo,
+                            ..egui::Modifiers::COMMAND
+                        },
+                    });
+                });
+            }
+            WorkspaceCommand::Undo if self.toolbar_state().can_undo => {
+                self.edit(EditAction::Undo, context)
+            }
+            WorkspaceCommand::Redo if self.toolbar_state().can_redo => {
+                self.edit(EditAction::Redo, context)
+            }
+            WorkspaceCommand::SaveAs => self.request_save_as(),
             WorkspaceCommand::ExtractAll => self.open_extraction(ExtractionScope::All),
             WorkspaceCommand::ExtractSelected => self.open_extraction(ExtractionScope::Selected),
             WorkspaceCommand::TestArchive => {
@@ -482,10 +540,7 @@ impl ArchiveWorkspace {
                     .memory_mut(|memory| memory.request_focus(egui::Id::unique("archive_search")));
             }
             WorkspaceCommand::SearchQuery(query)
-                if !self.extraction_active()
-                    && !self.native_picker_pending()
-                    && !self.source_changed
-                    && query != self.query =>
+                if self.toolbar_state().can_search && query != self.query =>
             {
                 self.query = query;
                 self.filter(context);
@@ -519,7 +574,7 @@ impl ArchiveWorkspace {
     /// Queue the same native Open action used by menus, toolbar and shortcuts.
     /// The desktop host starts the dialog with its real parent window after `show`.
     pub fn request_open_archive(&mut self) {
-        if self.extraction_active() || self.native_picker_pending() {
+        if !self.workspace_idle() {
             return;
         }
         self.show_open_path = false;
@@ -536,7 +591,7 @@ impl ArchiveWorkspace {
         if self.native_picker.is_none()
             && let Some(purpose) = self.native_picker_request.take()
         {
-            if self.extraction_active() {
+            if self.file_job_active() || self.edit_pending || self.discard.is_some() {
                 return;
             }
             if let Err(error) = parent
@@ -552,6 +607,7 @@ impl ArchiveWorkspace {
                     .set_parent(parent)
                     .set_title(match purpose {
                         NativePickerPurpose::OpenArchive => "Open archive",
+                        NativePickerPurpose::SaveAs => "Save ZIP As",
                         NativePickerPurpose::ExtractionParent { .. } => {
                             "Choose a folder for extraction"
                         }
@@ -576,6 +632,22 @@ impl ArchiveWorkspace {
             let future: Pin<Box<dyn Future<Output = Option<rfd::FileHandle>> + Send>> =
                 match purpose {
                     NativePickerPurpose::OpenArchive => Box::pin(dialog.pick_file()),
+                    NativePickerPurpose::SaveAs => {
+                        let Some(document) = &self.document else {
+                            return;
+                        };
+                        let stem = document
+                            .snapshot
+                            .path()
+                            .file_stem()
+                            .unwrap_or(OsStr::new("Archive"));
+                        Box::pin(
+                            dialog
+                                .add_filter("ZIP archive", &["zip"])
+                                .set_file_name(format!("{} edited.zip", stem.to_string_lossy()))
+                                .save_file(),
+                        )
+                    }
                     NativePickerPurpose::ExtractionParent { .. } => Box::pin(dialog.pick_folder()),
                 };
             self.native_picker = Some(PendingNativePicker {
@@ -606,11 +678,12 @@ impl ArchiveWorkspace {
             // Cancellation (and backend failures exposed by rfd as None) leaves
             // the existing document, selection, preview and worker untouched.
             if generation == self.generation
-                && !self.extraction_active()
+                && !self.file_job_active()
                 && let Some(path) = path
             {
                 match purpose {
                     NativePickerPurpose::OpenArchive => self.open(path, context),
+                    NativePickerPurpose::SaveAs => self.start_save_as(path, context),
                     NativePickerPurpose::ExtractionParent { scope, keep_name } => {
                         self.review_extraction_parent(scope, path, keep_name);
                     }
@@ -635,13 +708,11 @@ impl ArchiveWorkspace {
         } else if !dropped.is_empty() {
             self.error = Some("Drop one archive at a time.".into());
         }
-        if self.extraction_active() && ui.input(|input| input.viewport().close_requested()) {
+        if ui.input(|input| input.viewport().close_requested()) && self.hold_window_close() {
             ui.ctx()
                 .send_viewport_cmd(egui::ViewportCommand::CancelClose);
-            self.cancel();
-            self.extraction.open = true;
         }
-        if !self.extraction_active()
+        if self.workspace_idle()
             && ui.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::O))
         {
             self.request_open_archive();
@@ -650,20 +721,25 @@ impl ArchiveWorkspace {
             self.show_sidebar = !self.show_sidebar;
         }
         if !self.native_toolbar_attached
-            && !self.extraction_active()
+            && self.workspace_idle()
             && ui.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::F))
         {
             self.show_search = true;
             ui.memory_mut(|memory| memory.request_focus(egui::Id::unique("archive_search")));
         }
-        if !self.extraction_active()
+        if self.workspace_idle()
             && !ui.ctx().text_edit_focused()
             && !self.show_open_path
-            && !self.native_picker_pending()
             && !self.extraction.open
         {
             if ui.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::A)) {
                 self.select_all_visible();
+            }
+            if ui.input_mut(|input| {
+                input.consume_key(egui::Modifiers::NONE, egui::Key::Backspace)
+                    || input.consume_key(egui::Modifiers::NONE, egui::Key::Delete)
+            }) {
+                self.delete_selection(ui.ctx());
             }
             for (key, mode) in [
                 (egui::Key::Num1, ViewMode::Flat),
@@ -674,10 +750,36 @@ impl ArchiveWorkspace {
                 }
             }
         }
-        if !self.native_picker_pending()
+        if self.workspace_idle() && !self.native_toolbar_attached {
+            let command_shift = egui::Modifiers::COMMAND | egui::Modifiers::SHIFT;
+            if ui.input_mut(|input| input.consume_key(command_shift, egui::Key::S)) {
+                self.request_save_as();
+            }
+            if !ui.ctx().text_edit_focused() && !self.show_open_path && !self.extraction.open {
+                for (modifiers, key, action) in [
+                    (command_shift, egui::Key::Z, WorkspaceCommand::Redo),
+                    (
+                        egui::Modifiers::COMMAND,
+                        egui::Key::Y,
+                        WorkspaceCommand::Redo,
+                    ),
+                    (
+                        egui::Modifiers::COMMAND,
+                        egui::Key::Z,
+                        WorkspaceCommand::Undo,
+                    ),
+                ] {
+                    if ui.input_mut(|input| input.consume_key(modifiers, key)) {
+                        self.dispatch_command(action, ui.ctx());
+                    }
+                }
+            }
+        }
+        if self.discard.is_none()
+            && !self.native_picker_pending()
             && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
         {
-            if self.extraction_active() {
+            if self.file_job_active() {
                 self.cancel();
             } else if self.extraction.open {
                 self.extraction.open = false;
@@ -703,6 +805,7 @@ impl ArchiveWorkspace {
         self.extraction_window(ui.ctx());
         self.settings_window(ui.ctx());
         self.commands_window(ui.ctx());
+        self.discard_window(ui.ctx());
     }
 
     fn poll(&mut self) {
@@ -719,6 +822,10 @@ impl ArchiveWorkspace {
                         "Extraction worker stopped; inspect the destination for retained output."
                             .into();
                 }
+                if self.saving.take().is_some() {
+                    self.status = "Save worker stopped. Check the requested filename; your changes are still staged.".into();
+                }
+                self.edit_pending = false;
                 self.current = None;
                 self.blocks_selection = false;
                 self.error = Some(error.to_string());
@@ -741,6 +848,8 @@ impl ArchiveWorkspace {
             return;
         }
         let extracting = self.extraction_active();
+        let saving = self.saving.take().is_some();
+        self.edit_pending = false;
         self.current = None;
         self.blocks_selection = false;
         match reply.result {
@@ -749,39 +858,13 @@ impl ArchiveWorkspace {
                 rows,
                 query,
                 mode,
-            }) => {
-                self.policy = document.snapshot.policy.clone();
-                if self.selected.is_some_and(|id| document.entry(id).is_none()) {
-                    self.selected = None;
-                }
-                self.selected_entries
-                    .retain(|id| document.entry(*id).is_some());
-                self.selected_folders.clear();
-                self.selected_folder = None;
-                let path = document.snapshot.path().to_path_buf();
-                self.recent_archives.retain(|recent| recent != &path);
-                self.recent_archives.insert(0, path);
-                self.recent_archives.truncate(12);
-                self.status = view_status(
-                    rows.len(),
-                    document.snapshot.entries.len(),
-                    !query.is_empty(),
-                );
-                self.document = Some(document);
-                self.rows = rows;
-                self.applied_query = query.clone();
-                self.query = query;
-                self.applied_folder = None;
-                self.folder = None;
-                self.view_mode = mode;
-                self.applied_view_mode = mode;
-                self.expanded_folders.clear();
-                self.applied_expanded_folders.clear();
-                self.navigation = vec![None];
-                self.navigation_index = 0;
-                self.error = None;
-                self.source_changed = false;
-            }
+            }) => self.install_document(document, rows, query, mode),
+            Ok(Completed::Edited {
+                document,
+                rows,
+                folder,
+            }) => self.apply_edit(document, rows, folder),
+            Ok(Completed::Saved { report, view }) => self.apply_save(report, view),
             Ok(Completed::Filter {
                 rows,
                 query,
@@ -793,7 +876,7 @@ impl ArchiveWorkspace {
                     rows.len(),
                     self.document
                         .as_ref()
-                        .map_or(0, |document| document.snapshot.entries.len()),
+                        .map_or(0, |document| document.totals.entries as usize),
                     !query.is_empty(),
                 );
                 self.rows = rows;
@@ -843,6 +926,26 @@ impl ArchiveWorkspace {
                 self.extraction.state = ExtractionState::Finished(Err(error));
                 self.error = None;
             }
+            Err(error) if saving => {
+                if error == ArchiveError::SourceChanged {
+                    self.source_changed = true;
+                }
+                let cancelled = error == ArchiveError::Cancelled;
+                self.status = if cancelled {
+                    "Save cancelled. Your changes are still staged."
+                } else {
+                    "ZIP copy was not saved. Your changes are still staged."
+                }
+                .into();
+                self.error = match error {
+                    ArchiveError::Cancelled => None,
+                    ArchiveError::DestinationExists(_) => Some(
+                        "A file already exists at the selected destination. Choose a new filename."
+                            .into(),
+                    ),
+                    error => Some(error.to_string()),
+                };
+            }
             Err(error) => {
                 if matches!(error, ArchiveError::SourceChanged) {
                     self.source_changed = true;
@@ -857,8 +960,48 @@ impl ArchiveWorkspace {
         }
     }
 
+    fn install_document(
+        &mut self,
+        document: Arc<PreparedDocument>,
+        rows: Vec<ViewRow>,
+        query: String,
+        mode: ViewMode,
+    ) {
+        self.policy = document.snapshot.policy.clone();
+        if self.selected.is_some_and(|id| document.entry(id).is_none()) {
+            self.selected = None;
+        }
+        self.selected_entries
+            .retain(|id| document.entry(*id).is_some());
+        self.selected_folders.clear();
+        self.selected_folder = None;
+        let path = document.snapshot.path().to_path_buf();
+        self.recent_archives.retain(|recent| recent != &path);
+        self.recent_archives.insert(0, path);
+        self.recent_archives.truncate(12);
+        self.status = view_status(
+            rows.len(),
+            document.totals.entries as usize,
+            !query.is_empty(),
+        );
+        self.document = Some(document);
+        self.rows = rows;
+        self.applied_query = query.clone();
+        self.query = query;
+        self.applied_folder = None;
+        self.folder = None;
+        self.view_mode = mode;
+        self.applied_view_mode = mode;
+        self.expanded_folders.clear();
+        self.applied_expanded_folders.clear();
+        self.navigation = vec![None];
+        self.navigation_index = 0;
+        self.error = None;
+        self.source_changed = false;
+    }
+
     fn next_generation(&mut self) -> bool {
-        if self.reject_during_extraction() {
+        if self.reject_during_file_job() {
             return false;
         }
         self.cancel_worker();
@@ -878,7 +1021,7 @@ impl ArchiveWorkspace {
         status: &str,
         context: &egui::Context,
     ) {
-        if self.reject_during_extraction() {
+        if self.reject_during_file_job() {
             return;
         }
         let Some(request) = self.request.checked_add(1) else {
@@ -932,6 +1075,17 @@ impl ArchiveWorkspace {
     }
 
     fn open(&mut self, path: PathBuf, context: &egui::Context) {
+        if self.edit_pending || self.discard.is_some() || self.reject_during_file_job() {
+            return;
+        }
+        if self.has_staged_edits() {
+            self.discard = Some(DiscardAction::Open(path));
+        } else {
+            self.open_document(path, context);
+        }
+    }
+
+    fn open_document(&mut self, path: PathBuf, context: &egui::Context) {
         if !self.next_generation() {
             return;
         }
@@ -970,10 +1124,20 @@ impl ArchiveWorkspace {
     }
 
     fn close(&mut self) {
-        if self.reject_during_extraction() {
+        if self.edit_pending || self.discard.is_some() || self.reject_during_file_job() {
             return;
         }
-        self.next_generation();
+        if self.has_staged_edits() {
+            self.discard = Some(DiscardAction::CloseArchive);
+        } else {
+            self.close_document();
+        }
+    }
+
+    fn close_document(&mut self) {
+        if !self.next_generation() {
+            return;
+        }
         self.native_picker_request = None;
         self.document = None;
         self.rows.clear();
@@ -998,7 +1162,7 @@ impl ArchiveWorkspace {
     }
 
     fn cancel_worker(&mut self) {
-        if self.extraction_active() {
+        if self.file_job_active() {
             self.cancel();
             return;
         }
@@ -1006,10 +1170,19 @@ impl ArchiveWorkspace {
             worker.cancel();
         }
         self.current = None;
+        self.edit_pending = false;
         self.blocks_selection = false;
     }
 
     fn cancel(&mut self) {
+        if let Some(requested) = &mut self.saving {
+            if let Some(worker) = &mut self.worker {
+                worker.cancel();
+            }
+            *requested = true;
+            self.status = "Cancellation requested; waiting for the save result…".into();
+            return;
+        }
         if let ExtractionState::Running {
             cancel_requested, ..
         } = &mut self.extraction.state
@@ -1030,7 +1203,7 @@ impl ArchiveWorkspace {
     }
 
     fn filter(&mut self, context: &egui::Context) {
-        if self.reject_during_extraction() {
+        if self.edit_pending || self.discard.is_some() || self.reject_during_file_job() {
             return;
         }
         let Some(document) = self.document.clone() else {
@@ -1086,6 +1259,9 @@ impl ArchiveWorkspace {
     }
 
     fn change_policy(&mut self, policy: FilenamePolicy, context: &egui::Context) {
+        if !self.workspace_idle() {
+            return;
+        }
         let Some(document) = self.document.clone() else {
             return;
         };
@@ -1118,7 +1294,7 @@ impl ArchiveWorkspace {
         let (Some(document), Some(entry)) = (self.document.clone(), self.selected) else {
             return;
         };
-        if self.source_changed || self.blocks_selection || self.extraction_active() {
+        if self.source_changed || self.blocks_selection || !self.workspace_idle() {
             return;
         }
         self.clear_preview();
@@ -1134,9 +1310,23 @@ impl ArchiveWorkspace {
         matches!(self.extraction.state, ExtractionState::Running { .. })
     }
 
-    fn reject_during_extraction(&mut self) -> bool {
+    fn file_job_active(&self) -> bool {
+        self.extraction_active() || self.saving.is_some()
+    }
+
+    fn workspace_idle(&self) -> bool {
+        !self.file_job_active()
+            && !self.edit_pending
+            && self.discard.is_none()
+            && !self.native_picker_pending()
+    }
+
+    fn reject_during_file_job(&mut self) -> bool {
         if self.extraction_active() {
             self.error = Some("Wait for the extraction result, or request cancellation.".into());
+            true
+        } else if self.saving.is_some() {
+            self.error = Some("Wait for the save result, or request cancellation.".into());
             true
         } else {
             false
@@ -1148,14 +1338,13 @@ impl ArchiveWorkspace {
     }
 
     fn request_extraction_parent(&mut self, scope: ExtractionScope, keep_name: bool) {
-        if self.extraction_active()
-            || self.blocks_selection
-            || self.source_changed
-            || self.native_picker_pending()
-        {
+        if !self.workspace_idle() || self.blocks_selection || self.source_changed {
             return;
         }
         if self.document.is_none() {
+            return;
+        }
+        if scope == ExtractionScope::All && !self.toolbar_state().can_extract_all {
             return;
         }
         if self.selected_entries.is_empty()
@@ -1202,11 +1391,7 @@ impl ArchiveWorkspace {
     }
 
     fn start_extraction(&mut self, context: &egui::Context) {
-        if self.extraction_active()
-            || self.blocks_selection
-            || self.source_changed
-            || self.native_picker_pending()
-        {
+        if !self.workspace_idle() || self.blocks_selection || self.source_changed {
             return;
         }
         let Some(document) = self.document.clone() else {
@@ -1300,7 +1485,7 @@ impl ArchiveWorkspace {
     }
 
     fn select_row(&mut self, index: usize, modifiers: egui::Modifiers) {
-        if self.blocks_selection || self.extraction_active() || self.native_picker_pending() {
+        if self.blocks_selection || !self.workspace_idle() {
             return;
         }
         let Some(document) = self.document.clone() else {
@@ -1347,7 +1532,7 @@ impl ArchiveWorkspace {
     }
 
     fn select_all_visible(&mut self) {
-        if self.blocks_selection || self.extraction_active() || self.native_picker_pending() {
+        if self.blocks_selection || !self.workspace_idle() {
             return;
         }
         let Some(document) = self.document.clone() else {
@@ -1361,14 +1546,14 @@ impl ArchiveWorkspace {
     }
 
     fn set_view(&mut self, mode: ViewMode, context: &egui::Context) {
-        if self.view_mode != mode && !self.extraction_active() {
+        if self.view_mode != mode && self.workspace_idle() {
             self.view_mode = mode;
             self.filter(context);
         }
     }
 
     fn toggle_folder(&mut self, path: String, context: &egui::Context) {
-        if self.extraction_active() {
+        if !self.workspace_idle() {
             return;
         }
         if !self.expanded_folders.remove(&path) {
@@ -1378,7 +1563,7 @@ impl ArchiveWorkspace {
     }
 
     fn navigate(&mut self, folder: Option<String>, context: &egui::Context) {
-        if self.folder == folder || self.extraction_active() {
+        if self.folder == folder || !self.workspace_idle() {
             return;
         }
         self.navigation.truncate(self.navigation_index + 1);
@@ -1393,7 +1578,7 @@ impl ArchiveWorkspace {
     }
 
     fn navigate_history(&mut self, back: bool, context: &egui::Context) {
-        if self.extraction_active() {
+        if !self.workspace_idle() {
             return;
         }
         let next = if back {
@@ -1472,7 +1657,7 @@ impl ArchiveWorkspace {
     }
 
     fn toolbar(&mut self, ui: &mut egui::Ui) {
-        let idle = !self.extraction_active() && !self.native_picker_pending();
+        let idle = self.workspace_idle();
         let ready =
             self.document.is_some() && !self.blocks_selection && !self.source_changed && idle;
         let title = self
@@ -1566,7 +1751,17 @@ impl ArchiveWorkspace {
                         toolbar_menu(ui, LineIcon::Extract, "Extract", ready, |ui| {
                             self.extract_menu(ui)
                         });
-                        toolbar_icon(ui, LineIcon::Save, "Save — planned", false, false);
+                        if toolbar_icon(
+                            ui,
+                            LineIcon::Save,
+                            "Save as a new ZIP",
+                            self.toolbar_state().can_save_as,
+                            false,
+                        )
+                        .clicked()
+                        {
+                            self.request_save_as();
+                        }
                         toolbar_icon(ui, LineIcon::Check, "Test — planned", false, false);
                         if wide {
                             toolbar_icon(ui, LineIcon::Move, "Move — planned", false, false);
@@ -1588,8 +1783,18 @@ impl ArchiveWorkspace {
                             self.show_inspector = true;
                             self.preview_selected(ui.ctx());
                         }
+                        if toolbar_icon(
+                            ui,
+                            LineIcon::Delete,
+                            "Delete selected items",
+                            self.toolbar_state().can_delete,
+                            false,
+                        )
+                        .clicked()
+                        {
+                            self.delete_selection(ui.ctx());
+                        }
                         if wide {
-                            toolbar_icon(ui, LineIcon::Delete, "Delete — planned", false, false);
                             toolbar_icon(
                                 ui,
                                 LineIcon::NewFolder,
@@ -1713,7 +1918,7 @@ impl ArchiveWorkspace {
     }
 
     fn archive_menu(&mut self, ui: &mut egui::Ui) {
-        let idle = !self.extraction_active() && !self.native_picker_pending();
+        let idle = self.workspace_idle();
         if ui
             .add_enabled(idle, egui::Button::new("Open archive…"))
             .clicked()
@@ -1768,12 +1973,27 @@ impl ArchiveWorkspace {
         ui.separator();
         ui.menu_button("View", |ui| self.view_menu(ui));
         ui.separator();
+        let state = self.toolbar_state();
+        for (enabled, label, command) in [
+            (state.can_save_as, "Save As…", WorkspaceCommand::SaveAs),
+            (
+                state.can_delete,
+                "Delete Selected",
+                WorkspaceCommand::DeleteSelected,
+            ),
+            (state.can_undo, "Undo Delete", WorkspaceCommand::Undo),
+            (state.can_redo, "Redo Delete", WorkspaceCommand::Redo),
+        ] {
+            if ui.add_enabled(enabled, egui::Button::new(label)).clicked() {
+                self.dispatch_command(command, ui.ctx());
+                ui.close();
+            }
+        }
+        ui.separator();
         for label in [
-            "Save",
             "Test",
             "Move",
             "Add files…",
-            "Delete",
             "New Folder",
             "Collect",
             "Direct Mode",
@@ -1821,9 +2041,25 @@ impl ArchiveWorkspace {
                 ui.horizontal(|ui| {
                     if self.current.is_some() {
                         ui.spinner();
-                        if ui.small_button("Stop").clicked() {
+                        if ui
+                            .add_enabled(
+                                self.toolbar_state().can_cancel,
+                                egui::Button::new("Stop").small(),
+                            )
+                            .clicked()
+                        {
                             self.cancel();
                         }
+                    }
+                    if let Some(document) = &self.document
+                        && document.edits.is_dirty()
+                    {
+                        let count = document.edits.removed.len();
+                        ui.small(format!(
+                            "{count} pending {}",
+                            if count == 1 { "deletion" } else { "deletions" }
+                        ));
+                        ui.separator();
                     }
                     let selection = self.selection_count();
                     if selection > 0 {
@@ -1854,7 +2090,7 @@ impl ArchiveWorkspace {
             .document
             .as_ref()
             .map(|document| document.snapshot.path().to_path_buf());
-        let can_open = !self.extraction_active() && !self.native_picker_pending();
+        let can_open = self.workspace_idle();
         let panel = egui::Panel::left("favorites")
             .default_size(workspace_width * 0.18)
             .min_size(160.0)
@@ -2085,7 +2321,7 @@ impl ArchiveWorkspace {
                 ui,
                 LineIcon::Back,
                 "Back",
-                self.navigation_index > 0 && !self.extraction_active(),
+                self.navigation_index > 0 && self.workspace_idle(),
                 false,
             )
             .clicked()
@@ -2096,7 +2332,7 @@ impl ArchiveWorkspace {
                 ui,
                 LineIcon::Forward,
                 "Forward",
-                self.navigation_index + 1 < self.navigation.len() && !self.extraction_active(),
+                self.navigation_index + 1 < self.navigation.len() && self.workspace_idle(),
                 false,
             )
             .clicked()
@@ -2164,9 +2400,9 @@ impl ArchiveWorkspace {
                 }
                 if self.rows.is_empty() {
                     ui.add_space(12.0);
-                    ui.weak("No matching entries");
+                    ui.weak(if document.totals.entries == 0 { "Archive is empty" } else { "No matching entries" });
                 }
-                ui.add_enabled_ui(!self.blocks_selection && !self.extraction_active(), |ui| {
+                ui.add_enabled_ui(!self.blocks_selection && self.workspace_idle(), |ui| {
                     let background = ui.painter().add(egui::Shape::Noop);
                     let mut content_origin_y = ui.cursor().top();
                     let scrolling = egui::ScrollArea::vertical().id_salt("contents_rows").auto_shrink([false, false])
@@ -2315,7 +2551,7 @@ impl ArchiveWorkspace {
                             ui.add_space(8.0);
                             ui.weak("Select a small file to preview its text, image, or bytes.");
                             ui.small("Stored/Deflate, up to 256 KiB; complete payload and CRC32 verification.");
-                            if ui.add_enabled(!self.blocks_selection && !self.source_changed && !self.extraction_active(), egui::Button::new("Load preview")).clicked() {
+                            if ui.add_enabled(!self.blocks_selection && !self.source_changed && self.workspace_idle(), egui::Button::new("Load preview")).clicked() {
                                 self.preview_selected(ui.ctx());
                             }
                         }
@@ -2374,7 +2610,7 @@ impl ArchiveWorkspace {
                 let mut overridden = policy.entries.contains_key(&entry.id);
                 let mut choice = policy.entries.get(&entry.id).copied().unwrap_or(policy.archive);
                 let mut changed = false;
-                ui.add_enabled_ui(!self.source_changed && !self.blocks_selection && !self.extraction_active(), |ui| {
+                ui.add_enabled_ui(!self.source_changed && !self.blocks_selection && self.workspace_idle(), |ui| {
                     changed |= ui.checkbox(&mut overridden, "Override this entry's filename interpretation").changed();
                     if overridden {
                         changed |= encoding_picker(ui, ("entry_encoding", entry.id), &mut choice);
@@ -2426,16 +2662,12 @@ impl ArchiveWorkspace {
         } else {
             centered_heading(ui, "Archive info");
             ui.add_space(22.0);
-            inspector_property(ui, "Entries", &document.snapshot.entries.len().to_string());
-            inspector_property(
-                ui,
-                "Size",
-                &detailed_size(document.snapshot.uncompressed_size),
-            );
+            inspector_property(ui, "Entries", &document.totals.entries.to_string());
+            inspector_property(ui, "Size", &detailed_size(document.totals.size));
             inspector_property(
                 ui,
                 "Compressed",
-                &detailed_size(document.snapshot.compressed_size),
+                &detailed_size(document.totals.compressed_size),
             );
             ui.add_space(16.0);
             ui.weak("Select an item to see its properties and preview.");
@@ -2459,7 +2691,7 @@ impl ArchiveWorkspace {
                     disabled_action(ui, "SHA-256");
                 });
             });
-            if icon_button(ui, LineIcon::Refresh, "Read the complete preview and verify CRC32", entry.is_some() && !self.blocks_selection && !self.source_changed && !self.extraction_active(), false).clicked() {
+            if icon_button(ui, LineIcon::Refresh, "Read the complete preview and verify CRC32", entry.is_some() && !self.blocks_selection && !self.source_changed && self.workspace_idle(), false).clicked() {
                 self.preview_selected(ui.ctx());
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -2624,7 +2856,7 @@ impl ArchiveWorkspace {
         let total = self
             .document
             .as_ref()
-            .map_or(0, |document| document.snapshot.entries.len());
+            .map_or(0, |document| document.totals.entries as usize);
         let document = self.document.clone();
         let mut visible = true;
         let mut start = false;
@@ -2832,7 +3064,7 @@ impl ArchiveWorkspace {
                 ui.small("Automatic uses archive filename evidence. Choose a fallback for legacy names; explicit recovery can override conflicting metadata.");
                 let mut policy = self.policy.clone();
                 let mut changed = false;
-                ui.add_enabled_ui(self.document.is_some() && !self.blocks_selection && !self.source_changed && !self.extraction_active(), |ui| {
+                ui.add_enabled_ui(self.document.is_some() && !self.blocks_selection && !self.source_changed && self.workspace_idle(), |ui| {
                     changed = encoding_picker(ui, "archive_encoding", &mut policy.archive);
                 });
                 if changed {
@@ -3945,6 +4177,15 @@ fn bounded_display(value: &str) -> String {
         display.push('…');
     }
     display
+}
+
+fn archive_label(path: &Path) -> String {
+    bounded_display(
+        &path
+            .file_name()
+            .unwrap_or(OsStr::new("Archive"))
+            .to_string_lossy(),
+    )
 }
 
 fn method_name(method: u16) -> String {

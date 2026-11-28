@@ -21,7 +21,9 @@ use unpack::{Directory, read_small, regular_file};
 use crate::{Options, Result};
 
 const EVIDENCE_CLASS: &str = "native-command-smoke";
+const SMOKE_STAGE: &str = "zip-staged-delete";
 const SMOKE_EXTRACT_DIRECTORY: &str = "arcforge-smoke-output";
+const SMOKE_EDITED_ZIP: &str = "arcforge-smoke-edited.zip";
 const SMOKE_EXTRACT_BYTES: u64 =
     (b"Hello from ArcForge.\n".len() + "Привет из ZIP.\n".len()) as u64;
 
@@ -363,6 +365,22 @@ fn smoke_commands(target: &Target) -> Vec<(&str, Vec<&'static str>)> {
                 "--json",
             ],
         ),
+        (
+            &target.cli,
+            vec![
+                "delete",
+                "arcforge-smoke.zip",
+                "--entry",
+                "0",
+                "--output",
+                SMOKE_EDITED_ZIP,
+                "--json",
+            ],
+        ),
+        (
+            &target.cli,
+            vec!["preview", SMOKE_EDITED_ZIP, "--entry", "0", "--json"],
+        ),
     ]
 }
 
@@ -417,6 +435,8 @@ fn smoke(directory: &Path, target: &Target) -> Result<Vec<Value>> {
         validate_smoke_output(index, &stdout)?;
         if index == 6 {
             validate_extracted_fixture(directory, &fixture)?;
+        } else if index == 8 {
+            validate_smoke_source(directory, &fixture)?;
         }
         checks.push(json!({
             "program": program,
@@ -444,15 +464,20 @@ fn validate_extracted_fixture(directory: &Path, original: &[u8]) -> Result<()> {
             return Err(format!("unpacked CLI extracted incorrect bytes for {name}").into());
         }
     }
-    if read_small(&directory.join("arcforge-smoke.zip"), original.len() as u64)? != original {
-        return Err("unpacked CLI changed the source archive during extraction".into());
+    validate_smoke_source(directory, original)
+}
+
+fn validate_smoke_source(directory: &Path, original: &[u8]) -> Result<()> {
+    if read_small(&directory.join("arcforge-smoke.zip"), original.len() as u64)? == original {
+        Ok(())
+    } else {
+        Err("unpacked CLI changed the source ZIP fixture".into())
     }
-    Ok(())
 }
 
 fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
     if matches!(index, 0 | 3) {
-        if stdout != format!("ArcForge {VERSION} (zip-extraction)\n").as_bytes() {
+        if stdout != format!("ArcForge {VERSION} ({SMOKE_STAGE})\n").as_bytes() {
             return Err("unpacked executable reported an unexpected version".into());
         }
     } else {
@@ -462,7 +487,7 @@ fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
                 .as_array()
                 .ok_or("commands response has no array")?;
             let implemented = [
-                "version", "commands", "doctor", "list", "info", "preview", "extract",
+                "version", "commands", "doctor", "list", "info", "preview", "extract", "delete",
             ];
             let planned = ["create", "test", "update", "convert", "hash"];
             let mut names = BTreeSet::new();
@@ -495,18 +520,18 @@ fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
             && (value["kind"] != "doctor"
                 || value["data"]["application"]["name"] != "ArcForge"
                 || value["data"]["application"]["version"] != VERSION
-                || value["data"]["application"]["stage"] != "zip-extraction"
+                || value["data"]["application"]["stage"] != SMOKE_STAGE
                 || value["data"]["ready_for_archive_operations"] != true
                 || value["data"]["archive_provider_count"] != 1
                 || value["data"]["supported_archive_formats"] != json!(["zip", "zip64"])
                 || value["data"]["providers"][0]["operations"]
-                    != json!(["list", "info", "preview", "extract"])
+                    != json!(["list", "info", "preview", "extract", "delete"])
                 || value["data"]["providers"][0]["extraction_compression"]
                     != json!(["stored", "deflate"])
                 || value["data"]["providers"][0]["write"] != false
                 || value["data"]["providers"][0]["encrypted_content"] != false)
         {
-            return Err("unpacked CLI violated the ZIP extraction capability contract".into());
+            return Err("unpacked CLI violated the ZIP capability contract".into());
         } else if index == 4 {
             let entries = &value["data"]["entries"];
             let revision = value["data"]["metadata_revision"].as_str().unwrap_or("");
@@ -523,9 +548,9 @@ fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
             {
                 return Err("unpacked CLI could not list the independent ZIP fixture".into());
             }
-        } else if index == 5
+        } else if matches!(index, 5 | 8)
             && (value["kind"] != "preview"
-                || value["data"]["preview"]["entry_id"] != 1
+                || value["data"]["preview"]["entry_id"] != u8::from(index == 5)
                 || value["data"]["preview"]["text"] != "Привет из ZIP.\n"
                 || value["data"]["preview"]["crc32_verified"] != true)
         {
@@ -547,6 +572,18 @@ fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
                     "unpacked CLI did not complete extraction of the independent ZIP fixture"
                         .into(),
                 );
+            }
+        } else if index == 7 {
+            let report = &value["data"];
+            if value["kind"] != "delete"
+                || report["entries_removed"] != 1
+                || report["entries_retained"] != 1
+                || report["retained_crc32_verified"] != true
+                || report["bytes_written"]
+                    .as_u64()
+                    .is_none_or(|count| count < 22)
+            {
+                return Err("unpacked CLI did not save the edited ZIP fixture".into());
             }
         }
     }

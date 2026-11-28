@@ -1,0 +1,102 @@
+{
+  "target": "x86_64-pc-windows-msvc",
+  "source_commit": "06c11d1d3990ac64d86ba4e85919ee2aa83db90b",
+  "process_id": 7120,
+  "runtime": {
+    "architecture": "x86_64",
+    "environment": {
+      "ARCFORGE_CAPTURE_DISPLAY": "GitHub-hosted native desktop session",
+      "ARCFORGE_CAPTURE_GL_DRIVER": "Mesa 26.3.1 llvmpipe; software OpenGL; CI-only WGL driver",
+      "ARCFORGE_CAPTURE_GL_LIBRARY_PATH": "D:\\a\\arcforge\\arcforge\\target\\x86_64-pc-windows-msvc\\debug\\opengl32.dll",
+      "ARCFORGE_CAPTURE_GL_LIBRARY_SHA256": "7b3235a70bf390d6b15cd3877fa63d3bd303117f162a329ce48f7af5068a4b3b",
+      "ARCFORGE_CAPTURE_GL_LICENSES": "Mesa component licenses (mostly MIT); LLVM Apache-2.0 WITH LLVM-exception",
+      "ARCFORGE_CAPTURE_GL_PACKAGE_SHA256": "08145a3717e0c1be0d97b74b53070f14eb39cb2f7de22f84fe20d1a581299c12",
+      "ARCFORGE_CAPTURE_GL_SOURCE_COMMIT": "73f7cfb6d2ec725d1c036c33eba62f420f87818e",
+      "GITHUB_ACTIONS": "true",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_RUN_ID": "46142627237",
+      "GITHUB_SHA": "06c11d1d3990ac64d86ba4e85919ee2aa83db90b",
+      "ImageOS": "win25-vs2026",
+      "ImageVersion": "20261123.321.1",
+      "RUNNER_ARCH": "X64",
+      "RUNNER_OS": "Windows"
+    },
+    "os": "windows",
+    "os_version": "Microsoft Windows [Version 10.0.26100.33828]",
+    "renderer": "production Glow backend; no offscreen or alternate renderer",
+    "window": "actual native eframe window with shared platform::native_options"
+  },
+  "fixture": {
+    "file": "workspace-demo.zip",
+    "generator": "scripts/generate_ui_fixture.py --images",
+    "generator_sha256": "f08427b3389702f953b7bbf84c14dc37dfe1a82b982864f3897ac7290a157aec",
+    "original_content": true,
+    "sha256": "eef9fd6de48a3e465ab99dae9cdb5df13353e25056fe9365584d9e722d0da70e",
+    "unchanged_after_capture": true
+  },
+  "saved_copy": {
+    "file": "workspace-demo-edited.zip",
+    "removed_entry": "Photos/Color-study.png",
+    "sha256": "8f0b93b598f4b8fdf64ef0e2d1405b3ae772ce9a0e0d0899200f34f33a5271f2",
+    "verified_independently_with": "Python zipfile"
+  },
+  "capture_run_sha256": "8f379c127fb2a158f4c5287c4ae432b74251c6ca74932f2d2a87fb49816f77f9",
+  "scenes": [
+    {
+      "scene": "05-staged-delete",
+      "file": "05-staged-delete.png",
+      "sha256": "653405dbb13f5a087261004e3c7a76696aabbef9b01358df6665edb8e4f3fc4a",
+      "size": [
+        1024,
+        768
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 1,
+      "visible_entry_count": 13,
+      "window": "client"
+    },
+    {
+      "scene": "06-discard-prompt",
+      "file": "06-discard-prompt.png",
+      "sha256": "bc18b17c37b1c4022f932cb9458f474d28c845b827ff2a1951555e8eb09fed57",
+      "size": [
+        1024,
+        768
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 1,
+      "visible_entry_count": 13,
+      "window": "client"
+    },
+    {
+      "scene": "08-save-collision",
+      "file": "08-save-collision.png",
+      "sha256": "1c3f3de9e50d40213c5bac7463c2f40555a2d6aad69ed6c7060ffd77fa061f15",
+      "size": [
+        1024,
+        768
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 1,
+      "visible_entry_count": 13,
+      "window": "client"
+    },
+    {
+      "scene": "09-saved-copy",
+      "file": "09-saved-copy.png",
+      "sha256": "c2462201bef53b6a8a359018cfa6f379d05fb5e3d337d6a7dca172cc2042aa2f",
+      "size": [
+        1024,
+        768
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 0,
+      "visible_entry_count": 13,
+      "window": "client"
+    }
+  ]
+}

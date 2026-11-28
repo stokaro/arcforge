@@ -18,6 +18,11 @@ pub enum Command {
     OpenByPath,
     OpenSettings,
     CloseArchive,
+    CloseWindow,
+    DeleteSelected,
+    Undo,
+    Redo,
+    SaveAs,
     ExtractAll,
     ExtractSelected,
     TestArchive,
@@ -41,6 +46,11 @@ pub enum Command {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct State {
     pub title: String,
+    pub dirty: bool,
+    pub can_delete: bool,
+    pub can_undo: bool,
+    pub can_redo: bool,
+    pub can_save_as: bool,
     pub can_open: bool,
     pub can_close: bool,
     pub can_extract_all: bool,
@@ -63,6 +73,11 @@ impl Default for State {
     fn default() -> Self {
         Self {
             title: "ArcForge".into(),
+            dirty: false,
+            can_delete: false,
+            can_undo: false,
+            can_redo: false,
+            can_save_as: false,
             can_open: true,
             can_close: false,
             can_extract_all: false,
@@ -106,10 +121,11 @@ impl std::fmt::Display for AttachError {
 
 impl std::error::Error for AttachError {}
 
-/// Identity of the real Open sheet attached to this shell's exact window.
+/// Identity of a filesystem sheet attached to this shell's exact window.
 #[cfg(feature = "native-capture")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct OpenPanelInfo {
+pub struct FilePanelInfo {
     pub window_id: u32,
     pub parent_window_id: u32,
+    pub is_open: bool,
 }

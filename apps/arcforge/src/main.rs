@@ -104,6 +104,14 @@ struct DesktopApp {
 
 impl eframe::App for DesktopApp {
     fn ui(&mut self, ui: &mut eframe::egui::Ui, frame: &mut eframe::Frame) {
+        #[cfg(feature = "native-capture")]
+        if self
+            .capture
+            .as_ref()
+            .is_some_and(capture::Session::finished)
+        {
+            return;
+        }
         self.workspace.enable_filesystem_favorites(ui.ctx());
         self.native_shell
             .before_frame(&mut self.workspace, ui.ctx(), frame);
@@ -112,13 +120,7 @@ impl eframe::App for DesktopApp {
         self.native_shell.after_frame(&self.workspace);
         #[cfg(feature = "native-capture")]
         if let Some(capture) = &mut self.capture {
-            let panel = self
-                .native_shell
-                .active_open_panel()
-                .map(|panel| capture::OpenPanel {
-                    window_id: panel.window_id,
-                    parent_window_id: panel.parent_window_id,
-                });
+            let panel = self.native_shell.active_file_panel();
             capture.after_frame(
                 &mut self.workspace,
                 ui.ctx(),
@@ -126,7 +128,7 @@ impl eframe::App for DesktopApp {
                 panel,
             );
             if let Some(panel_id) = capture.take_panel_to_cancel() {
-                self.native_shell.cancel_open_panel(panel_id);
+                self.native_shell.cancel_file_panel(panel_id);
             }
         }
     }

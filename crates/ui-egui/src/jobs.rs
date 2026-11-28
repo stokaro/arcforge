@@ -8,8 +8,11 @@ use std::sync::{Arc, Mutex};
 use arcforge_core::archive::{
     ArchiveEntry, ArchiveError, ArchiveLimits, ArchiveSnapshot, CancellationToken, EntryId,
     EntryPreview, ExtractionLimits, ExtractionProgress, ExtractionReport, ExtractionSelection,
-    FilenamePolicy, extract_archive, open_archive, preview_entry, reinterpret,
+    FilenamePolicy, StreamLimits, ZipEditReport, extract_archive, open_archive, preview_entry,
+    reinterpret, save_zip_without_entries, supports_zip_removal,
 };
+
+use super::edits::{EditAction, RemovalHistory};
 
 const MAX_VIEW_BYTES: usize = 64 * 1024 * 1024;
 const MAX_FOLDER_BYTES: usize = 8 * 1024 * 1024;
@@ -61,6 +64,9 @@ impl FolderTotals {
 
 pub(super) struct PreparedDocument {
     pub snapshot: Arc<ArchiveSnapshot>,
+    pub edits: RemovalHistory,
+    pub editable: bool,
+    pub totals: FolderTotals,
     pub folders: Vec<String>,
     pub folder_totals: Vec<FolderTotals>,
     pub folders_limited: bool,
@@ -73,13 +79,31 @@ impl PreparedDocument {
         snapshot: ArchiveSnapshot,
         cancel: &CancellationToken,
     ) -> Result<Self, ArchiveError> {
+        Self::with_edits(Arc::new(snapshot), RemovalHistory::default(), cancel)
+    }
+
+    fn with_edits(
+        snapshot: Arc<ArchiveSnapshot>,
+        edits: RemovalHistory,
+        cancel: &CancellationToken,
+    ) -> Result<Self, ArchiveError> {
         let mut folders = BTreeSet::new();
         let mut folder_bytes = 0;
         let mut key_bytes = 0usize;
         let mut folders_limited = false;
         let mut search_keys = Vec::with_capacity(snapshot.entries.len());
+        let mut totals = FolderTotals::default();
         for entry in &snapshot.entries {
             check_cancel(cancel)?;
+            if edits.removed.contains(&entry.id) {
+                search_keys.push(String::new());
+                continue;
+            }
+            totals.add(FolderTotals {
+                entries: 1,
+                size: entry.size,
+                compressed_size: entry.compressed_size,
+            })?;
             let name = &entry.name.display;
             let key = name.to_lowercase();
             key_bytes = key_bytes.checked_add(key.len()).ok_or_else(view_limit)?;
@@ -109,7 +133,8 @@ impl PreparedDocument {
         let mut folder_totals = vec![FolderTotals::default(); folders.len()];
         for entry in &snapshot.entries {
             check_cancel(cancel)?;
-            if !entry.is_directory
+            if !edits.removed.contains(&entry.id)
+                && !entry.is_directory
                 && let Some(folder) = nearest_folder(&folders, &entry.name.display, cancel)?
             {
                 folder_totals[folder].add(FolderTotals {
@@ -147,6 +172,9 @@ impl PreparedDocument {
             .collect();
         for (index, entry) in snapshot.entries.iter().enumerate() {
             check_cancel(cancel)?;
+            if edits.removed.contains(&entry.id) {
+                continue;
+            }
             if entry.is_directory
                 && let Ok(folder) = folders.binary_search(&entry.name.display)
                 && outline[folder].entry.is_none()
@@ -179,7 +207,10 @@ impl PreparedDocument {
                 .then_with(|| right.folder.is_some().cmp(&left.folder.is_some()))
         });
         Ok(Self {
-            snapshot: Arc::new(snapshot),
+            editable: supports_zip_removal(&snapshot),
+            snapshot,
+            edits,
+            totals,
             folders,
             folder_totals,
             folders_limited,
@@ -190,6 +221,9 @@ impl PreparedDocument {
 
     pub fn entry(&self, id: EntryId) -> Option<&ArchiveEntry> {
         // Provider identities are central-directory ordinals; still verify the match.
+        if self.edits.removed.contains(&id) {
+            return None;
+        }
         self.snapshot
             .entries
             .get(usize::try_from(id).ok()?)
@@ -206,13 +240,44 @@ impl PreparedDocument {
         let mut rows = Vec::new();
         for (index, entry) in self.snapshot.entries.iter().enumerate() {
             check_cancel(cancel)?;
-            if folder.is_none_or(|prefix| entry.name.display.starts_with(prefix))
+            if !self.edits.removed.contains(&entry.id)
+                && folder.is_none_or(|prefix| entry.name.display.starts_with(prefix))
                 && self.search_keys[index].contains(&query)
             {
                 rows.push(index);
             }
         }
         Ok(rows)
+    }
+
+    fn expand_selection(
+        &self,
+        mut ids: BTreeSet<EntryId>,
+        mut folders: BTreeSet<String>,
+        cancel: &CancellationToken,
+    ) -> Result<BTreeSet<EntryId>, ArchiveError> {
+        for &id in &ids {
+            check_cancel(cancel)?;
+            let entry = self.entry(id).ok_or(ArchiveError::EntryNotFound(id))?;
+            if entry.is_directory {
+                folders.insert(format!("{}/", entry.name.display.trim_end_matches('/')));
+            }
+        }
+        if !folders.is_empty() {
+            for entry in &self.snapshot.entries {
+                check_cancel(cancel)?;
+                if !self.edits.removed.contains(&entry.id)
+                    && entry
+                        .name
+                        .display
+                        .match_indices('/')
+                        .any(|(offset, _)| folders.contains(&entry.name.display[..=offset]))
+                {
+                    ids.insert(entry.id);
+                }
+            }
+        }
+        Ok(ids)
     }
 
     pub fn view_rows(
@@ -420,6 +485,18 @@ pub(super) enum Task {
         document: Arc<PreparedDocument>,
         entry: EntryId,
     },
+    Edit {
+        document: Arc<PreparedDocument>,
+        action: EditAction,
+        query: String,
+        folder: Option<String>,
+        mode: ViewMode,
+        expanded: BTreeSet<String>,
+    },
+    Save {
+        document: Arc<PreparedDocument>,
+        destination: PathBuf,
+    },
     Extract {
         document: Arc<PreparedDocument>,
         selection: ExtractionSelection,
@@ -450,6 +527,15 @@ pub(super) enum Completed {
     },
     Preview(PreparedPreview),
     Extraction(ExtractionReport),
+    Edited {
+        document: Arc<PreparedDocument>,
+        rows: Vec<ViewRow>,
+        folder: Option<String>,
+    },
+    Saved {
+        report: ZipEditReport,
+        view: Result<(Arc<PreparedDocument>, Vec<ViewRow>), ArchiveError>,
+    },
 }
 
 pub(super) struct Reply {
@@ -536,11 +622,11 @@ impl Worker {
     pub fn submit(&mut self, request: Request) -> Result<(), ArchiveError> {
         if self.exclusive.is_some() {
             return Err(ArchiveError::Unsupported(
-                "wait for the extraction result before starting another operation".into(),
+                "wait for the current file operation before starting another operation".into(),
             ));
         }
         self.cancel();
-        if matches!(&request.task, Task::Extract { .. }) {
+        if matches!(&request.task, Task::Extract { .. } | Task::Save { .. }) {
             self.exclusive = Some(request.ticket);
         }
         self.cancellation = Some(request.cancel.clone());
@@ -592,7 +678,7 @@ impl Worker {
         if let Some(pending) = &self.pending {
             pending.cancel.cancel();
         }
-        // A cancelled queued extraction still needs its terminal no-output result.
+        // A cancelled file operation still needs its terminal result.
         if self.exclusive.is_none() {
             self.pending = None;
         }
@@ -618,7 +704,13 @@ fn execute(
     let result = match &request.task {
         Task::Open { path, policy } => {
             let snapshot = open_archive(path, policy, &limits, &request.cancel)?;
-            prepare(snapshot, "", ViewMode::Outline, &request.cancel)
+            prepare(
+                Arc::new(snapshot),
+                RemovalHistory::default(),
+                "",
+                ViewMode::Outline,
+                &request.cancel,
+            )
         }
         Task::Reinterpret {
             document,
@@ -627,7 +719,13 @@ fn execute(
             mode,
         } => {
             let snapshot = reinterpret(&document.snapshot, policy, &request.cancel)?;
-            prepare(snapshot, query, *mode, &request.cancel)
+            prepare(
+                Arc::new(snapshot),
+                document.edits.clone(),
+                query,
+                *mode,
+                &request.cancel,
+            )
         }
         Task::Filter {
             document,
@@ -650,34 +748,98 @@ fn execute(
             let preview = preview_entry(&document.snapshot, *entry, &limits, &request.cancel)?;
             PreparedPreview::new(preview, &request.cancel).map(Completed::Preview)
         }
+        Task::Edit {
+            document,
+            action,
+            query,
+            folder,
+            mode,
+            expanded,
+        } => {
+            let mut edits = document.edits.clone();
+            match action {
+                EditAction::Delete { ids, folders } => edits.delete(document.expand_selection(
+                    ids.clone(),
+                    folders.clone(),
+                    &request.cancel,
+                )?),
+                EditAction::Undo => edits.undo(),
+                EditAction::Redo => edits.redo(),
+            }
+            let updated = Arc::new(PreparedDocument::with_edits(
+                document.snapshot.clone(),
+                edits,
+                &request.cancel,
+            )?);
+            let mut folder = folder.clone();
+            while let Some(current) = &folder {
+                if updated.folders.binary_search(current).is_ok() {
+                    break;
+                }
+                folder = current
+                    .trim_end_matches('/')
+                    .rfind('/')
+                    .map(|end| current[..=end].into());
+            }
+            let rows =
+                updated.view_rows(query, folder.as_deref(), *mode, expanded, &request.cancel)?;
+            Ok(Completed::Edited {
+                document: updated,
+                rows,
+                folder,
+            })
+        }
+        Task::Save {
+            document,
+            destination,
+        } => {
+            let saved = save_zip_without_entries(
+                &document.snapshot,
+                &document.edits.removed,
+                destination,
+                &StreamLimits::default(),
+                &request.cancel,
+            )?;
+            // Publication won the race against any late cancel. Always report
+            // the committed copy, even if preparing its display should fail.
+            let view = (|| {
+                let cancel = CancellationToken::new();
+                let updated = Arc::new(PreparedDocument::new(saved.snapshot, &cancel)?);
+                let rows =
+                    updated.view_rows("", None, ViewMode::Outline, &BTreeSet::new(), &cancel)?;
+                Ok((updated, rows))
+            })();
+            return Ok(Completed::Saved {
+                report: saved.report,
+                view,
+            });
+        }
         Task::Extract {
             document,
             selection,
             folders,
             destination,
         } => {
-            // Synthetic outline folders have no archive identity. Resolve them
-            // here, off the UI thread, and let core validate the complete set.
-            let selection = if let ExtractionSelection::Entries(ids) = selection {
-                let mut ids: BTreeSet<_> = ids.iter().copied().collect();
-                if !folders.is_empty() {
+            let selection = match selection {
+                ExtractionSelection::Entries(ids) => {
+                    let expanded = document.expand_selection(
+                        ids.iter().copied().collect(),
+                        folders.clone(),
+                        &request.cancel,
+                    )?;
+                    ExtractionSelection::ExactEntries(expanded.into_iter().collect())
+                }
+                ExtractionSelection::All if document.edits.is_dirty() => {
+                    let mut retained = Vec::new();
                     for entry in &document.snapshot.entries {
                         check_cancel(&request.cancel)?;
-                        if entry
-                            .name
-                            .display
-                            .char_indices()
-                            .any(|(offset, character)| {
-                                character == '/' && folders.contains(&entry.name.display[..=offset])
-                            })
-                        {
-                            ids.insert(entry.id);
+                        if !document.edits.removed.contains(&entry.id) {
+                            retained.push(entry.id);
                         }
                     }
+                    ExtractionSelection::ExactEntries(retained)
                 }
-                ExtractionSelection::Entries(ids.into_iter().collect())
-            } else {
-                ExtractionSelection::All
+                _ => selection.clone(),
             };
             // Preserve the actual filesystem outcome if cancellation races completion.
             return extract_archive(
@@ -696,12 +858,13 @@ fn execute(
 }
 
 fn prepare(
-    snapshot: ArchiveSnapshot,
+    snapshot: Arc<ArchiveSnapshot>,
+    edits: RemovalHistory,
     query: &str,
     mode: ViewMode,
     cancel: &CancellationToken,
 ) -> Result<Completed, ArchiveError> {
-    let document = Arc::new(PreparedDocument::new(snapshot, cancel)?);
+    let document = Arc::new(PreparedDocument::with_edits(snapshot, edits, cancel)?);
     let rows = document.view_rows(query, None, mode, &BTreeSet::new(), cancel)?;
     Ok(Completed::Document {
         document,

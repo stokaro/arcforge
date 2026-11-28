@@ -6,7 +6,8 @@ use std::process::ExitCode;
 use arcforge_core::archive::{
     ArchiveError, ArchiveLimits, ArchiveSnapshot, CancellationToken, ExtractionLimits,
     ExtractionReport, ExtractionSelection, ExtractionStatus, FilenameChoice, FilenameEncoding,
-    FilenamePolicy, NameState, escape_display, extract_archive, open_archive, preview_entry,
+    FilenamePolicy, NameState, StreamLimits, escape_display, extract_archive, open_archive,
+    preview_entry, save_zip_without_entries, supports_zip_removal,
 };
 use arcforge_core::{
     ArchiveOperation, Availability, Command, CommandError, CommandResult, execute,
@@ -23,6 +24,7 @@ Usage: arcforge-cli <command> [arguments]
   info ZIP                   Inspect ZIP metadata and filename diagnostics
   preview ZIP --entry ID     Read a small Stored/Deflate entry and verify its CRC
   extract ZIP --output DIR   Extract all entries into a new directory
+  delete ZIP --entry ID --output ZIP   Save a new classic ZIP without selected records
 
 Options:
   -h, --help                 Show this help
@@ -34,8 +36,8 @@ Options:
   --entry-encoding ID=NAME   Override an entry's fallback; requires --metadata-revision
   --recover-entry ID=NAME    Override an entry's declarations; requires --metadata-revision
   --metadata-revision SHA256  Require the metadata revision reported by list/info
-  --entry ID                 Select an entry; repeat for extraction (default: all)
-  --output DIR               New extraction directory; its parent must exist
+  --entry ID                 Repeat for extract/delete; without IDs extract selects all
+  --output PATH              New extraction directory or ZIP copy; its parent must exist
   --max-bytes BYTES          Preview limit: 1..1048576 (default 262144)
   --                         End options; use before an option-like archive path
 
@@ -47,7 +49,8 @@ oversized entries, encrypted content and other compression methods are rejected.
 Extraction streams Stored/Deflate files with CRC verification. Names must be
 resolved; unsafe paths, collisions, symlinks and special files are rejected.
 The destination must not exist. Failure retains created files and reports the
-incomplete entry. Editing and other planned operations remain unavailable.
+incomplete entry. Delete uses exact entry IDs, including for directory records,
+and checks each retained payload before publishing the new ZIP.
 
 Exit codes: 0 success, 1 output error, 2 invalid usage, 3 operation not implemented,
 4 archive operation failed or cancelled. No interactive prompts or stdin reads.
@@ -109,7 +112,8 @@ fn run(args: &[OsString]) -> Output {
         operation @ (ArchiveOperation::List
         | ArchiveOperation::Info
         | ArchiveOperation::Preview
-        | ArchiveOperation::Extract),
+        | ArchiveOperation::Extract
+        | ArchiveOperation::Delete),
     ) = command
     {
         return match archive_options(operation, &args[1..]) {
@@ -199,7 +203,7 @@ fn archive_options(
                 .ok_or_else(|| format!("{option} requires a value"))?;
             if option == "--output" {
                 if value.is_empty() {
-                    return Err("the extraction output path must not be empty".into());
+                    return Err("the output path must not be empty".into());
                 }
                 output = Some(PathBuf::from(value));
                 continue;
@@ -272,13 +276,23 @@ fn archive_options(
         ArchiveOperation::Extract if output.is_none() => {
             return Err("extract requires --output with a new directory path".into());
         }
+        ArchiveOperation::Delete if output.is_none() || entries.is_empty() => {
+            return Err(
+                "delete requires at least one --entry ID and --output with a new ZIP path".into(),
+            );
+        }
         ArchiveOperation::List | ArchiveOperation::Info if !entries.is_empty() => {
-            return Err("--entry is supported by preview and extract".into());
+            return Err("--entry is supported by preview, extract and delete".into());
         }
         _ => {}
     }
-    if output.is_some() && operation != ArchiveOperation::Extract {
-        return Err("--output is an extract option".into());
+    if output.is_some()
+        && !matches!(
+            operation,
+            ArchiveOperation::Extract | ArchiveOperation::Delete
+        )
+    {
+        return Err("--output is an extract or delete option".into());
     }
     if seen.contains("--max-bytes") && operation != ArchiveOperation::Preview {
         return Err("--max-bytes is a preview option".into());
@@ -370,6 +384,7 @@ fn archive_operation(operation: ArchiveOperation, options: ArchiveOptions) -> Ou
                     "entry_count":snapshot.entries.len(),"compressed_size":snapshot.compressed_size,"uncompressed_size":snapshot.uncompressed_size,
                     "provisional_names":provisional,"conflicting_or_invalid_names":unresolved,"encrypted_entries":encrypted,
                     "comment_hex":snapshot.comment_hex,"warnings":snapshot.warnings,"filename_policy":snapshot.policy,"providers":arcforge_core::PROVIDERS,
+                    "classic_zip_delete_copy":supports_zip_removal(&snapshot),
                 }}))
             } else {
                 Output {
@@ -409,6 +424,31 @@ fn archive_operation(operation: ArchiveOperation, options: ArchiveOptions) -> Ou
                 &cancel,
                 options.json,
             )
+        }
+        ArchiveOperation::Delete => {
+            let removed = options.entries.into_iter().collect();
+            let path = options.output.as_deref().expect("validated ZIP output");
+            match save_zip_without_entries(
+                &snapshot,
+                &removed,
+                path,
+                &StreamLimits::default(),
+                &cancel,
+            ) {
+                Ok(saved) if options.json => {
+                    json_output(&serde_json::json!({"kind":"delete","data":saved.report}))
+                }
+                Ok(saved) => Output {
+                    code: 0,
+                    text: format!(
+                        "Saved {} ({} removed, {} retained; CRC32 verified).\n",
+                        escape_display(&saved.report.destination),
+                        saved.report.entries_removed,
+                        saved.report.entries_retained
+                    ),
+                },
+                Err(error) => archive_error(error, options.json),
+            }
         }
         _ => command_error(CommandError::NotImplemented(operation.name())),
     }

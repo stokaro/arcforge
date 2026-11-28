@@ -5,19 +5,17 @@
 //! transaction and never recursively removes a path that another process may own.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::ffi::OsString;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Instant;
 
 use cap_fs_ext::DirExt;
-use cap_std::ambient_authority;
-use cap_std::fs::{Dir, DirBuilder, OpenOptions};
+use cap_std::fs::{Dir, OpenOptions};
 use caseless::Caseless;
-use same_file::Handle;
 use serde::Serialize;
 use unicode_normalization::UnicodeNormalization;
 
+use super::destination::{DestinationParent, directory_identity, private_directory_builder};
 use super::{
     ArchiveEntry, ArchiveError, ArchiveSnapshot, CancellationToken, EntryId, EntryKind, NameState,
     StreamLimits, StreamProgress, begin_stream,
@@ -28,6 +26,8 @@ pub enum ExtractionSelection {
     All,
     /// Explicit directory records include their currently interpreted descendants.
     Entries(Vec<EntryId>),
+    /// A complete selection whose descendants have already been expanded.
+    ExactEntries(Vec<EntryId>),
 }
 
 #[derive(Clone, Debug)]
@@ -161,7 +161,7 @@ fn selected_ids(
                 ids.insert(entry.id);
             }
         }
-        ExtractionSelection::Entries(requested) => {
+        ExtractionSelection::Entries(requested) | ExtractionSelection::ExactEntries(requested) => {
             if requested.is_empty() {
                 return Err(ArchiveError::Unsupported(
                     "no entries selected for extraction".into(),
@@ -175,7 +175,9 @@ fn selected_ids(
                 check_job(started, limits, cancel)?;
                 let entry = entry_by_id(snapshot, id)?;
                 ids.insert(id);
-                if entry.kind == EntryKind::Directory {
+                if matches!(selection, ExtractionSelection::Entries(_))
+                    && entry.kind == EntryKind::Directory
+                {
                     prefixes.insert(format!("{}/", entry.name.display.trim_end_matches('/')));
                 }
             }
@@ -480,7 +482,10 @@ fn extract_impl(
         current_entry: None,
     });
     let plan = prepare_plan(snapshot, selection, limits, cancel, started)?;
-    let target = DestinationParent::open(destination)?;
+    let target = DestinationParent::open(
+        destination,
+        "choose a new directory under an existing parent",
+    )?;
     // A changed archive fails before destination creation, even for an empty ZIP.
     // Planning and destination validation already consumed part of this job's
     // deadline. Do not give a single long entry a second full timeout window.
@@ -495,7 +500,16 @@ fn extract_impl(
         hook(TestStage::ParentOpened);
     }
     target.verify_parent()?;
-    target.create_new()?;
+    target
+        .parent
+        .create_dir_with(&target.leaf, &private_directory_builder())
+        .map_err(|error| {
+            if error.kind() == io::ErrorKind::AlreadyExists {
+                target.exists_error()
+            } else {
+                ArchiveError::from(error)
+            }
+        })?;
     let mut report = ExtractionReport {
         destination: target.path.to_string_lossy().into_owned(),
         destination_created: true,
@@ -517,7 +531,7 @@ fn extract_impl(
         }
         for entry in &plan.entries {
             check_job(started, limits, cancel)?;
-            target.verify_root(&root_identity)?;
+            target.verify_directory(Path::new(&target.leaf), &root_identity)?;
             #[cfg(test)]
             if let Some(hook) = hook {
                 hook(TestStage::BeforeEntry(entry.entry_id));
@@ -581,7 +595,7 @@ fn extract_impl(
         check_job(started, limits, cancel)?;
         publish_progress(progress, &plan, &report, ExtractionPhase::Finalizing, None);
         stream.finish()?;
-        target.verify_root(&root_identity)?;
+        target.verify_directory(Path::new(&target.leaf), &root_identity)?;
         Ok(())
     })();
     if let Err(error) = operation {
@@ -629,93 +643,6 @@ fn publish_progress(
         total_bytes: plan.total_bytes,
         current_entry,
     });
-}
-
-struct DestinationParent {
-    path: PathBuf,
-    parent_path: PathBuf,
-    leaf: OsString,
-    parent: Dir,
-    parent_identity: Handle,
-}
-
-impl DestinationParent {
-    fn open(destination: &Path) -> Result<Self, ArchiveError> {
-        let invalid = || {
-            ArchiveError::InvalidDestination(
-                "choose a new directory under an existing parent".into(),
-            )
-        };
-        if destination.as_os_str().is_empty() {
-            return Err(invalid());
-        }
-        let path = if destination.is_absolute() {
-            destination.to_owned()
-        } else {
-            std::env::current_dir()?.join(destination)
-        };
-        let leaf = path.file_name().ok_or_else(invalid)?.to_owned();
-        let parent_path = path.parent().ok_or_else(invalid)?.to_owned();
-        let parent = Dir::open_ambient_dir(&parent_path, ambient_authority())?;
-        let parent_identity = directory_identity(&parent)?;
-        Ok(Self {
-            path,
-            parent_path,
-            leaf,
-            parent,
-            parent_identity,
-        })
-    }
-
-    fn create_new(&self) -> Result<(), ArchiveError> {
-        let builder = private_directory_builder();
-        self.parent
-            .create_dir_with(&self.leaf, &builder)
-            .map_err(|error| {
-                if error.kind() == io::ErrorKind::AlreadyExists {
-                    ArchiveError::DestinationExists(self.path.to_string_lossy().into_owned())
-                } else {
-                    ArchiveError::from(error)
-                }
-            })
-    }
-
-    fn verify_parent(&self) -> Result<(), ArchiveError> {
-        let current = Dir::open_ambient_dir(&self.parent_path, ambient_authority())
-            .map_err(|_| ArchiveError::DestinationChanged)?;
-        if directory_identity(&current)? != self.parent_identity {
-            return Err(ArchiveError::DestinationChanged);
-        }
-        Ok(())
-    }
-
-    fn verify_root(&self, identity: &Handle) -> Result<(), ArchiveError> {
-        self.verify_parent()?;
-        let current = self
-            .parent
-            .open_dir_nofollow(&self.leaf)
-            .map_err(|_| ArchiveError::DestinationChanged)?;
-        if directory_identity(&current)? != *identity {
-            return Err(ArchiveError::DestinationChanged);
-        }
-        Ok(())
-    }
-}
-
-fn directory_identity(directory: &Dir) -> Result<Handle, ArchiveError> {
-    Ok(Handle::from_file(directory.try_clone()?.into_std_file())?)
-}
-
-fn private_directory_builder() -> DirBuilder {
-    let mut builder = DirBuilder::new();
-    #[cfg(unix)]
-    {
-        use cap_std::fs::DirBuilderExt;
-        builder.mode(0o700);
-    }
-    // `recursive(false)` is intentional: every component gets a no-follow open.
-    builder.recursive(false);
-    builder
 }
 
 fn open_directories<'a>(

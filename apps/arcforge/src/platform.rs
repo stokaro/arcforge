@@ -73,13 +73,14 @@ impl NativeShell {
     }
 
     #[cfg(feature = "native-capture")]
-    pub(crate) fn active_open_panel(&self) -> Option<OpenPanelInfo> {
+    pub(crate) fn active_file_panel(&self) -> Option<FilePanelInfo> {
         #[cfg(target_os = "macos")]
         {
-            let panel = self.inner.as_ref()?.active_open_panel()?;
-            Some(OpenPanelInfo {
+            let panel = self.inner.as_ref()?.active_file_panel()?;
+            Some(FilePanelInfo {
                 window_id: panel.window_id,
                 parent_window_id: panel.parent_window_id,
+                is_open: panel.is_open,
             })
         }
         #[cfg(not(target_os = "macos"))]
@@ -87,12 +88,12 @@ impl NativeShell {
     }
 
     #[cfg(feature = "native-capture")]
-    pub(crate) fn cancel_open_panel(&self, expected_window_id: u32) -> bool {
+    pub(crate) fn cancel_file_panel(&self, expected_window_id: u32) -> bool {
         #[cfg(target_os = "macos")]
         {
             self.inner
                 .as_ref()
-                .is_some_and(|shell| shell.cancel_open_panel(expected_window_id))
+                .is_some_and(|shell| shell.cancel_file_panel(expected_window_id))
         }
         #[cfg(not(target_os = "macos"))]
         {
@@ -103,9 +104,10 @@ impl NativeShell {
 }
 
 #[cfg(feature = "native-capture")]
-pub(crate) struct OpenPanelInfo {
+pub(crate) struct FilePanelInfo {
     pub window_id: u32,
     pub parent_window_id: u32,
+    pub is_open: bool,
 }
 
 #[cfg(target_os = "macos")]
@@ -119,6 +121,11 @@ fn workspace_command(
         Native::OpenByPath => Workspace::OpenByPath,
         Native::OpenSettings => Workspace::OpenSettings,
         Native::CloseArchive => Workspace::CloseArchive,
+        Native::CloseWindow => Workspace::CloseWindow,
+        Native::DeleteSelected => Workspace::DeleteSelected,
+        Native::Undo => Workspace::Undo,
+        Native::Redo => Workspace::Redo,
+        Native::SaveAs => Workspace::SaveAs,
         Native::ExtractAll => Workspace::ExtractAll,
         Native::ExtractSelected => Workspace::ExtractSelected,
         Native::TestArchive => Workspace::TestArchive,
@@ -143,6 +150,11 @@ fn workspace_command(
 fn native_state(state: arcforge_ui_egui::ToolbarState) -> arcforge_platform_macos::State {
     arcforge_platform_macos::State {
         title: state.title,
+        dirty: state.dirty,
+        can_delete: state.can_delete,
+        can_undo: state.can_undo,
+        can_redo: state.can_redo,
+        can_save_as: state.can_save_as,
         can_open: state.can_open,
         can_close: state.can_close,
         can_extract_all: state.can_extract_all,

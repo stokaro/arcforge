@@ -1,6 +1,6 @@
 # Working on ArcForge
 
-ArcForge currently provides ZIP/ZIP64 browsing, small-entry previews, and bounded extraction into a new directory in Rust. Creation, editing, and saving remain planned; see [current ZIP contracts](docs/zip-browser.md). [Issue #1](https://github.com/stokaro/arcforge/issues/1) defines the planned behavior and acceptance criteria.
+ArcForge provides ZIP/ZIP64 browsing, small-entry previews, and bounded extraction. Classic ZIP supports staged deletion with Undo, Redo and Save As to a new file. See the [ZIP contracts](docs/zip-browser.md) and [implementation epic](https://github.com/stokaro/arcforge/issues/1).
 
 ## Boundaries
 
