@@ -917,6 +917,76 @@ fn extraction_form_and_retained_output_report_render_without_filesystem_work() {
 }
 
 #[test]
+fn extraction_dialog_height_tracks_its_content_instead_of_the_viewport() {
+    fn settled_rect(
+        context: &egui::Context,
+        workspace: &mut ArchiveWorkspace,
+        viewport_height: f32,
+    ) -> egui::Rect {
+        // Auto-sized windows use the preceding frame's width for their title.
+        // Three layout passes settle that feedback without a display or sleeps.
+        for _ in 0..3 {
+            let mut output = context.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1100.0, viewport_height),
+                    )),
+                    ..Default::default()
+                },
+                |_ui| workspace.extraction_window(context),
+            );
+            output.textures_delta.clear();
+        }
+        context
+            .memory(|memory| memory.area_rect(egui::Id::unique("extraction_sheet")))
+            .expect("the real extraction window has a measured rectangle")
+    }
+
+    let fixture = Fixture::new(b"entry.txt");
+    let context = egui::Context::default();
+    configure_style(&context);
+    let mut workspace = ArchiveWorkspace {
+        document: Some(fixture.document()),
+        selected: Some(0),
+        selected_entries: BTreeSet::from([0]),
+        ..Default::default()
+    };
+    workspace.open_extraction(ExtractionScope::Selected);
+    let editing = settled_rect(&context, &mut workspace, 822.0);
+    assert!(
+        editing.height() < 450.0,
+        "the form must not consume the remaining viewport: {editing:?}"
+    );
+    let editing_tall = settled_rect(&context, &mut workspace, 1200.0);
+    assert!(
+        (editing_tall.height() - editing.height()).abs() < 2.0,
+        "extra viewport height must not expand the footer: before={editing:?}, after={editing_tall:?}"
+    );
+
+    workspace.extraction.state =
+        ExtractionState::Finished(Ok(extraction_report(ExtractionStatus::Completed)));
+    let finished_tall = settled_rect(&context, &mut workspace, 1200.0);
+    assert!(
+        finished_tall.height() < 280.0,
+        "a short result should stay compact: {finished_tall:?}"
+    );
+    assert!(
+        finished_tall.height() + 40.0 < editing_tall.height(),
+        "the same window must shrink when the form becomes a shorter result: form={editing_tall:?}, result={finished_tall:?}"
+    );
+    let finished = settled_rect(&context, &mut workspace, 822.0);
+    assert!(
+        (finished_tall.height() - finished.height()).abs() < 2.0,
+        "result height follows its content at either viewport size"
+    );
+    assert!(
+        workspace.worker.is_none(),
+        "measuring the form performs no filesystem work"
+    );
+}
+
+#[test]
 fn narrow_preview_keeps_prepared_rows_on_one_line_and_scrolls_horizontally() {
     fn render(
         context: &egui::Context,

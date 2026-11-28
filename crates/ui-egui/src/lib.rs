@@ -1602,7 +1602,7 @@ impl ArchiveWorkspace {
                     let allowed = !self.extraction.destination.as_os_str().is_empty()
                         && (self.extraction.scope == ExtractionScope::All || selected > 0)
                         && !self.blocks_selection && !self.source_changed;
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    dialog_actions(ui, |ui| {
                         start = ui.add_enabled(allowed, egui::Button::new("Extract Here")).clicked();
                         dismiss = ui.button("Cancel").clicked();
                     });
@@ -1639,7 +1639,7 @@ impl ArchiveWorkspace {
                     } else {
                         ui.small("Cancelling retains output already written to this directory.");
                     }
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    dialog_actions(ui, |ui| {
                         cancel = ui.add_enabled(!*cancel_requested, egui::Button::new("Cancel extraction")).clicked();
                     });
                 }
@@ -1666,7 +1666,7 @@ impl ArchiveWorkspace {
                         ui.colored_label(ui.visuals().error_fg_color, escape_display(&error.to_string()));
                     }
                     ui.add_space(10.0);
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    dialog_actions(ui, |ui| {
                         dismiss = ui.button("Done").clicked();
                         if ui.button("Copy destination").clicked() {
                             context.copy_text(report.destination.clone());
@@ -1680,7 +1680,7 @@ impl ArchiveWorkspace {
                     ui.label("No destination directory was created by this operation.");
                     ui.small("For a filename conflict or unresolved name, return to the archive and adjust Filename interpretation. Existing destinations require a new name.");
                     ui.add_space(10.0);
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    dialog_actions(ui, |ui| {
                         dismiss = ui.button("Return to archive").clicked();
                         edit = ui.button("Edit destination").clicked();
                     });
@@ -1690,7 +1690,7 @@ impl ArchiveWorkspace {
                     ui.colored_label(ui.visuals().error_fg_color, escape_display(error));
                     ui.label("The final output state is unknown. Inspect this directory for retained files:");
                     ui.label(bounded_display(&self.extraction.destination.to_string_lossy()));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    dialog_actions(ui, |ui| {
                         dismiss = ui.button("Return to archive").clicked();
                     });
                 }
@@ -2169,6 +2169,14 @@ fn format_bytes(bytes: u64) -> String {
     } else {
         format!("{:.2} GiB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
     }
+}
+
+fn dialog_actions(ui: &mut egui::Ui, actions: impl FnOnce(&mut egui::Ui)) {
+    // A bare right-to-left scope inherits all remaining vertical space. A
+    // horizontal row gives its centered buttons a finite interactive height.
+    ui.horizontal(|ui| {
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), actions);
+    });
 }
 
 fn theme_picker(ui: &mut egui::Ui) {
