@@ -16,6 +16,8 @@ The archive encoding selector applies a fallback only where metadata does not al
 
 A single click selects a row and loads the built-in preview. Double-click an archive file to open it in the app associated with its file type. Double-click an Outline folder to enter it.
 
+Right-click a row in the archive contents, or Control-click on macOS, to open its context menu. A file offers **Open in Default App** and **Preview**. A folder offers **Open Folder**. **Extract Selected…** and **Delete Selected** apply to the selection. Right-clicking a selected row keeps the whole selection. Right-clicking an unselected row selects that row. **Escape** dismisses the menu.
+
 ArcForge extracts just the clicked entry into a fresh temporary directory, preserving its name and extension. It checks paths, source identity, size limits and CRC32 before sending the file to the desktop. This uses the streaming extraction limits, including 1 GiB per file, so larger files can open even when they exceed the built-in preview limit. The action supports regular, unencrypted Stored or Deflate entries with resolved names. Common executable, script and shortcut formats require explicit extraction for external use.
 
 Each open gets its own copy. Edits made in the external app are local to that copy. Copies stay available when you close or switch archives, and ArcForge attempts to remove them when the application exits. Use the external app's Save As to keep a permanent copy. **Stop** cancels preparation before the system handoff. A successful handoff leaves the copy available even if cancellation arrives during dispatch. On Linux the feature uses `gio open` and the desktop's registered file association.

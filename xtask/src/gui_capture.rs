@@ -13,6 +13,7 @@ use crate::{Options, Result};
 
 const SCENES: &[(&str, Option<&str>)] = &[
     ("01-text-preview", Some("Documents/Guide.txt")),
+    ("11-entry-context-menu", Some("Documents/Guide.txt")),
     ("10-open-in-default-app", Some("Documents/Guide.txt")),
     ("02-image-preview", Some("Photos/Color-study.png")),
     ("05-staged-delete", None),
@@ -401,6 +402,9 @@ fn validate_scene(
     }
     if scene == "02-image-preview" && value["preview_image_size"] != json!([960, 640]) {
         return Err("image scene did not show the fixture's decoded 960×640 PNG".into());
+    }
+    if scene == "11-entry-context-menu" && value["entry_context_menu_open"] != true {
+        return Err("the selected archive row's context menu did not open".into());
     }
     if scene == "10-open-in-default-app"
         && (value["system_open_succeeded"] != true

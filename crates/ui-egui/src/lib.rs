@@ -5,6 +5,7 @@ mod filesystem;
 mod jobs;
 mod open_file;
 mod preview_image;
+mod row_menu;
 pub mod typography;
 
 #[cfg(feature = "native-capture")]
@@ -112,7 +113,7 @@ pub struct ToolbarState {
     pub search_query: String,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum RowKey {
     Entry(EntryId),
     Folder(String),
@@ -184,6 +185,8 @@ pub struct ArchiveWorkspace {
     selected_entries: BTreeSet<EntryId>,
     selected_folders: BTreeSet<String>,
     selection_anchor: Option<RowKey>,
+    #[cfg(feature = "native-capture")]
+    capture_entry_menu: Option<(egui::Pos2, egui::Id)>,
     view_mode: ViewMode,
     expanded_folders: BTreeSet<String>,
     applied_view_mode: ViewMode,
@@ -254,6 +257,8 @@ impl ArchiveWorkspace {
             selected_entries: BTreeSet::new(),
             selected_folders: BTreeSet::new(),
             selection_anchor: None,
+            #[cfg(feature = "native-capture")]
+            capture_entry_menu: None,
             view_mode: ViewMode::Outline,
             expanded_folders: BTreeSet::new(),
             applied_view_mode: ViewMode::Outline,
@@ -785,7 +790,9 @@ impl ArchiveWorkspace {
             && !self.native_picker_pending()
             && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
         {
-            if self.file_job_active() {
+            if egui::Popup::is_any_open(ui.ctx()) {
+                egui::Popup::close_all(ui.ctx());
+            } else if self.file_job_active() {
                 self.cancel();
             } else if self.extraction.open {
                 self.extraction.open = false;
@@ -2431,6 +2438,10 @@ impl ArchiveWorkspace {
     }
 
     fn entries(&mut self, ui: &mut egui::Ui) {
+        #[cfg(feature = "native-capture")]
+        {
+            self.capture_entry_menu = None;
+        }
         let document = self.document.clone();
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(content_color(ui)).inner_margin(6)).show(ui, |ui| {
             let Some(document) = document else {
@@ -2489,10 +2500,7 @@ impl ArchiveWorkspace {
                                     paint_disclosure(ui.painter(), disclosure_rect, expanded, color);
                                     let disclosure = ui.interact(disclosure_rect, ui.scope_id().with(("disclosure", folder)), egui::Sense::click());
                                     disclosure.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), if expanded { "Collapse folder" } else { "Expand folder" }));
-                                    if disclosure.clicked() && self.query.is_empty() {
-                                        disclosed = Some(path.clone());
-                                        disclosure_clicked = true;
-                                    }
+                                    disclosure_clicked = disclosure.clicked() && self.query.is_empty();
                                 }
                                 let icon_rect = egui::Rect::from_min_size(rect.left_top() + egui::vec2(24.0 + indent, 1.5), egui::vec2(22.0, 22.0));
                                 let directory = row.folder.is_some() || row.entry.is_some_and(|entry| document.snapshot.entries[entry].is_directory);
@@ -2520,13 +2528,20 @@ impl ArchiveWorkspace {
                                     x += cell_width;
                                 }
                                 let response = response.on_hover_text(row_full_path(&document, row));
-                                if response.double_clicked() && !disclosure_clicked {
+                                if self.entry_context_menu(&response, &document, &key, index) {
+                                    continue;
+                                }
+                                if disclosure_clicked && let Some(folder) = row.folder {
+                                    disclosed = Some(document.folders[folder].clone());
+                                    continue;
+                                }
+                                if response.double_clicked() {
                                     if let Some(folder) = row.folder {
                                         entered = Some(document.folders[folder].clone());
                                     } else if let Some(entry) = entry.filter(|entry| !entry.is_directory) {
                                         opened = Some((index, entry.id));
                                     }
-                                } else if response.clicked() && !disclosure_clicked {
+                                } else if response.clicked() {
                                     clicked = Some((index, ui.input(|input| input.modifiers)));
                                 }
                             }

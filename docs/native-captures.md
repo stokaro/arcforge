@@ -56,6 +56,7 @@ Every completed capture contains these client scenes, plus two native file panel
 | Scene | Actual selected entry | Required worker result |
 | --- | --- | --- |
 | `client/01-text-preview.png` | `Documents/Guide.txt` | Complete UTF-8 text preview with verified CRC32 |
+| `client/11-entry-context-menu.png` | `Documents/Guide.txt` | Secondary-button input opens the selected row's popup |
 | `client/10-open-in-default-app.png` | `Documents/Guide.txt` | Normal file-open command succeeded; the temporary copy matches the CRC-verified preview |
 | `client/02-image-preview.png` | `Photos/Color-study.png` | Complete verified preview and decoded 960 × 640 PNG texture |
 | `client/03-empty-window.png` | None | Closed document, cleared selection/preview, no pending picker |

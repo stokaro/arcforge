@@ -1,0 +1,109 @@
+{
+  "target": "x86_64-pc-windows-msvc",
+  "source_commit": "d44ba0cb1b652a0484af89b8009fa7e0cdf24eb7",
+  "source_dirty": false,
+  "github_actions_run": 46153692964,
+  "capture_run_sha256": "93802d66833086a5a00cd6fb87c5940df60957929889ae43cf748d4008c681eb",
+  "scene_metadata_sha256": "81c4e382784e4b2e27b1a790931e1dfb1acf787e682414b4fa5817b117d69c39",
+  "runtime": {
+    "architecture": "x86_64",
+    "environment": {
+      "ARCFORGE_CAPTURE_DISPLAY": "GitHub-hosted native desktop session",
+      "ARCFORGE_CAPTURE_GL_DRIVER": "Mesa 26.3.1 llvmpipe; software OpenGL; CI-only WGL driver",
+      "ARCFORGE_CAPTURE_GL_LIBRARY_PATH": "D:\\a\\arcforge\\arcforge\\target\\x86_64-pc-windows-msvc\\debug\\opengl32.dll",
+      "ARCFORGE_CAPTURE_GL_LIBRARY_SHA256": "7b3235a70bf390d6b15cd3877fa63d3bd303117f162a329ce48f7af5068a4b3b",
+      "ARCFORGE_CAPTURE_GL_LICENSES": "Mesa component licenses (mostly MIT); LLVM Apache-2.0 WITH LLVM-exception",
+      "ARCFORGE_CAPTURE_GL_PACKAGE_SHA256": "08145a3717e0c1be0d97b74b53070f14eb39cb2f7de22f84fe20d1a581299c12",
+      "ARCFORGE_CAPTURE_GL_SOURCE_COMMIT": "73f7cfb6d2ec725d1c036c33eba62f420f87818e",
+      "GITHUB_ACTIONS": "true",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_RUN_ID": "46153692964",
+      "GITHUB_SHA": "d44ba0cb1b652a0484af89b8009fa7e0cdf24eb7",
+      "ImageOS": "win25-vs2026",
+      "ImageVersion": "20261123.321.1",
+      "RUNNER_ARCH": "X64",
+      "RUNNER_OS": "Windows"
+    },
+    "os": "windows",
+    "os_version": "Microsoft Windows [Version 10.0.26100.33828]",
+    "renderer": "production Glow backend; no offscreen or alternate renderer",
+    "window": "actual native eframe window with shared platform::native_options"
+  },
+  "build": {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--target",
+      "x86_64-pc-windows-msvc",
+      "-p",
+      "arcforge",
+      "--features",
+      "native-capture"
+    ],
+    "feature": "native-capture",
+    "profile": "debug",
+    "release_bundle": false
+  },
+  "binary_sha256": "eb962e1abdd89030e3f0c6aa49b0a3b4150e05841c67b09a1276dc112862fbc6",
+  "fixture": {
+    "file": "workspace-demo.zip",
+    "generator": "scripts/generate_ui_fixture.py --images",
+    "generator_sha256": "f08427b3389702f953b7bbf84c14dc37dfe1a82b982864f3897ac7290a157aec",
+    "original_content": true,
+    "sha256": "eef9fd6de48a3e465ab99dae9cdb5df13353e25056fe9365584d9e722d0da70e",
+    "unchanged_after_capture": true
+  },
+  "scene": {
+    "file": "01-context-menu.png",
+    "source_scene": "11-entry-context-menu",
+    "capture_kind": "native application client area",
+    "sha256": "909c812158456ba228b076238ec8a4753e4261a067619f5c91d1f2de063e1917",
+    "pixel_dimensions": [
+      1024,
+      768
+    ],
+    "scale": 1.0,
+    "theme": "light",
+    "process_id": 8332,
+    "viewport": {
+      "focused": true,
+      "inner_rect_points": [
+        112.0,
+        135.0,
+        1024.0,
+        768.0
+      ],
+      "minimized": false,
+      "native_pixels_per_point": 1.0,
+      "occluded": null,
+      "outer_rect_points": [
+        104.0,
+        104.0,
+        1040.0,
+        807.0
+      ]
+    },
+    "fonts": {
+      "regular": {
+        "embedded": false,
+        "face_index": 0,
+        "font_name": "Segoe UI",
+        "source_path": "C:\\Windows\\Fonts\\segoeui.ttf",
+        "variation_coordinates": [],
+        "weight": 400.0
+      },
+      "semibold": {
+        "embedded": false,
+        "face_index": 0,
+        "font_name": "Segoe UI Semibold",
+        "source_path": "C:\\Windows\\Fonts\\seguisb.ttf",
+        "variation_coordinates": [],
+        "weight": 600.0
+      }
+    },
+    "selected_entry": "Documents/Guide.txt",
+    "entry_context_menu_open": true,
+    "rendered_frames_after_ready": 2
+  }
+}
