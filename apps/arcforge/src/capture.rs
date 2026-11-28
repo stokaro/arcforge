@@ -4,6 +4,7 @@
 //! It does not include OS decorations. `xtask gui-capture` owns the fixture,
 //! process deadline, source provenance and optional macOS window capture.
 
+use std::collections::VecDeque;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -99,6 +100,8 @@ pub(crate) struct Session {
     panel_window_id: Option<u32>,
     panel_to_cancel: Option<u32>,
     saved_copy: PathBuf,
+    entry_menu_click_sent: bool,
+    pending_input: VecDeque<egui::Event>,
 }
 
 impl Session {
@@ -139,6 +142,8 @@ impl Session {
             panel_window_id: None,
             panel_to_cancel: None,
             saved_copy,
+            entry_menu_click_sent: false,
+            pending_input: VecDeque::new(),
         })
     }
 
@@ -182,6 +187,11 @@ impl Session {
                     self.phase = Phase::Painted(ready);
                 }
                 Event::Saved => {
+                    if Scene::ALL[self.scene_index] == Scene::EntryMenu {
+                        egui::Popup::close_all(context);
+                        self.pending_input
+                            .push_back(egui::Event::PointerMoved(egui::pos2(2.0, 2.0)));
+                    }
                     self.scene_index += 1;
                     if self.scene_index == Scene::ALL.len() {
                         self.finish(Ok(()), context);
@@ -204,6 +214,21 @@ impl Session {
         let ready = match workspace.prepare_native_capture(scene, context, &self.saved_copy) {
             Ok(Some(ready)) => ready,
             Ok(None) => {
+                if scene == Scene::EntryMenu
+                    && !self.entry_menu_click_sent
+                    && let Some(pos) = workspace.capture_entry_menu_position()
+                {
+                    self.entry_menu_click_sent = true;
+                    self.pending_input.push_back(egui::Event::PointerMoved(pos));
+                    for pressed in [true, false] {
+                        self.pending_input.push_back(egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Secondary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        });
+                    }
+                }
                 context.request_repaint_after(Duration::from_millis(25));
                 return;
             }
@@ -324,6 +349,12 @@ impl Session {
     pub(crate) fn finished(&self) -> bool {
         matches!(self.phase, Phase::Finished)
     }
+
+    pub(crate) fn feed_input(&mut self, input: &mut egui::RawInput) {
+        if let Some(event) = self.pending_input.pop_front() {
+            input.events.push(event);
+        }
+    }
 }
 
 fn scene_metadata(
@@ -386,6 +417,9 @@ fn scene_metadata(
             value["preview_bytes"] = json!(preview.preview_bytes);
             value["preview_crc32_verified"] = json!(true);
             value["preview_image_size"] = json!(preview.image_size);
+            if preview.entry_menu_open {
+                value["entry_context_menu_open"] = json!(true);
+            }
             if let Some(bytes) = preview.opened_copy_bytes {
                 value["opened_copy_bytes"] = json!(bytes);
                 value["system_open_succeeded"] = json!(true);

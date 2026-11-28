@@ -14,6 +14,7 @@ const REMOVED_ENTRY: &str = "Photos/Color-study.png";
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Scene {
     Text,
+    EntryMenu,
     OpenFile,
     Image,
     StagedDelete,
@@ -30,6 +31,7 @@ pub enum Scene {
 impl Scene {
     pub const ALL: &'static [Self] = &[
         Self::Text,
+        Self::EntryMenu,
         Self::OpenFile,
         Self::Image,
         Self::StagedDelete,
@@ -46,6 +48,7 @@ impl Scene {
     pub fn name(self) -> &'static str {
         match self {
             Self::Text => "01-text-preview",
+            Self::EntryMenu => "11-entry-context-menu",
             Self::OpenFile => "10-open-in-default-app",
             Self::Image => "02-image-preview",
             Self::StagedDelete => "05-staged-delete",
@@ -62,7 +65,7 @@ impl Scene {
 
     pub fn entry_name(self) -> &'static str {
         match self {
-            Self::Text | Self::OpenFile => "Documents/Guide.txt",
+            Self::Text | Self::EntryMenu | Self::OpenFile => "Documents/Guide.txt",
             Self::Image => REMOVED_ENTRY,
             _ => "",
         }
@@ -104,9 +107,14 @@ pub struct ReadyPreview {
     pub preview_bytes: usize,
     pub image_size: Option<[usize; 2]>,
     pub opened_copy_bytes: Option<usize>,
+    pub entry_menu_open: bool,
 }
 
 impl ArchiveWorkspace {
+    pub fn capture_entry_menu_position(&self) -> Option<egui::Pos2> {
+        self.capture_entry_menu.map(|(position, _)| position)
+    }
+
     /// Drive selection through the same commands used by the visible workspace.
     /// Call after `show`; `Some` means the requested state was actually drawn in
     /// that UI pass. The native harness separately waits for renderer callbacks.
@@ -221,10 +229,12 @@ impl ArchiveWorkspace {
             return Err("capture preview does not match the CRC-checked selection".into());
         }
         let image_size = match scene {
-            Scene::Text | Scene::OpenFile if preview.text_rows.is_some() && !self.preview_hex => {
+            Scene::Text | Scene::EntryMenu | Scene::OpenFile
+                if preview.text_rows.is_some() && !self.preview_hex =>
+            {
                 None
             }
-            Scene::Text | Scene::OpenFile => {
+            Scene::Text | Scene::EntryMenu | Scene::OpenFile => {
                 return Err("text capture did not produce a text preview".into());
             }
             Scene::Image => {
@@ -241,6 +251,22 @@ impl ArchiveWorkspace {
             }
             _ => unreachable!("non-preview scenes return before archive inspection"),
         };
+        let entry_menu_open = scene == Scene::EntryMenu;
+        if entry_menu_open {
+            let Some((_, id)) = self.capture_entry_menu else {
+                return Ok(None);
+            };
+            let visible_since =
+                egui::AreaState::load(context, id).and_then(|area| area.last_became_visible_at);
+            let now = context.input(|input| input.time);
+            if !egui::Popup::is_id_open(context, id)
+                || visible_since.is_none_or(|time| {
+                    now - time < f64::from(context.global_style().animation_time)
+                })
+            {
+                return Ok(None);
+            }
+        }
         let opened_copy_bytes = if scene == Scene::OpenFile {
             // Repeated opens must create independent copies that survive until
             // application exit. The capture parent observes both on disk.
@@ -272,6 +298,7 @@ impl ArchiveWorkspace {
             preview_bytes: preview.preview.bytes.len(),
             image_size,
             opened_copy_bytes,
+            entry_menu_open,
         })))
     }
 

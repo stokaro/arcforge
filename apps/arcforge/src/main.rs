@@ -103,6 +103,17 @@ struct DesktopApp {
 }
 
 impl eframe::App for DesktopApp {
+    #[cfg(feature = "native-capture")]
+    fn raw_input_hook(
+        &mut self,
+        _context: &eframe::egui::Context,
+        input: &mut eframe::egui::RawInput,
+    ) {
+        if let Some(capture) = &mut self.capture {
+            capture.feed_input(input);
+        }
+    }
+
     fn ui(&mut self, ui: &mut eframe::egui::Ui, frame: &mut eframe::Frame) {
         #[cfg(feature = "native-capture")]
         if self

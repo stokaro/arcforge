@@ -1642,6 +1642,177 @@ fn double_click_requests_opening_the_clicked_file_after_the_first_click_previews
 }
 
 #[test]
+fn right_click_selects_the_clicked_file_and_opens_it_from_its_menu() {
+    let fixture = Fixture::new(b"initial.txt");
+    fs::write(
+        &fixture.path,
+        stored_zip_entries(&[(b"initial.txt", b"initial"), (b"target.txt", b"target")]),
+    )
+    .unwrap();
+    let document = fixture.document();
+    let rows = document
+        .view_rows(
+            "",
+            None,
+            ViewMode::Outline,
+            &BTreeSet::new(),
+            &CancellationToken::new(),
+        )
+        .unwrap();
+    let (worker, incoming, _outgoing) = Worker::test_channels();
+    let mut workspace = ArchiveWorkspace {
+        document: Some(document),
+        rows,
+        worker: Some(worker),
+        ..Default::default()
+    };
+    let context = egui::Context::default();
+    workspace.select_row(0, egui::Modifiers::NONE);
+    let size = egui::vec2(1300.0, 780.0);
+    let output = native_workspace_frame(&context, &mut workspace, size, 0, vec![]);
+    let (label, _) = painted_text_rect(&output, "target.txt").expect("second archive row");
+    let output = click_workspace(
+        &context,
+        &mut workspace,
+        size,
+        label.center(),
+        egui::PointerButton::Secondary,
+        1,
+    );
+    assert!(painted_text_rect(&output, "Open in Default App").is_some());
+    assert!(
+        incoming.try_recv().is_err(),
+        "showing the menu starts no worker job"
+    );
+    native_workspace_frame(
+        &context,
+        &mut workspace,
+        size,
+        4,
+        vec![egui::Event::Key {
+            key: egui::Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }],
+    );
+    assert!(!egui::Popup::is_any_open(&context));
+    assert_eq!(workspace.selected_entries, BTreeSet::from([1]));
+    let output = click_workspace(
+        &context,
+        &mut workspace,
+        size,
+        label.center(),
+        egui::PointerButton::Secondary,
+        5,
+    );
+    let (open, _) = painted_text_rect(&output, "Open in Default App").expect("reopened file menu");
+    click_workspace(
+        &context,
+        &mut workspace,
+        size,
+        open.center(),
+        egui::PointerButton::Primary,
+        8,
+    );
+    assert_eq!(workspace.selected_entries, BTreeSet::from([1]));
+    assert!(matches!(
+        incoming.try_recv().expect("selected menu action").task,
+        Task::OpenFile { entry: 1, .. }
+    ));
+}
+
+fn click_workspace(
+    context: &egui::Context,
+    workspace: &mut ArchiveWorkspace,
+    size: egui::Vec2,
+    pos: egui::Pos2,
+    button: egui::PointerButton,
+    frame: u32,
+) -> egui::FullOutput {
+    for (offset, pressed) in [(0, true), (1, false)] {
+        native_workspace_frame(
+            context,
+            workspace,
+            size,
+            frame + offset,
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button,
+                    pressed,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+    }
+    // A newly opened egui popup uses a first pass to measure its contents.
+    native_workspace_frame(context, workspace, size, frame + 2, vec![])
+}
+
+#[test]
+fn right_click_on_a_selected_folder_keeps_the_group_for_delete() {
+    let fixture = Fixture::new(b"initial.txt");
+    fs::write(
+        &fixture.path,
+        stored_zip_entries(&[(b"single.txt", b"single"), (b"nested/child.txt", b"child")]),
+    )
+    .unwrap();
+    let document = fixture.document();
+    let rows = document
+        .view_rows(
+            "",
+            None,
+            ViewMode::Outline,
+            &BTreeSet::new(),
+            &CancellationToken::new(),
+        )
+        .unwrap();
+    let (worker, incoming, _outgoing) = Worker::test_channels();
+    let mut workspace = ArchiveWorkspace {
+        document: Some(document),
+        rows,
+        worker: Some(worker),
+        ..Default::default()
+    };
+    workspace.select_all_visible();
+    let context = egui::Context::default();
+    let size = egui::vec2(1300.0, 780.0);
+    let output = native_workspace_frame(&context, &mut workspace, size, 0, vec![]);
+    let (label, _) = painted_text_rect(&output, "nested").expect("folder row");
+    let output = click_workspace(
+        &context,
+        &mut workspace,
+        size,
+        label.center(),
+        egui::PointerButton::Secondary,
+        1,
+    );
+    assert_eq!(workspace.selection_count(), 2);
+    assert!(painted_text_rect(&output, "Open Folder").is_none());
+    let (delete, _) = painted_text_rect(&output, "Delete Selected").expect("group context menu");
+    click_workspace(
+        &context,
+        &mut workspace,
+        size,
+        delete.center(),
+        egui::PointerButton::Primary,
+        4,
+    );
+    let Task::Edit {
+        action: EditAction::Delete { ids, folders },
+        ..
+    } = incoming.try_recv().expect("staged delete selection").task
+    else {
+        panic!("group menu must stage a deletion");
+    };
+    assert_eq!(ids, BTreeSet::from([0]));
+    assert_eq!(folders, BTreeSet::from(["nested/".into()]));
+}
+
+#[test]
 fn temporary_open_copies_one_exact_file_and_keeps_its_bytes_for_the_session() {
     let fixture = Fixture::new(b"initial.txt");
     let payload = vec![b'x'; 300_000];
