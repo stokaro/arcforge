@@ -88,7 +88,7 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
           ARCFORGE_CAPTURE_DISPLAY: "Xvfb X11; Mesa software OpenGL requested"
-        run: xvfb-run -a -s "-screen 0 1600x1000x24" cargo xtask gui-capture --target "$TARGET" --directory "target/native-gui/$TARGET"
+        run: xvfb-run -a -s "-screen 0 1600x1000x24" cargo xtask gui-capture --target "$TARGET" --directory "$RUNNER_TEMP/arcforge-native-gui-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/$TARGET"
       - name: Prepare pinned Windows software OpenGL for native capture
         if: runner.os == 'Windows'
         shell: pwsh
@@ -97,13 +97,13 @@ jobs:
         if: runner.os != 'Linux'
         env:
           ARCFORGE_CAPTURE_DISPLAY: "GitHub-hosted native desktop session"
-        run: cargo xtask gui-capture --target "$TARGET" --directory "target/native-gui/$TARGET"
+        run: cargo xtask gui-capture --target "$TARGET" --directory "$RUNNER_TEMP/arcforge-native-gui-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/$TARGET"
       - name: Upload native GUI evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-gui-${{ matrix.target }}
-          path: target/native-gui/${{ matrix.target }}/
+          path: ${{ runner.temp }}/arcforge-native-gui-${{ github.run_id }}-${{ github.run_attempt }}/${{ matrix.target }}/
           if-no-files-found: warn
           compression-level: 0
           retention-days: 14
@@ -133,13 +133,13 @@ jobs:
         with:
           key: native-gui-macos-26
       - name: Capture real native GUI scenes
-        run: cargo xtask gui-capture --target "$TARGET" --directory "target/native-gui/macos-26-$TARGET"
+        run: cargo xtask gui-capture --target "$TARGET" --directory "$RUNNER_TEMP/arcforge-native-gui-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/macos-26-$TARGET"
       - name: Upload macOS 26 native GUI evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-gui-macos-26-aarch64-apple-darwin
-          path: target/native-gui/macos-26-aarch64-apple-darwin/
+          path: ${{ runner.temp }}/arcforge-native-gui-${{ github.run_id }}-${{ github.run_attempt }}/macos-26-aarch64-apple-darwin/
           if-no-files-found: warn
           compression-level: 0
           retention-days: 14

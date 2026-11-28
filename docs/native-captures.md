@@ -24,8 +24,13 @@ profile with `native-capture`, using the same production Glow backend, shared
 native window options, typography selection, UI layout and archive worker. It
 does not capture the separately packaged release binary.
 
-The default directory is `target/native-gui/<target>`. On Linux, CI starts a real
-X11 window in Xvfb and requests Mesa software OpenGL:
+The local default directory is `target/native-gui/<target>`. CI writes to a fresh
+`RUNNER_TEMP/arcforge-native-gui-<run_id>-<run_attempt>/<target>` directory, with a
+`macos-26-` target prefix for the additional macOS job. This keeps evidence outside
+the Rust cache: even an empty restored directory would correctly fail the helper's
+create-new check. The artifact upload reads the same per-run location.
+
+On Linux, CI starts a real X11 window in Xvfb and requests Mesa software OpenGL:
 
 The X11 runtime also needs `libxkbcommon-x11-0` on Ubuntu. The general
 `libxkbcommon-dev` build dependency does not supply that dynamically loaded X11
