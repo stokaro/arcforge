@@ -2,12 +2,13 @@
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError};
+use std::sync::{Arc, Mutex};
 
 use arcforge_core::archive::{
     ArchiveEntry, ArchiveError, ArchiveLimits, ArchiveSnapshot, CancellationToken, EntryId,
-    EntryPreview, FilenamePolicy, open_archive, preview_entry, reinterpret,
+    EntryPreview, ExtractionLimits, ExtractionProgress, ExtractionReport, ExtractionSelection,
+    FilenamePolicy, extract_archive, open_archive, preview_entry, reinterpret,
 };
 
 const MAX_VIEW_BYTES: usize = 64 * 1024 * 1024;
@@ -21,11 +22,50 @@ pub(super) struct Ticket {
     pub request: u64,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) enum ViewMode {
+    Flat,
+    #[default]
+    Outline,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct ViewRow {
+    pub entry: Option<usize>,
+    pub folder: Option<usize>,
+    pub depth: usize,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct FolderTotals {
+    pub size: u64,
+    pub compressed_size: u64,
+    pub entries: u64,
+}
+
+impl FolderTotals {
+    fn add(&mut self, other: Self) -> Result<(), ArchiveError> {
+        let overflow = || ArchiveError::LimitExceeded("prepared folder totals overflow".into());
+        self.size = self.size.checked_add(other.size).ok_or_else(overflow)?;
+        self.compressed_size = self
+            .compressed_size
+            .checked_add(other.compressed_size)
+            .ok_or_else(overflow)?;
+        self.entries = self
+            .entries
+            .checked_add(other.entries)
+            .ok_or_else(overflow)?;
+        Ok(())
+    }
+}
+
 pub(super) struct PreparedDocument {
     pub snapshot: Arc<ArchiveSnapshot>,
     pub folders: Vec<String>,
+    pub folder_totals: Vec<FolderTotals>,
     pub folders_limited: bool,
     search_keys: Vec<String>,
+    outline: Vec<ViewRow>,
 }
 
 impl PreparedDocument {
@@ -63,11 +103,88 @@ impl PreparedDocument {
                 folders.insert(folder.to_owned());
             }
         }
+        let folders: Vec<_> = folders.into_iter().collect();
+        // One accumulator per cached folder (at most MAX_FOLDERS), rather
+        // than storing a descendant list or walking every ancestor per file.
+        let mut folder_totals = vec![FolderTotals::default(); folders.len()];
+        for entry in &snapshot.entries {
+            check_cancel(cancel)?;
+            if !entry.is_directory
+                && let Some(folder) = nearest_folder(&folders, &entry.name.display, cancel)?
+            {
+                folder_totals[folder].add(FolderTotals {
+                    size: entry.size,
+                    compressed_size: entry.compressed_size,
+                    entries: 1,
+                })?;
+            }
+        }
+        // Lexically sorted parents precede their children. Propagate each
+        // accumulated subtree once, including implicitly represented folders.
+        for index in (0..folders.len()).rev() {
+            check_cancel(cancel)?;
+            if let Some(parent) = nearest_folder(
+                &folders,
+                &folders[index][..folders[index].len() - 1],
+                cancel,
+            )? {
+                let subtree = folder_totals[index];
+                folder_totals[parent].add(subtree)?;
+            }
+        }
+        let mut outline: Vec<_> = folders
+            .iter()
+            .enumerate()
+            .map(|(index, folder)| ViewRow {
+                entry: None,
+                folder: Some(index),
+                depth: folder
+                    .trim_end_matches('/')
+                    .bytes()
+                    .filter(|byte| *byte == b'/')
+                    .count(),
+            })
+            .collect();
+        for (index, entry) in snapshot.entries.iter().enumerate() {
+            check_cancel(cancel)?;
+            if entry.is_directory
+                && let Ok(folder) = folders.binary_search(&entry.name.display)
+                && outline[folder].entry.is_none()
+            {
+                outline[folder].entry = Some(index);
+                continue;
+            }
+            outline.push(ViewRow {
+                entry: Some(index),
+                folder: None,
+                depth: entry
+                    .name
+                    .display
+                    .trim_end_matches('/')
+                    .bytes()
+                    .filter(|byte| *byte == b'/')
+                    .count(),
+            });
+        }
+        outline.sort_by(|left, right| {
+            let path = |row: &ViewRow| match row.folder {
+                Some(folder) => folders[folder].as_str(),
+                None => snapshot.entries[row.entry.expect("entry row")]
+                    .name
+                    .display
+                    .as_str(),
+            };
+            path(left)
+                .cmp(path(right))
+                .then_with(|| right.folder.is_some().cmp(&left.folder.is_some()))
+        });
         Ok(Self {
             snapshot: Arc::new(snapshot),
-            folders: folders.into_iter().collect(),
+            folders,
+            folder_totals,
             folders_limited,
             search_keys,
+            outline,
         })
     }
 
@@ -97,6 +214,96 @@ impl PreparedDocument {
         }
         Ok(rows)
     }
+
+    pub fn view_rows(
+        &self,
+        query: &str,
+        folder: Option<&str>,
+        mode: ViewMode,
+        expanded: &BTreeSet<String>,
+        cancel: &CancellationToken,
+    ) -> Result<Vec<ViewRow>, ArchiveError> {
+        let matches = self.filter(query, folder, cancel)?;
+        if mode == ViewMode::Flat {
+            return Ok(matches
+                .into_iter()
+                .map(|entry| ViewRow {
+                    entry: Some(entry),
+                    folder: None,
+                    depth: 0,
+                })
+                .collect());
+        }
+        let mut entries = vec![false; self.snapshot.entries.len()];
+        let mut folders = vec![false; self.folders.len()];
+        for index in matches {
+            entries[index] = true;
+            let name = &self.snapshot.entries[index].name.display;
+            for (offset, character) in name.char_indices() {
+                if character == '/'
+                    && let Ok(folder) = self
+                        .folders
+                        .binary_search_by(|candidate| candidate.as_str().cmp(&name[..=offset]))
+                {
+                    folders[folder] = true;
+                }
+            }
+        }
+        let base_depth = folder.map_or(0, |path| path.bytes().filter(|byte| *byte == b'/').count());
+        let mut visible = Vec::new();
+        for row in &self.outline {
+            check_cancel(cancel)?;
+            let path = match row.folder {
+                Some(index) if folders[index] => self.folders[index].as_str(),
+                Some(_) => continue,
+                None if row.entry.is_some_and(|entry| entries[entry]) => self.snapshot.entries
+                    [row.entry.expect("entry row")]
+                .name
+                .display
+                .as_str(),
+                None => continue,
+            };
+            if folder.is_some_and(|prefix| !path.starts_with(prefix) || path == prefix) {
+                continue;
+            }
+            let collapsed = query.is_empty()
+                && path.char_indices().any(|(offset, character)| {
+                    if character != '/' || offset + 1 == path.len() {
+                        return false;
+                    }
+                    let prefix = &path[..=offset];
+                    if folder.is_some_and(|base| prefix.len() <= base.len()) {
+                        return false;
+                    }
+                    self.folders
+                        .binary_search_by(|candidate| candidate.as_str().cmp(prefix))
+                        .is_ok()
+                        && !expanded.contains(prefix)
+                });
+            if !collapsed {
+                visible.push(ViewRow {
+                    depth: row.depth.saturating_sub(base_depth),
+                    ..*row
+                });
+            }
+        }
+        Ok(visible)
+    }
+}
+
+fn nearest_folder(
+    folders: &[String],
+    name: &str,
+    cancel: &CancellationToken,
+) -> Result<Option<usize>, ArchiveError> {
+    for (offset, _) in name.rmatch_indices('/') {
+        check_cancel(cancel)?;
+        if let Ok(index) = folders.binary_search_by(|folder| folder.as_str().cmp(&name[..=offset]))
+        {
+            return Ok(Some(index));
+        }
+    }
+    Ok(None)
 }
 
 fn view_limit() -> ArchiveError {
@@ -187,15 +394,24 @@ pub(super) enum Task {
         document: Arc<PreparedDocument>,
         policy: FilenamePolicy,
         query: String,
+        mode: ViewMode,
     },
     Filter {
         document: Arc<PreparedDocument>,
         query: String,
         folder: Option<String>,
+        mode: ViewMode,
+        expanded: BTreeSet<String>,
     },
     Preview {
         document: Arc<PreparedDocument>,
         entry: EntryId,
+    },
+    Extract {
+        document: Arc<PreparedDocument>,
+        selection: ExtractionSelection,
+        folders: BTreeSet<String>,
+        destination: PathBuf,
     },
 }
 
@@ -208,15 +424,19 @@ pub(super) struct Request {
 pub(super) enum Completed {
     Document {
         document: Arc<PreparedDocument>,
-        rows: Vec<usize>,
+        rows: Vec<ViewRow>,
         query: String,
+        mode: ViewMode,
     },
     Filter {
-        rows: Vec<usize>,
+        rows: Vec<ViewRow>,
         query: String,
         folder: Option<String>,
+        mode: ViewMode,
+        expanded: BTreeSet<String>,
     },
     Preview(PreparedPreview),
+    Extraction(ExtractionReport),
 }
 
 pub(super) struct Reply {
@@ -224,11 +444,19 @@ pub(super) struct Reply {
     pub result: Result<Completed, ArchiveError>,
 }
 
+pub(super) struct ProgressReply {
+    pub ticket: Ticket,
+    pub progress: ExtractionProgress,
+}
+
 pub(super) struct Worker {
     requests: SyncSender<Request>,
     replies: Receiver<Reply>,
     pending: Option<Request>,
     cancellation: Option<CancellationToken>,
+    // Filesystem outcomes must be delivered even when cancellation is requested.
+    exclusive: Option<Ticket>,
+    progress: Arc<Mutex<Option<ProgressReply>>>,
 }
 
 impl Worker {
@@ -242,6 +470,8 @@ impl Worker {
                 replies,
                 pending: None,
                 cancellation: None,
+                exclusive: None,
+                progress: Arc::default(),
             },
             incoming,
             outgoing,
@@ -251,11 +481,21 @@ impl Worker {
     pub fn new(context: egui::Context) -> std::io::Result<Self> {
         let (requests, incoming) = mpsc::sync_channel::<Request>(1);
         let (outgoing, replies) = mpsc::sync_channel(1);
+        let progress = Arc::<Mutex<Option<ProgressReply>>>::default();
+        let worker_progress = progress.clone();
         let thread = std::thread::Builder::new()
             .name("arcforge-archive".into())
             .spawn(move || {
                 while let Ok(request) = incoming.recv() {
-                    let result = execute(&request);
+                    let result = execute(&request, &mut |progress| {
+                        if let Ok(mut latest) = worker_progress.lock() {
+                            *latest = Some(ProgressReply {
+                                ticket: request.ticket,
+                                progress,
+                            });
+                        }
+                        context.request_repaint();
+                    });
                     if outgoing
                         .send(Reply {
                             ticket: request.ticket,
@@ -275,11 +515,21 @@ impl Worker {
             replies,
             pending: None,
             cancellation: None,
+            exclusive: None,
+            progress,
         })
     }
 
     pub fn submit(&mut self, request: Request) -> Result<(), ArchiveError> {
+        if self.exclusive.is_some() {
+            return Err(ArchiveError::Unsupported(
+                "wait for the extraction result before starting another operation".into(),
+            ));
+        }
         self.cancel();
+        if matches!(&request.task, Task::Extract { .. }) {
+            self.exclusive = Some(request.ticket);
+        }
         self.cancellation = Some(request.cancel.clone());
         match self.requests.try_send(request) {
             Ok(()) => Ok(()),
@@ -288,6 +538,7 @@ impl Worker {
                 Ok(())
             }
             Err(TrySendError::Disconnected(_)) => {
+                self.exclusive = None;
                 Err(ArchiveError::Io("archive worker stopped".into()))
             }
         }
@@ -297,7 +548,12 @@ impl Worker {
         let mut replies = Vec::new();
         loop {
             match self.replies.try_recv() {
-                Ok(reply) => replies.push(reply),
+                Ok(reply) => {
+                    if self.exclusive == Some(reply.ticket) {
+                        self.exclusive = None;
+                    }
+                    replies.push(reply);
+                }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
                     return Err(ArchiveError::Io("archive worker stopped".into()));
@@ -320,9 +576,17 @@ impl Worker {
         if let Some(cancel) = self.cancellation.take() {
             cancel.cancel();
         }
-        if let Some(pending) = self.pending.take() {
+        if let Some(pending) = &self.pending {
             pending.cancel.cancel();
         }
+        // A cancelled queued extraction still needs its terminal no-output result.
+        if self.exclusive.is_none() {
+            self.pending = None;
+        }
+    }
+
+    pub fn take_progress(&self) -> Option<ProgressReply> {
+        self.progress.try_lock().ok()?.take()
     }
 }
 
@@ -332,37 +596,86 @@ impl Drop for Worker {
     }
 }
 
-fn execute(request: &Request) -> Result<Completed, ArchiveError> {
+fn execute(
+    request: &Request,
+    progress: &mut dyn FnMut(ExtractionProgress),
+) -> Result<Completed, ArchiveError> {
     check_cancel(&request.cancel)?;
     let limits = ArchiveLimits::default();
     let result = match &request.task {
         Task::Open { path, policy } => {
             let snapshot = open_archive(path, policy, &limits, &request.cancel)?;
-            prepare(snapshot, "", &request.cancel)
+            prepare(snapshot, "", ViewMode::Outline, &request.cancel)
         }
         Task::Reinterpret {
             document,
             policy,
             query,
+            mode,
         } => {
             let snapshot = reinterpret(&document.snapshot, policy, &request.cancel)?;
-            prepare(snapshot, query, &request.cancel)
+            prepare(snapshot, query, *mode, &request.cancel)
         }
         Task::Filter {
             document,
             query,
             folder,
+            mode,
+            expanded,
         } => {
-            let rows = document.filter(query, folder.as_deref(), &request.cancel)?;
+            let rows =
+                document.view_rows(query, folder.as_deref(), *mode, expanded, &request.cancel)?;
             Ok(Completed::Filter {
                 rows,
                 query: query.clone(),
                 folder: folder.clone(),
+                mode: *mode,
+                expanded: expanded.clone(),
             })
         }
         Task::Preview { document, entry } => {
             let preview = preview_entry(&document.snapshot, *entry, &limits, &request.cancel)?;
             PreparedPreview::new(preview, &request.cancel).map(Completed::Preview)
+        }
+        Task::Extract {
+            document,
+            selection,
+            folders,
+            destination,
+        } => {
+            // Synthetic outline folders have no archive identity. Resolve them
+            // here, off the UI thread, and let core validate the complete set.
+            let selection = if let ExtractionSelection::Entries(ids) = selection {
+                let mut ids: BTreeSet<_> = ids.iter().copied().collect();
+                if !folders.is_empty() {
+                    for entry in &document.snapshot.entries {
+                        check_cancel(&request.cancel)?;
+                        if entry
+                            .name
+                            .display
+                            .char_indices()
+                            .any(|(offset, character)| {
+                                character == '/' && folders.contains(&entry.name.display[..=offset])
+                            })
+                        {
+                            ids.insert(entry.id);
+                        }
+                    }
+                }
+                ExtractionSelection::Entries(ids.into_iter().collect())
+            } else {
+                ExtractionSelection::All
+            };
+            // Preserve the actual filesystem outcome if cancellation races completion.
+            return extract_archive(
+                &document.snapshot,
+                &selection,
+                destination,
+                &ExtractionLimits::default(),
+                &request.cancel,
+                progress,
+            )
+            .map(Completed::Extraction);
         }
     }?;
     check_cancel(&request.cancel)?;
@@ -372,14 +685,16 @@ fn execute(request: &Request) -> Result<Completed, ArchiveError> {
 fn prepare(
     snapshot: ArchiveSnapshot,
     query: &str,
+    mode: ViewMode,
     cancel: &CancellationToken,
 ) -> Result<Completed, ArchiveError> {
     let document = Arc::new(PreparedDocument::new(snapshot, cancel)?);
-    let rows = document.filter(query, None, cancel)?;
+    let rows = document.view_rows(query, None, mode, &BTreeSet::new(), cancel)?;
     Ok(Completed::Document {
         document,
         rows,
         query: query.into(),
+        mode,
     })
 }
 
@@ -410,6 +725,8 @@ mod tests {
             replies,
             pending: None,
             cancellation: None,
+            exclusive: None,
+            progress: Arc::default(),
         };
         let first = request(1);
         let first_cancel = first.cancel.clone();

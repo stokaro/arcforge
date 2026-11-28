@@ -60,6 +60,30 @@ fn success(output: Output) -> Value {
     serde_json::from_slice(&output.stdout).expect("structured success")
 }
 
+fn extract(archive: &Path, destination: &Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_arcforge-cli"))
+        .arg("extract")
+        .arg("--json")
+        .args(args)
+        .arg("--output")
+        .arg(destination)
+        .arg("--")
+        .arg(archive)
+        .env_remove("DISPLAY")
+        .env_remove("WAYLAND_DISPLAY")
+        .output()
+        .expect("run extraction without a display")
+}
+
+fn archive_failure(output: Output) -> Value {
+    assert_eq!(output.status.code(), Some(4));
+    assert!(output.stdout.is_empty());
+    let value: Value = serde_json::from_slice(&output.stderr).expect("structured failure");
+    assert_eq!(value["kind"], "error");
+    assert_eq!(value["data"]["exit_code"], 4);
+    value
+}
+
 #[test]
 fn independent_python_zip_lists_inspects_and_previews_without_changing_source() {
     let fixture = Fixture::new();
@@ -205,5 +229,168 @@ fn native_archive_paths_are_reopened_without_lossy_conversion() {
         fs::rename(fixture.path(), &path).expect("rename archive to native test path");
         let preview = success(cli("preview", &path, &["--json", "--entry", "0"]));
         assert_eq!(preview["data"]["preview"]["text"], "Hello from ArcForge.\n");
+    }
+}
+
+#[test]
+fn extraction_streams_all_or_selected_independent_entries_and_preserves_source() {
+    let fixture = Fixture::new();
+    let original = fs::read(fixture.path()).unwrap();
+    for (name, args, expected_ids) in [
+        ("all", vec![], json!([0, 1])),
+        ("selected", vec!["--entry", "1"], json!([1])),
+        (
+            "repeated",
+            vec!["--entry", "1", "--entry", "0"],
+            json!([0, 1]),
+        ),
+    ] {
+        let destination = fixture.0.join(name);
+        let result = success(extract(&fixture.path(), &destination, &args));
+        assert_eq!(result["kind"], "extract");
+        let report = &result["data"]["report"];
+        assert_eq!(report["status"], "completed");
+        assert_eq!(report["destination_created"], true);
+        assert_eq!(report["completed_entries"], expected_ids);
+        assert!(report["incomplete"].is_null());
+        assert!(report["error"].is_null());
+        assert_eq!(
+            fs::read(destination.join("folder/Привет.txt")).unwrap(),
+            "Привет из ZIP.\n".as_bytes()
+        );
+        if name == "selected" {
+            assert!(!destination.join("hello.txt").exists());
+            assert_eq!(report["files_written"], 1);
+        } else {
+            assert_eq!(
+                fs::read(destination.join("hello.txt")).unwrap(),
+                b"Hello from ArcForge.\n"
+            );
+            assert_eq!(report["files_written"], 2);
+        }
+    }
+    assert_eq!(fs::read(fixture.path()).unwrap(), original);
+}
+
+#[test]
+fn extraction_rejects_existing_destination_and_invalid_options_before_writing() {
+    let fixture = Fixture::new();
+    let destination = fixture.0.join("existing");
+    fs::create_dir(&destination).unwrap();
+    fs::write(destination.join("sentinel"), b"unchanged").unwrap();
+    let failure = archive_failure(extract(&fixture.path(), &destination, &[]));
+    assert_eq!(failure["data"]["error"]["kind"], "destination_exists");
+    assert_eq!(
+        fs::read(destination.join("sentinel")).unwrap(),
+        b"unchanged"
+    );
+    assert_eq!(fs::read_dir(&destination).unwrap().count(), 1);
+    for args in [
+        vec![],
+        vec!["--output", ""],
+        vec!["--output", "unused", "--max-bytes", "1"],
+        vec!["--output", "unused", "--entry", "0", "--entry", "0"],
+        vec!["--output", "one", "--output", "two"],
+        vec!["--output", "unused", "--entry-encoding", "0=cp866"],
+    ] {
+        let invalid = cli("extract", &fixture.path(), &args);
+        assert_eq!(invalid.status.code(), Some(2), "{args:?}");
+        assert!(invalid.stdout.is_empty());
+    }
+}
+
+#[test]
+fn extraction_requires_resolved_names_and_current_revision_before_creating_output() {
+    let fixture = Fixture::new();
+    let mut bytes = fs::read(fixture.path()).unwrap();
+    let offsets: Vec<_> = bytes
+        .windows(b"hello.txt".len())
+        .enumerate()
+        .filter_map(|(offset, name)| (name == b"hello.txt").then_some(offset))
+        .collect();
+    assert_eq!(offsets.len(), 2); // Independent local and central filename bytes.
+    for offset in offsets {
+        bytes[offset] = 0xe9;
+    }
+    fs::write(fixture.path(), &bytes).unwrap();
+    let listing = success(cli("list", &fixture.path(), &["--json"]));
+    let revision = listing["data"]["metadata_revision"].as_str().unwrap();
+    let destination = fixture.0.join("unresolved");
+    let failure = archive_failure(extract(&fixture.path(), &destination, &[]));
+    assert_eq!(
+        failure["data"]["error"]["kind"],
+        "filename_encoding_required"
+    );
+    assert!(!destination.exists());
+
+    let destination = fixture.0.join("resolved");
+    let args = [
+        "--metadata-revision",
+        revision,
+        "--entry-encoding",
+        "0=windows-1252",
+        "--entry",
+        "0",
+    ];
+    let result = success(extract(&fixture.path(), &destination, &args));
+    assert_eq!(result["data"]["report"]["completed_entries"], json!([0]));
+    assert_eq!(
+        fs::read(destination.join("éello.txt")).unwrap(),
+        b"Hello from ArcForge.\n"
+    );
+    *bytes.last_mut().unwrap() ^= 1;
+    fs::write(fixture.path(), &bytes).unwrap();
+    let stale_destination = fixture.0.join("stale");
+    let failure = archive_failure(extract(&fixture.path(), &stale_destination, &args));
+    assert_eq!(failure["data"]["error"]["kind"], "source_changed");
+    assert!(!stale_destination.exists());
+}
+
+#[test]
+fn crc_failure_returns_nonzero_json_and_retains_incomplete_output() {
+    let fixture = Fixture::new();
+    let mut bytes = fs::read(fixture.path()).unwrap();
+    let offset = bytes
+        .windows(b"Hello from ArcForge.\n".len())
+        .position(|data| data == b"Hello from ArcForge.\n")
+        .unwrap();
+    bytes[offset] ^= 1;
+    fs::write(fixture.path(), &bytes).unwrap();
+    let destination = fixture.0.join("retained");
+    let failure = archive_failure(extract(&fixture.path(), &destination, &[]));
+    assert_eq!(failure["data"]["error"]["kind"], "invalid_archive");
+    let report = &failure["data"]["extraction"];
+    assert_eq!(report["status"], "failed");
+    assert_eq!(report["destination_created"], true);
+    assert_eq!(report["completed_entries"], json!([]));
+    assert_eq!(report["incomplete"]["entry_id"], 0);
+    assert_eq!(report["incomplete"]["path"], "hello.txt");
+    let retained_bytes = fs::metadata(destination.join("hello.txt")).unwrap().len();
+    assert!(retained_bytes > 0);
+    assert_eq!(report["bytes_written"], retained_bytes);
+    assert_eq!(report["incomplete"]["bytes_written"], retained_bytes);
+    assert!(!destination.join("folder").exists());
+    assert_eq!(fs::read(fixture.path()).unwrap(), bytes);
+}
+
+#[test]
+fn extraction_output_paths_preserve_native_unicode_and_supported_native_bytes() {
+    let names = [
+        PathBuf::from("результат 資料 𐐷"),
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::unix::ffi::OsStringExt;
+            PathBuf::from(std::ffi::OsString::from_vec(b"output-\xff".to_vec()))
+        },
+    ];
+    for name in names {
+        let fixture = Fixture::new();
+        let destination = fixture.0.join(name);
+        let report = success(extract(&fixture.path(), &destination, &["--entry", "0"]));
+        assert_eq!(report["data"]["report"]["status"], "completed");
+        assert_eq!(
+            fs::read(destination.join("hello.txt")).unwrap(),
+            b"Hello from ArcForge.\n"
+        );
     }
 }

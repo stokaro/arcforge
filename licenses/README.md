@@ -11,6 +11,8 @@ This directory is shipped with the portable development bundles. It includes:
 
 The dependency graph includes all targets and all activated workspace features, including build and development dependencies. This is a conservative superset of a single platform's binary. Inactive optional packages present only in Cargo.lock are not included. The snapshot hashes Cargo.lock and all workspace manifests so dependency or feature changes require regeneration.
 
+The capability filesystem dependencies add the Windows adapter `winx` 0.36.4 under **Apache-2.0 WITH LLVM-exception**. Its packaged `LICENSE` was compared with [the pinned upstream file](https://github.com/sunfishcode/winx/blob/23d6e2793b27979f7a7abbdbf1b2aedc1d0c78f3/LICENSE). The exact SPDX expression is accepted in `about.toml`; the generator retains the complete original Apache and LLVM exception text. ArcForge's own source license remains MIT; dependency terms remain distinct.
+
 ## Regenerate
 
 Use **cargo-about 0.9.3** and **Python 3.10 or later**. These are maintainer tools; ordinary builds use the committed notices and do not require Python or cargo-about.

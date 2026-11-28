@@ -4,6 +4,9 @@
 
 mod headers;
 mod io;
+mod stream;
+
+pub use stream::{ArchiveStream, begin_stream};
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -22,7 +25,8 @@ use zip::{HasZipMetadata, ZipReadOptions};
 
 use super::{
     ArchiveEntry, ArchiveError, ArchiveLimits, ArchiveSnapshot, CancellationToken, EntryId,
-    EntryPreview, FilenameChoice, FilenamePolicy, NameProvenance, NameState, resolve_name,
+    EntryKind, EntryPreview, FilenameChoice, FilenamePolicy, NameProvenance, NameState,
+    resolve_name,
 };
 use headers::{
     CentralRecord, Footer, checked_end, invalid, preflight, read_central, u16_at, u32_at, u64_at,
@@ -322,26 +326,13 @@ pub fn preview_entry(
             "snapshot exceeds operation metadata limits".into(),
         ));
     }
-    SourceStamp::from_metadata(
-        fs::metadata(&source.path).map_err(|_| ArchiveError::SourceChanged)?,
-    )
-    .map_err(|_| ArchiveError::SourceChanged)?;
-    let file = File::open(&source.path).map_err(|_| ArchiveError::SourceChanged)?;
-    let current_identity = Handle::from_file(file.try_clone()?)?;
-    if current_identity != source.identity {
-        return Err(ArchiveError::SourceChanged);
-    }
-    let mut reader = BudgetReader::new(file, source.stamp.len, limits, cancel);
+    let mut reader = open_source_reader(source, limits, cancel)?;
     verify_source(&mut reader, source)?;
     let choice = snapshot.policy.choice_for(entry_id);
     let local = validate_local(&mut reader, record, source.footer.directory_offset, choice)?;
     // The library caches this offset. Publish only our checked value, so shared
     // previews cannot initialize its cache from different racing local headers.
-    let cached_start = &record.metadata.get_metadata().data_start;
-    if cached_start.set(local.data_start).is_err() && cached_start.get() != Some(&local.data_start)
-    {
-        return Err(ArchiveError::SourceChanged);
-    }
+    pin_data_start(record, local.data_start)?;
     let mut bytes = Vec::new();
     let capacity = usize::try_from(raw.size).map_err(|_| {
         ArchiveError::LimitExceeded("preview size does not fit this platform".into())
@@ -442,8 +433,14 @@ fn build_entries(
             ArchiveError::InvalidArchive("uncompressed-size total overflow".into())
         })?;
         let mut warnings = Vec::new();
-        if record.metadata.is_symlink() {
+        let kind = entry_kind(record);
+        if kind == EntryKind::Symlink {
             warnings.push("Symbolic-link metadata; preview reads its stored payload without following a target.".into());
+        }
+        if kind == EntryKind::Special {
+            warnings.push(
+                "Unsupported or conflicting entry type metadata; extraction is unavailable.".into(),
+            );
         }
         entries.push(ArchiveEntry {
             id,
@@ -456,6 +453,8 @@ fn build_entries(
             size: raw.size,
             compression_method: raw.method(),
             crc32: raw.crc32(),
+            kind,
+            unix_mode: raw_unix_mode(record),
             is_directory: is_directory(record),
             encrypted: encrypted(record),
             local_header_offset: raw.local_offset,
@@ -525,12 +524,32 @@ fn add_collision_warnings(
 }
 
 fn is_directory(record: &ProviderRecord) -> bool {
-    record.raw.name.ends_with(b"/")
-        || record
-            .metadata
-            .unix_mode()
-            .is_some_and(|mode| mode & 0o170_000 == 0o040_000)
-        || u32_at(&record.raw.header, 38) & 0x10 != 0
+    entry_kind(record) == EntryKind::Directory
+}
+
+fn raw_unix_mode(record: &ProviderRecord) -> Option<u32> {
+    let mode = u32_at(&record.raw.header, 38) >> 16;
+    (mode != 0).then_some(mode)
+}
+
+fn entry_kind(record: &ProviderRecord) -> EntryKind {
+    let attributes = u32_at(&record.raw.header, 38);
+    // Volume labels, devices and Windows reparse points are not regular files.
+    if attributes & 0x0448 != 0 {
+        return EntryKind::Special;
+    }
+    let directory_hint = record.raw.name.ends_with(b"/") || attributes & 0x10 != 0;
+    let file_type = raw_unix_mode(record).unwrap_or(0) & 0o170_000;
+    match file_type {
+        0o100_000 if directory_hint => EntryKind::Special,
+        0o100_000 => EntryKind::File,
+        0o040_000 => EntryKind::Directory,
+        0o120_000 if directory_hint => EntryKind::Special,
+        0o120_000 => EntryKind::Symlink,
+        0 if directory_hint => EntryKind::Directory,
+        0 => EntryKind::File,
+        _ => EntryKind::Special,
+    }
 }
 
 fn encrypted(record: &ProviderRecord) -> bool {
@@ -539,9 +558,34 @@ fn encrypted(record: &ProviderRecord) -> bool {
 
 fn snapshot_warnings() -> Vec<String> {
     vec![
-        "Read-only metadata snapshot. Local headers are checked only for a selected entry preview.".into(),
-        "Listing does not verify payloads. CRC is verified only for successful whole-entry previews.".into(),
+        "Read-only metadata snapshot. Local headers are checked when a selected entry is previewed or streamed.".into(),
+        "Listing does not verify payloads. CRC is verified only for successful complete entry reads.".into(),
     ]
+}
+
+fn open_source_reader(
+    source: &SourceState,
+    limits: &ArchiveLimits,
+    cancel: &CancellationToken,
+) -> Result<BudgetReader, ArchiveError> {
+    SourceStamp::from_metadata(
+        fs::metadata(&source.path).map_err(|_| ArchiveError::SourceChanged)?,
+    )
+    .map_err(|_| ArchiveError::SourceChanged)?;
+    let file = File::open(&source.path).map_err(|_| ArchiveError::SourceChanged)?;
+    let current_identity = Handle::from_file(file.try_clone()?)?;
+    if current_identity != source.identity {
+        return Err(ArchiveError::SourceChanged);
+    }
+    Ok(BudgetReader::new(file, source.stamp.len, limits, cancel))
+}
+
+fn pin_data_start(record: &ProviderRecord, data_start: u64) -> Result<(), ArchiveError> {
+    let cached_start = &record.metadata.get_metadata().data_start;
+    if cached_start.set(data_start).is_err() && cached_start.get() != Some(&data_start) {
+        return Err(ArchiveError::SourceChanged);
+    }
+    Ok(())
 }
 
 fn check_source_identity(

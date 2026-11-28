@@ -37,6 +37,7 @@ fn help_explains_archive_opening_without_a_display() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("[ARCHIVE]"));
-    assert!(stdout.contains("Editing and extraction are planned"));
+    assert!(stdout.contains("extraction into a new directory are available"));
+    assert!(stdout.contains("Editing and saving are planned"));
     assert!(output.stderr.is_empty());
 }

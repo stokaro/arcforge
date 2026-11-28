@@ -1,6 +1,6 @@
 # Repository agent skills
 
-ArcForge keeps seven focused workflows in the repository. They support implementation and review of the archive manager described in [issue #1](https://github.com/stokaro/arcforge/issues/1). The application now provides read-only ZIP/ZIP64 browsing and bounded previews; extraction and editing remain planned. The skills guide development and verification rather than implement those operations.
+ArcForge keeps eight focused workflows in the repository. They support implementation and review of the archive manager described in [issue #1](https://github.com/stokaro/arcforge/issues/1). The application provides ZIP/ZIP64 browsing, bounded previews, and extraction into a new directory; archive editing remains planned. The skills guide development and verification rather than implement those operations.
 
 ## Discovery and use
 
@@ -14,6 +14,7 @@ The canonical instruction files are `.agents/skills/<name>/SKILL.md`. Codex supp
 | `arcforge-review` | A coherent code change is ready for review, or review is requested | Concrete findings, dispositions, and remaining risks |
 | `arcforge-verify` | Implementation claims or a code PR need verification | Commands, source snapshot, results, and platform limits |
 | `arcforge-rust` | Nontrivial Rust ownership, API, error, byte-range, unsafe, or performance work needs guidance | A justified design and focused checks, with relevant reference sections only |
+| `arcforge-design-ux` | Interface layout, UX code, dialogs, input, visual changes, or screenshot review | BetterZip 6 fidelity, attributed OpenZip fallback, state coverage, and actual native screenshots |
 | `arcforge-ci` | A specified PR/commit has failing, missing, or incomplete CI checks | Revision-bound diagnosis, focused correction, and exact remote-check status |
 
 Use normal task requests, or explicitly invoke a project skill: `$arcforge-debug` in Codex, `/arcforge-debug` in Claude Code. An agent without native skill discovery can follow the links in [AGENTS.md](../AGENTS.md). Client settings, versions, and enabled project instructions affect discovery; the build validator does not exercise a live agent client.
@@ -21,6 +22,12 @@ Use normal task requests, or explicitly invoke a project skill: `$arcforge-debug
 Start with `AGENTS.md`; load a skill's body only when its task applies. For example, a failed-save bug needs debugging, preservation tests, and archive safety; verification applies before reporting it fixed. A documentation correction only needs content/link checks and the applicable metadata gate. No startup hook loads the entire catalog, and no global agent configuration is changed.
 
 The Rust skill indexes nine pinned Apollo reference chapters. Search their headings and read the section needed for the current decision; these references are not added to every task's context. Repository contracts and measured evidence take precedence over contextual upstream style heuristics. The CI skill prefers the connected GitHub integration, accepts an authenticated CLI as an alternative, and adds no Python/helper dependency to the build.
+
+## Design and UX workflow
+
+The owner requires BetterZip 6 look and feel, with OpenZip as a fallback for unresolved details. The [design/UX skill](../.agents/skills/arcforge-design-ux/SKILL.md) turns that hierarchy into an implementation and review workflow: identify affected states, inspect evidence, record fallback decisions, implement through shared commands, exercise the native UI, and retain screenshots. It covers visual-only changes as well as controller code. The [reference inventory](reference/betterzip-6.md), [OpenZip provenance](reference/openzip-reuse.md), and [screenshots](../screenshots/README.md) are supporting project contracts rather than duplicated skill bodies.
+
+The skill was initialized using skill-creator, constrained to the repository's canonical metadata format, and connected through the existing generated Claude entry point. This is a repository skill; it does not change personal/global agent configuration. Its original instructions add no mandatory approval stage. A fresh read-only agent applied the skill to a realistic extraction-progress/failure task: it retained the reference priority, inspected pinned OpenZip details for the documented gap, kept partial-output semantics explicit, and proposed native state captures. That forward test checks instruction use; it is not evidence of application runtime or complete visual parity.
 
 ## Verification scope
 
@@ -35,7 +42,7 @@ The workflows preserve existing user authorization and do not impose mandatory d
 1. Edit a canonical `SKILL.md`. Keep its trigger specific and its body concise; aim for 250–500 words, with up to 1,000 allowed for domain requirements.
 2. Use exactly two frontmatter fields: an unquoted `name` matching the directory and a single-line, JSON-style double-quoted `description` of 1–1,024 characters. This is a deliberately constrained subset of YAML. Keep the complete file within 500 lines.
 3. Run `cargo xtask skills-sync`, then review the generated `.claude/skills` differences. Never edit those entry points independently.
-4. Run `cargo xtask skills`. It checks the seven known skills, metadata/body budgets, simple inline relative Markdown links, and exact entry-point contents. It rejects symlinked owned paths, unexpected `arcforge-*` catalog entries, and unrecognized wrapper files rather than deleting or overwriting them. Other skill names are outside this checker.
+4. Run `cargo xtask skills`. It checks the eight known skills, metadata/body budgets, simple inline relative Markdown links, and exact entry-point contents. It rejects symlinked owned paths, unexpected `arcforge-*` catalog entries, and unrecognized wrapper files rather than deleting or overwriting them. Other skill names are outside this checker.
 5. Forward-test substantial instruction changes with a fresh agent given a realistic task and raw artifacts. Do not give it the expected diagnosis. Inspect its decisions and output; a metadata pass does not establish instruction quality.
 6. When adapting upstream changes, review them at a fixed commit and update the provenance below. Preserve required notices and refresh the license snapshot if its inputs changed.
 
@@ -62,7 +69,7 @@ Four workflows are adapted from [obra/superpowers](https://github.com/obra/super
 
 The bodies have been shortened, rewritten, and scoped to ArcForge. The original universal activation rules, mandatory brainstorming/design approval stages, and instructions to delete code written before a test are not imported. Upstream hooks, installer scripts, agents, templates, and plugin configuration are not vendored. Generated Claude entry points refer to the adapted files and contain no separate upstream workflow implementation.
 
-`arcforge-archive-safety`, the routing, generator, and tests are original ArcForge work under the repository's [MIT license](../LICENSE). Existing ArtCraft code provenance is unchanged; see [artcraft-reuse.md](artcraft-reuse.md).
+`arcforge-archive-safety`, `arcforge-design-ux`, the routing, generator, and tests are original ArcForge work under the repository's [MIT license](../LICENSE). Existing ArtCraft code provenance is unchanged; see [artcraft-reuse.md](artcraft-reuse.md).
 
 ## hiewbie, Apollo, and OpenAI skill provenance
 

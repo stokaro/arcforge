@@ -160,6 +160,38 @@ SHA-256: `0444c6991eead6822f7b9102e654448d51624431119546492e8b231db42c48bb`.
 
 [Full notice](#notice-0444c6991eead6822f7b9102e654448d51624431119546492e8b231db42c48bb).
 
+## ambient-authority@0.0.2
+
+Declared license: `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/sunfishcode/ambient-authority>.
+
+Manifest authors (not a substituted copyright notice): Dan Gohman <dev@sunfishcode.online>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `d00d6d48df2db6f91e4ca9c656e5e30782d5becf52bb3e5bfd0aff467bd37781`.
+
+[Full notice](#notice-d00d6d48df2db6f91e4ca9c656e5e30782d5becf52bb3e5bfd0aff467bd37781).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
+
+[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
+
+### Packaged source: LICENSE-Apache-2.0_WITH_LLVM-exception
+
+SHA-256: `268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5`.
+
+[Full notice](#notice-268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
+
+[Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
 ## android-activity@0.6.1
 
 Declared license: `MIT OR Apache-2.0`.
@@ -823,6 +855,116 @@ Manifest authors (not a substituted copyright notice): Elinor Berger <elinor@saf
 SHA-256: `4b71658d3410d813b6fc6ceb654ce2aa8c2d3094c944dc59c2041da6227810e3`.
 
 [Full notice](#notice-4b71658d3410d813b6fc6ceb654ce2aa8c2d3094c944dc59c2041da6227810e3).
+
+## cap-fs-ext@4.0.3
+
+Declared license: `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/bytecodealliance/cap-std>.
+
+Manifest authors (not a substituted copyright notice): Dan Gohman <dev@sunfishcode.online>; Jakub Konka <kubkon@jakubkonka.com>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `5b3d8a674979e158328c57f5c4cc12150df79d0bdf12c86eafc2e9c6006a2d4e`.
+
+[Full notice](#notice-5b3d8a674979e158328c57f5c4cc12150df79d0bdf12c86eafc2e9c6006a2d4e).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
+
+[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
+
+### Packaged source: LICENSE-Apache-2.0_WITH_LLVM-exception
+
+SHA-256: `268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5`.
+
+[Full notice](#notice-268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
+
+[Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
+## cap-primitives@4.0.3
+
+Declared license: `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/bytecodealliance/cap-std>.
+
+Manifest authors (not a substituted copyright notice): Dan Gohman <dev@sunfishcode.online>; Jakub Konka <kubkon@jakubkonka.com>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `a8799c2a07dabcb8d52481f885c5ab7000acb8a4d3cd9503fbcb97c84d350e65`.
+
+[Full notice](#notice-a8799c2a07dabcb8d52481f885c5ab7000acb8a4d3cd9503fbcb97c84d350e65).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
+
+[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
+
+### Packaged source: LICENSE-Apache-2.0_WITH_LLVM-exception
+
+SHA-256: `268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5`.
+
+[Full notice](#notice-268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
+
+[Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
+## cap-std@4.0.3
+
+Declared license: `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/bytecodealliance/cap-std>.
+
+Manifest authors (not a substituted copyright notice): Dan Gohman <dev@sunfishcode.online>; Jakub Konka <kubkon@jakubkonka.com>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `6b1691fdee3b03c3946696a7be125fcf50eff310b9486fac850c1b8aea91478b`.
+
+[Full notice](#notice-6b1691fdee3b03c3946696a7be125fcf50eff310b9486fac850c1b8aea91478b).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
+
+[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
+
+### Packaged source: LICENSE-Apache-2.0_WITH_LLVM-exception
+
+SHA-256: `268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5`.
+
+[Full notice](#notice-268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
+
+[Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
+## caseless@0.2.2
+
+Declared license: `MIT`.
+
+Upstream: <https://github.com/unicode-rs/rust-caseless>.
+
+Manifest authors (not a substituted copyright notice): Simon Sapin <simon.sapin@exyr.org>.
+
+### Packaged source: LICENSE
+
+SHA-256: `9a1284e016a7770f3c033a108662a94490419796001b422f5c6738c9ebf486d7`.
+
+[Full notice](#notice-9a1284e016a7770f3c033a108662a94490419796001b422f5c6738c9ebf486d7).
 
 ## cc@1.12.0
 
@@ -1862,6 +2004,38 @@ SHA-256: `333ea3aaa3cadb819f4acd9f9153f9feee060a995ca8710f32bc5bd9a4b91734`.
 
 [Full notice](#notice-333ea3aaa3cadb819f4acd9f9153f9feee060a995ca8710f32bc5bd9a4b91734).
 
+## fs-set-times@0.20.3
+
+Declared license: `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/bytecodealliance/fs-set-times>.
+
+Manifest authors (not a substituted copyright notice): Dan Gohman <dev@sunfishcode.online>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `e196ffeb5ab101e9ec8bbe395c9f367c5380ee2d28c47e5c03371523798a9af7`.
+
+[Full notice](#notice-e196ffeb5ab101e9ec8bbe395c9f367c5380ee2d28c47e5c03371523798a9af7).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
+
+[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
+
+### Packaged source: LICENSE-Apache-2.0_WITH_LLVM-exception
+
+SHA-256: `268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5`.
+
+[Full notice](#notice-268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
+
+[Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
 ## futures-core@0.3.34
 
 Declared license: `MIT OR Apache-2.0`.
@@ -2265,6 +2439,122 @@ SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
 SHA-256: `ecc269ef87fd38a1d98e30bfac9ba964a9dbd9315c3770fed98d4d7cb5882055`.
 
 [Full notice](#notice-ecc269ef87fd38a1d98e30bfac9ba964a9dbd9315c3770fed98d4d7cb5882055).
+
+## io-extras@0.19.0
+
+Declared license: `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/sunfishcode/io-extras>.
+
+Manifest authors (not a substituted copyright notice): Dan Gohman <dev@sunfishcode.online>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `f0c1d22de8bd3b776a40f2691f08b84e91c7bafc78b72a51150e231002b88db3`.
+
+[Full notice](#notice-f0c1d22de8bd3b776a40f2691f08b84e91c7bafc78b72a51150e231002b88db3).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
+
+[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
+
+### Packaged source: LICENSE-Apache-2.0_WITH_LLVM-exception
+
+SHA-256: `268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5`.
+
+[Full notice](#notice-268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
+
+[Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
+## io-lifetimes@2.0.4
+
+Declared license: `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/sunfishcode/io-lifetimes>.
+
+Manifest authors (not a substituted copyright notice): Dan Gohman <dev@sunfishcode.online>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `495c30b45120f8af07cfa26eb9cb1ebfe8324560dca2b3b1e76cad1b9b6b489a`.
+
+[Full notice](#notice-495c30b45120f8af07cfa26eb9cb1ebfe8324560dca2b3b1e76cad1b9b6b489a).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
+
+[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
+
+### Packaged source: LICENSE-Apache-2.0_WITH_LLVM-exception
+
+SHA-256: `268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5`.
+
+[Full notice](#notice-268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
+
+[Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
+## io-lifetimes@3.0.1
+
+Declared license: `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/sunfishcode/io-lifetimes>.
+
+Manifest authors (not a substituted copyright notice): Dan Gohman <dev@sunfishcode.online>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `495c30b45120f8af07cfa26eb9cb1ebfe8324560dca2b3b1e76cad1b9b6b489a`.
+
+[Full notice](#notice-495c30b45120f8af07cfa26eb9cb1ebfe8324560dca2b3b1e76cad1b9b6b489a).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
+
+[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
+
+### Packaged source: LICENSE-Apache-2.0_WITH_LLVM-exception
+
+SHA-256: `268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5`.
+
+[Full notice](#notice-268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
+
+[Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
+## ipnet@2.12.2
+
+Declared license: `MIT OR Apache-2.0`.
+
+Upstream: <https://github.com/krisprice/ipnet>.
+
+Manifest authors (not a substituted copyright notice): Kris Price <kris@krisprice.nz>.
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `87d9feb9238c6bd8e0024fc4733b06cff036f89f36d93b7df1c8a0549bbb7a5b`.
+
+[Full notice](#notice-87d9feb9238c6bd8e0024fc4733b06cff036f89f36d93b7df1c8a0549bbb7a5b).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `47dc9ff29128ddfb4d6a0435383c9f89120bc374dbcc1dd00b933a0b28aa7865`.
+
+[Full notice](#notice-47dc9ff29128ddfb4d6a0435383c9f89120bc374dbcc1dd00b933a0b28aa7865).
 
 ## itertools@0.15.0
 
@@ -2685,6 +2975,26 @@ SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
 SHA-256: `6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb`.
 
 [Full notice](#notice-6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb).
+
+## maybe-owned@0.3.4
+
+Declared license: `MIT OR Apache-2.0`.
+
+Upstream: <https://github.com/rustonaut/maybe-owned>.
+
+Manifest authors (not a substituted copyright notice): Philipp korber <philippkorber@gmail.com>; darkstalker <slayerbeast@gmail.com>; daboross <daboross@daboross.net>; Zac Burns (That3Percent) <that3percent@gmail.com>.
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `aecc100d0547aa3bcbe04bcf5cb87c7db0be11004602adfa5056edf8bb847b35`.
+
+[Full notice](#notice-aecc100d0547aa3bcbe04bcf5cb87c7db0be11004602adfa5056edf8bb847b35).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `ef2b3bbd7b718a7881253226313f103e89b379e1279681a3c1ebcb65a27d209d`.
+
+[Full notice](#notice-ef2b3bbd7b718a7881253226313f103e89b379e1279681a3c1ebcb65a27d209d).
 
 ## memchr@2.8.3
 
@@ -3776,6 +4086,38 @@ SHA-256: `c9a75f18b9ab2927829a208fc6aa2cf4e63b8420887ba29cdb265d6619ae82d5`.
 
 [Full notice](#notice-c9a75f18b9ab2927829a208fc6aa2cf4e63b8420887ba29cdb265d6619ae82d5).
 
+## rustix-linux-procfs@0.1.1
+
+Declared license: `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/sunfishcode/rustix-linux-procfs>.
+
+Manifest authors (not a substituted copyright notice): Dan Gohman <dev@sunfishcode.online>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `d415a86ccfd794129666247cbbadebee7a6d0ac3ff701c76c07b0f9424f0307d`.
+
+[Full notice](#notice-d415a86ccfd794129666247cbbadebee7a6d0ac3ff701c76c07b0f9424f0307d).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
+
+[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
+
+### Packaged source: LICENSE-Apache-2.0_WITH_LLVM-exception
+
+SHA-256: `268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5`.
+
+[Full notice](#notice-268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
+
+[Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
 ## rustix@0.38.44
 
 Declared license: `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`.
@@ -4504,6 +4846,32 @@ SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
 
 [Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
 
+## tinyvec@1.13.3
+
+Declared license: `Zlib OR Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/Lokathor/tinyvec>.
+
+Manifest authors (not a substituted copyright notice): Lokathor <zefria@gmail.com>.
+
+### Packaged source: LICENSE-APACHE.md
+
+SHA-256: `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`.
+
+[Full notice](#notice-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30).
+
+### Packaged source: LICENSE-MIT.md
+
+SHA-256: `fd80a26fbb3f644af1fa994134446702932968519797227e07a1368dea80f0bc`.
+
+[Full notice](#notice-fd80a26fbb3f644af1fa994134446702932968519797227e07a1368dea80f0bc).
+
+### Packaged source: LICENSE-ZLIB.md
+
+SHA-256: `84b34dd7608f7fb9b17bd588a6bf392bf7de504e2716f024a77d89f1b145a151`.
+
+[Full notice](#notice-84b34dd7608f7fb9b17bd588a6bf392bf7de504e2716f024a77d89f1b145a151).
+
 ## tokio@1.54.1
 
 Declared license: `MIT`.
@@ -4717,6 +5085,38 @@ SHA-256: `62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a`.
 SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
 
 [Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
+### Packaged source: LICENSE-UNICODE
+
+SHA-256: `f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1`.
+
+[Full notice](#notice-f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1).
+
+## unicode-normalization@0.1.26
+
+Declared license: `(MIT OR Apache-2.0) AND Unicode-3.0`.
+
+Upstream: <https://github.com/unicode-rs/unicode-normalization>.
+
+Manifest authors (not a substituted copyright notice): kwantam <kwantam@gmail.com>; Manish Goregaokar <manishsmail@gmail.com>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `23860c2a7b5d96b21569afedf033469bab9fe14a1b24a35068b8641c578ce24d`.
+
+[Full notice](#notice-23860c2a7b5d96b21569afedf033469bab9fe14a1b24a35068b8641c578ce24d).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
+
+[Full notice](#notice-a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0`.
+
+[Full notice](#notice-7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0).
 
 ### Packaged source: LICENSE-UNICODE
 
@@ -6079,6 +6479,20 @@ Upstream: <https://github.com/winnow-rs/winnow>.
 SHA-256: `cb5aedb296c5246d1f22e9099f925a65146f9f0d6b4eebba97fd27a6cdbbab2d`.
 
 [Full notice](#notice-cb5aedb296c5246d1f22e9099f925a65146f9f0d6b4eebba97fd27a6cdbbab2d).
+
+## winx@0.36.4
+
+Declared license: `Apache-2.0 WITH LLVM-exception`.
+
+Upstream: <https://github.com/sunfishcode/winx>.
+
+Manifest authors (not a substituted copyright notice): Jakub Konka <kubkon@jakubkonka.com>; Dan Gohman <dev@sunfishcode.online>.
+
+### Packaged source: LICENSE
+
+SHA-256: `268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5`.
+
+[Full notice](#notice-268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5).
 
 ## x11-dl@2.21.0
 
@@ -10579,6 +10993,52 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
+## Notice 47dc9ff29128ddfb4d6a0435383c9f89120bc374dbcc1dd00b933a0b28aa7865
+
+````text
+Copyright 2017 Juniper Networks, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+````
+
+## Notice 495c30b45120f8af07cfa26eb9cb1ebfe8324560dca2b3b1e76cad1b9b6b489a
+
+````text
+Short version for non-lawyers:
+
+`io-lifetimes` is triple-licensed under Apache 2.0 with the LLVM Exception,
+Apache 2.0, and MIT terms.
+
+
+Longer version:
+
+Copyrights in the `io-lifetimes` project are retained by their contributors.
+No copyright assignment is required to contribute to the `io-lifetimes`
+project.
+
+Some files include code derived from Rust's `libstd`; see the comments in
+the code for details.
+
+Except as otherwise noted (below and/or in individual files), `io-lifetimes`
+is licensed under:
+
+ - the Apache License, Version 2.0, with the LLVM Exception
+   <LICENSE-Apache-2.0_WITH_LLVM-exception> or
+   <http://llvm.org/foundation/relicensing/LICENSE.txt>
+ - the Apache License, Version 2.0
+   <LICENSE-APACHE> or
+   <http://www.apache.org/licenses/LICENSE-2.0>,
+ - or the MIT license
+   <LICENSE-MIT> or
+   <http://opensource.org/licenses/MIT>,
+
+at your option.
+````
+
 ## Notice 4af65ed38bd6eca3b9b52becebc020842d0bda1f79703cf033819693519b53cb
 
 ````text
@@ -11633,6 +12093,40 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
+## Notice 5b3d8a674979e158328c57f5c4cc12150df79d0bdf12c86eafc2e9c6006a2d4e
+
+````text
+Short version for non-lawyers:
+
+`cap-fs-ext` is triple-licensed under Apache 2.0 with the LLVM Exception,
+Apache 2.0, and MIT terms.
+
+
+Longer version:
+
+Copyrights in the `cap-fs-ext` project are retained by their contributors.
+No copyright assignment is required to contribute to the `cap-fs-ext`
+project.
+
+Some files include code derived from Rust's `libstd`; see the comments in
+the code for details.
+
+Except as otherwise noted (below and/or in individual files), `cap-fs-ext`
+is licensed under:
+
+ - the Apache License, Version 2.0, with the LLVM Exception
+   <LICENSE-Apache-2.0_WITH_LLVM-exception> or
+   <http://llvm.org/foundation/relicensing/LICENSE.txt>
+ - the Apache License, Version 2.0
+   <LICENSE-APACHE> or
+   <http://www.apache.org/licenses/LICENSE-2.0>,
+ - or the MIT license
+   <LICENSE-MIT> or
+   <http://opensource.org/licenses/MIT>,
+
+at your option.
+````
+
 ## Notice 61d383b05b87d78f94d2937e2580cce47226d17823c0430fbcad09596537efcf
 
 ````text
@@ -12269,6 +12763,40 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
+````
+
+## Notice 6b1691fdee3b03c3946696a7be125fcf50eff310b9486fac850c1b8aea91478b
+
+````text
+Short version for non-lawyers:
+
+`cap-std` is triple-licensed under Apache 2.0 with the LLVM Exception,
+Apache 2.0, and MIT terms.
+
+
+Longer version:
+
+Copyrights in the `cap-std` project are retained by their contributors.
+No copyright assignment is required to contribute to the `cap-std`
+project.
+
+Some files include code derived from Rust's `libstd`; see the comments in
+the code for details.
+
+Except as otherwise noted (below and/or in individual files), `cap-std`
+is licensed under:
+
+ - the Apache License, Version 2.0, with the LLVM Exception
+   <LICENSE-Apache-2.0_WITH_LLVM-exception> or
+   <http://llvm.org/foundation/relicensing/LICENSE.txt>
+ - the Apache License, Version 2.0
+   <LICENSE-APACHE> or
+   <http://www.apache.org/licenses/LICENSE-2.0>,
+ - or the MIT license
+   <LICENSE-MIT> or
+   <http://opensource.org/licenses/MIT>,
+
+at your option.
 ````
 
 ## Notice 6b809313af7f0ce2d303905b16954ee802912f7a8359bf4760d2e73cf2eb5042
@@ -13693,6 +14221,212 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
+## Notice 87d9feb9238c6bd8e0024fc4733b06cff036f89f36d93b7df1c8a0549bbb7a5b
+
+````text
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "{}"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright 2017 Juniper Networks, Inc.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+````
+
 ## Notice 898b1ae9821e98daf8964c8d6c7f61641f5f5aa78ad500020771c0939ee0dea1
 
 ````text
@@ -15102,6 +15836,33 @@ All other code is dual-licensed under either
 at your option.
 ````
 
+## Notice 9a1284e016a7770f3c033a108662a94490419796001b422f5c6738c9ebf486d7
+
+````text
+Copyright (c) 2017 Simon Sapin
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+````
+
 ## Notice 9a3aeb3f63659c4c6302d315e1d98784d1e8559858a47ff9562e091bb922d28d
 
 ````text
@@ -16426,6 +17187,40 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+````
+
+## Notice a8799c2a07dabcb8d52481f885c5ab7000acb8a4d3cd9503fbcb97c84d350e65
+
+````text
+Short version for non-lawyers:
+
+`cap-primitives` is triple-licensed under Apache 2.0 with the LLVM Exception,
+Apache 2.0, and MIT terms.
+
+
+Longer version:
+
+Copyrights in the `cap-primitives` project are retained by their contributors.
+No copyright assignment is required to contribute to the `cap-primitives`
+project.
+
+Some files include code derived from Rust's `libstd`; see the comments in
+the code for details.
+
+Except as otherwise noted (below and/or in individual files), `cap-primitives`
+is licensed under:
+
+ - the Apache License, Version 2.0, with the LLVM Exception
+   <LICENSE-Apache-2.0_WITH_LLVM-exception> or
+   <http://llvm.org/foundation/relicensing/LICENSE.txt>
+ - the Apache License, Version 2.0
+   <LICENSE-APACHE> or
+   <http://www.apache.org/licenses/LICENSE-2.0>,
+ - or the MIT license
+   <LICENSE-MIT> or
+   <http://opensource.org/licenses/MIT>,
+
+at your option.
 ````
 
 ## Notice a8ad31b1c3f40dca5a84119351b8fa8ddc868edd77fad8a8ebf6d8f2d16fa4ae
@@ -17829,6 +18624,212 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+````
+
+## Notice aecc100d0547aa3bcbe04bcf5cb87c7db0be11004602adfa5056edf8bb847b35
+
+````text
+                              Apache License
+                        Version 2.0, January 2004
+                     http://www.apache.org/licenses/
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+1. Definitions.
+
+   "License" shall mean the terms and conditions for use, reproduction,
+   and distribution as defined by Sections 1 through 9 of this document.
+
+   "Licensor" shall mean the copyright owner or entity authorized by
+   the copyright owner that is granting the License.
+
+   "Legal Entity" shall mean the union of the acting entity and all
+   other entities that control, are controlled by, or are under common
+   control with that entity. For the purposes of this definition,
+   "control" means (i) the power, direct or indirect, to cause the
+   direction or management of such entity, whether by contract or
+   otherwise, or (ii) ownership of fifty percent (50%) or more of the
+   outstanding shares, or (iii) beneficial ownership of such entity.
+
+   "You" (or "Your") shall mean an individual or Legal Entity
+   exercising permissions granted by this License.
+
+   "Source" form shall mean the preferred form for making modifications,
+   including but not limited to software source code, documentation
+   source, and configuration files.
+
+   "Object" form shall mean any form resulting from mechanical
+   transformation or translation of a Source form, including but
+   not limited to compiled object code, generated documentation,
+   and conversions to other media types.
+
+   "Work" shall mean the work of authorship, whether in Source or
+   Object form, made available under the License, as indicated by a
+   copyright notice that is included in or attached to the work
+   (an example is provided in the Appendix below).
+
+   "Derivative Works" shall mean any work, whether in Source or Object
+   form, that is based on (or derived from) the Work and for which the
+   editorial revisions, annotations, elaborations, or other modifications
+   represent, as a whole, an original work of authorship. For the purposes
+   of this License, Derivative Works shall not include works that remain
+   separable from, or merely link (or bind by name) to the interfaces of,
+   the Work and Derivative Works thereof.
+
+   "Contribution" shall mean any work of authorship, including
+   the original version of the Work and any modifications or additions
+   to that Work or Derivative Works thereof, that is intentionally
+   submitted to Licensor for inclusion in the Work by the copyright owner
+   or by an individual or Legal Entity authorized to submit on behalf of
+   the copyright owner. For the purposes of this definition, "submitted"
+   means any form of electronic, verbal, or written communication sent
+   to the Licensor or its representatives, including but not limited to
+   communication on electronic mailing lists, source code control systems,
+   and issue tracking systems that are managed by, or on behalf of, the
+   Licensor for the purpose of discussing and improving the Work, but
+   excluding communication that is conspicuously marked or otherwise
+   designated in writing by the copyright owner as "Not a Contribution."
+
+   "Contributor" shall mean Licensor and any individual or Legal Entity
+   on behalf of whom a Contribution has been received by Licensor and
+   subsequently incorporated within the Work.
+
+2. Grant of Copyright License. Subject to the terms and conditions of
+   this License, each Contributor hereby grants to You a perpetual,
+   worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+   copyright license to reproduce, prepare Derivative Works of,
+   publicly display, publicly perform, sublicense, and distribute the
+   Work and such Derivative Works in Source or Object form.
+
+3. Grant of Patent License. Subject to the terms and conditions of
+   this License, each Contributor hereby grants to You a perpetual,
+   worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+   (except as stated in this section) patent license to make, have made,
+   use, offer to sell, sell, import, and otherwise transfer the Work,
+   where such license applies only to those patent claims licensable
+   by such Contributor that are necessarily infringed by their
+   Contribution(s) alone or by combination of their Contribution(s)
+   with the Work to which such Contribution(s) was submitted. If You
+   institute patent litigation against any entity (including a
+   cross-claim or counterclaim in a lawsuit) alleging that the Work
+   or a Contribution incorporated within the Work constitutes direct
+   or contributory patent infringement, then any patent licenses
+   granted to You under this License for that Work shall terminate
+   as of the date such litigation is filed.
+
+4. Redistribution. You may reproduce and distribute copies of the
+   Work or Derivative Works thereof in any medium, with or without
+   modifications, and in Source or Object form, provided that You
+   meet the following conditions:
+
+   (a) You must give any other recipients of the Work or
+       Derivative Works a copy of this License; and
+
+   (b) You must cause any modified files to carry prominent notices
+       stating that You changed the files; and
+
+   (c) You must retain, in the Source form of any Derivative Works
+       that You distribute, all copyright, patent, trademark, and
+       attribution notices from the Source form of the Work,
+       excluding those notices that do not pertain to any part of
+       the Derivative Works; and
+
+   (d) If the Work includes a "NOTICE" text file as part of its
+       distribution, then any Derivative Works that You distribute must
+       include a readable copy of the attribution notices contained
+       within such NOTICE file, excluding those notices that do not
+       pertain to any part of the Derivative Works, in at least one
+       of the following places: within a NOTICE text file distributed
+       as part of the Derivative Works; within the Source form or
+       documentation, if provided along with the Derivative Works; or,
+       within a display generated by the Derivative Works, if and
+       wherever such third-party notices normally appear. The contents
+       of the NOTICE file are for informational purposes only and
+       do not modify the License. You may add Your own attribution
+       notices within Derivative Works that You distribute, alongside
+       or as an addendum to the NOTICE text from the Work, provided
+       that such additional attribution notices cannot be construed
+       as modifying the License.
+
+   You may add Your own copyright statement to Your modifications and
+   may provide additional or different license terms and conditions
+   for use, reproduction, or distribution of Your modifications, or
+   for any such Derivative Works as a whole, provided Your use,
+   reproduction, and distribution of the Work otherwise complies with
+   the conditions stated in this License.
+
+5. Submission of Contributions. Unless You explicitly state otherwise,
+   any Contribution intentionally submitted for inclusion in the Work
+   by You to the Licensor shall be under the terms and conditions of
+   this License, without any additional terms or conditions.
+   Notwithstanding the above, nothing herein shall supersede or modify
+   the terms of any separate license agreement you may have executed
+   with Licensor regarding such Contributions.
+
+6. Trademarks. This License does not grant permission to use the trade
+   names, trademarks, service marks, or product names of the Licensor,
+   except as required for reasonable and customary use in describing the
+   origin of the Work and reproducing the content of the NOTICE file.
+
+7. Disclaimer of Warranty. Unless required by applicable law or
+   agreed to in writing, Licensor provides the Work (and each
+   Contributor provides its Contributions) on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+   implied, including, without limitation, any warranties or conditions
+   of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+   PARTICULAR PURPOSE. You are solely responsible for determining the
+   appropriateness of using or redistributing the Work and assume any
+   risks associated with Your exercise of permissions under this License.
+
+8. Limitation of Liability. In no event and under no legal theory,
+   whether in tort (including negligence), contract, or otherwise,
+   unless required by applicable law (such as deliberate and grossly
+   negligent acts) or agreed to in writing, shall any Contributor be
+   liable to You for damages, including any direct, indirect, special,
+   incidental, or consequential damages of any character arising as a
+   result of this License or out of the use or inability to use the
+   Work (including but not limited to damages for loss of goodwill,
+   work stoppage, computer failure or malfunction, or any and all
+   other commercial damages or losses), even if such Contributor
+   has been advised of the possibility of such damages.
+
+9. Accepting Warranty or Additional Liability. While redistributing
+   the Work or Derivative Works thereof, You may choose to offer,
+   and charge a fee for, acceptance of support, warranty, indemnity,
+   or other liability obligations and/or rights consistent with this
+   License. However, in accepting such obligations, You may act only
+   on Your own behalf and on Your sole responsibility, not on behalf
+   of any other Contributor, and only if You agree to indemnify,
+   defend, and hold each Contributor harmless for any liability
+   incurred by, or claims asserted against, such Contributor by reason
+   of your accepting any such warranty or additional liability.
+
+END OF TERMS AND CONDITIONS
+
+APPENDIX: How to apply the Apache License to your work.
+
+   To apply the Apache License to your work, attach the following
+   boilerplate notice, with the fields enclosed by brackets "[]"
+   replaced with your own identifying information. (Don't include
+   the brackets!)  The text should be enclosed in the appropriate
+   comment syntax for the file format. We also recommend that a
+   file or class name and description of purpose be included on the
+   same "printed page" as the copyright notice for easier
+   identification within third-party archives.
+
+Copyright 2016 Philipp Korber
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 ````
 
 ## Notice af12dcd8435f4824ae1cd166b7ea7944f70aa6bf38791c2487f21145ad36a45e
@@ -19782,6 +20783,40 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    limitations under the License.
 ````
 
+## Notice d00d6d48df2db6f91e4ca9c656e5e30782d5becf52bb3e5bfd0aff467bd37781
+
+````text
+Short version for non-lawyers:
+
+`ambient-authority` is triple-licensed under Apache 2.0 with the LLVM Exception,
+Apache 2.0, and MIT terms.
+
+
+Longer version:
+
+Copyrights in the `ambient-authority` project are retained by their contributors.
+No copyright assignment is required to contribute to the `ambient-authority`
+project.
+
+Some files include code derived from Rust's `libstd`; see the comments in
+the code for details.
+
+Except as otherwise noted (below and/or in individual files), `ambient-authority`
+is licensed under:
+
+ - the Apache License, Version 2.0, with the LLVM Exception
+   <LICENSE-Apache-2.0_WITH_LLVM-exception> or
+   <http://llvm.org/foundation/relicensing/LICENSE.txt>
+ - the Apache License, Version 2.0
+   <LICENSE-APACHE> or
+   <http://www.apache.org/licenses/LICENSE-2.0>,
+ - or the MIT license
+   <LICENSE-MIT> or
+   <http://opensource.org/licenses/MIT>,
+
+at your option.
+````
+
 ## Notice d13669f0eaff9b7015bff0d8637297213b53d9f239826636c07a15633acf7052
 
 ````text
@@ -19890,6 +20925,40 @@ THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+````
+
+## Notice d415a86ccfd794129666247cbbadebee7a6d0ac3ff701c76c07b0f9424f0307d
+
+````text
+Short version for non-lawyers:
+
+`rustix-linux-procfs` is triple-licensed under Apache 2.0 with the LLVM Exception,
+Apache 2.0, and MIT terms.
+
+
+Longer version:
+
+Copyrights in the `rustix-linux-procfs` project are retained by their contributors.
+No copyright assignment is required to contribute to the `rustix-linux-procfs`
+project.
+
+Some files include code derived from Rust's `libstd`; see the comments in
+the code for details.
+
+Except as otherwise noted (below and/or in individual files), `rustix-linux-procfs`
+is licensed under:
+
+ - the Apache License, Version 2.0, with the LLVM Exception
+   <LICENSE-Apache-2.0_WITH_LLVM-exception> or
+   <http://llvm.org/foundation/relicensing/LICENSE.txt>
+ - the Apache License, Version 2.0
+   <LICENSE-APACHE> or
+   <http://www.apache.org/licenses/LICENSE-2.0>,
+ - or the MIT license
+   <LICENSE-MIT> or
+   <http://opensource.org/licenses/MIT>,
+
+at your option.
 ````
 
 ## Notice d421ba1ac2661c98a45ad381f2176cfc87e633230d6ebb7a1c04a2142857283a
@@ -20373,6 +21442,40 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+````
+
+## Notice e196ffeb5ab101e9ec8bbe395c9f367c5380ee2d28c47e5c03371523798a9af7
+
+````text
+Short version for non-lawyers:
+
+`fs-set-times` is triple-licensed under Apache 2.0 with the LLVM Exception,
+Apache 2.0, and MIT terms.
+
+
+Longer version:
+
+Copyrights in the `fs-set-times` project are retained by their contributors.
+No copyright assignment is required to contribute to the `fs-set-times`
+project.
+
+Some files include code derived from Rust's `libstd`; see the comments in
+the code for details.
+
+Except as otherwise noted (below and/or in individual files), `fs-set-times`
+is licensed under:
+
+ - the Apache License, Version 2.0, with the LLVM Exception
+   <LICENSE-Apache-2.0_WITH_LLVM-exception> or
+   <http://llvm.org/foundation/relicensing/LICENSE.txt>
+ - the Apache License, Version 2.0
+   <LICENSE-APACHE> or
+   <http://www.apache.org/licenses/LICENSE-2.0>,
+ - or the MIT license
+   <LICENSE-MIT> or
+   <http://opensource.org/licenses/MIT>,
+
+at your option.
 ````
 
 ## Notice e3ba223bb1423f0aad8c3dfce0fe3148db48926d41e6fbc3afbbf5ff9e1c89cb
@@ -21054,6 +22157,36 @@ DEALINGS IN THE SOFTWARE.
   </copyright>
 ````
 
+## Notice ef2b3bbd7b718a7881253226313f103e89b379e1279681a3c1ebcb65a27d209d
+
+````text
+Copyright (c) 2016 Philipp Korber
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+````
+
 ## Notice efcfee7981ff72431fffb06925cad00a23dce079ed4354f61030ad5abdb78829
 
 ````text
@@ -21079,6 +22212,40 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+````
+
+## Notice f0c1d22de8bd3b776a40f2691f08b84e91c7bafc78b72a51150e231002b88db3
+
+````text
+Short version for non-lawyers:
+
+`io-extras` is triple-licensed under Apache 2.0 with the LLVM Exception,
+Apache 2.0, and MIT terms.
+
+
+Longer version:
+
+Copyrights in the `io-extras` project are retained by their contributors.
+No copyright assignment is required to contribute to the `io-extras`
+project.
+
+Some files include code derived from Rust's `libstd`; see the comments in
+the code for details.
+
+Except as otherwise noted (below and/or in individual files), `io-extras`
+is licensed under:
+
+ - the Apache License, Version 2.0, with the LLVM Exception
+   <LICENSE-Apache-2.0_WITH_LLVM-exception> or
+   <http://llvm.org/foundation/relicensing/LICENSE.txt>
+ - the Apache License, Version 2.0
+   <LICENSE-APACHE> or
+   <http://www.apache.org/licenses/LICENSE-2.0>,
+ - or the MIT license
+   <LICENSE-MIT> or
+   <http://opensource.org/licenses/MIT>,
+
+at your option.
 ````
 
 ## Notice f0cf9b1c62bbe3bd3a69f5f79c7158f513f612b4940a0a812d1db39d605318bc
@@ -22086,6 +23253,16 @@ END OF TERMS AND CONDITIONS
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
   </copyright>
+````
+
+## Notice fd80a26fbb3f644af1fa994134446702932968519797227e07a1368dea80f0bc
+
+````text
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ````
 
 ## Notice ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2

@@ -21,6 +21,9 @@ use unpack::{Directory, read_small, regular_file};
 use crate::{Options, Result};
 
 const EVIDENCE_CLASS: &str = "native-command-smoke";
+const SMOKE_EXTRACT_DIRECTORY: &str = "arcforge-smoke-output";
+const SMOKE_EXTRACT_BYTES: u64 =
+    (b"Hello from ArcForge.\n".len() + "Привет из ZIP.\n".len()) as u64;
 
 pub fn matrix(root: &Path) -> Result<()> {
     println!("{}", Manifest::load(root)?.matrix());
@@ -350,6 +353,16 @@ fn smoke_commands(target: &Target) -> Vec<(&str, Vec<&'static str>)> {
             &target.cli,
             vec!["preview", "arcforge-smoke.zip", "--entry", "1", "--json"],
         ),
+        (
+            &target.cli,
+            vec![
+                "extract",
+                "arcforge-smoke.zip",
+                "--output",
+                SMOKE_EXTRACT_DIRECTORY,
+                "--json",
+            ],
+        ),
     ]
 }
 
@@ -362,7 +375,7 @@ fn smoke(directory: &Path, target: &Target) -> Result<Vec<Value>> {
         .step_by(2)
         .map(|index| u8::from_str_radix(&hex[index..index + 2], 16))
         .collect::<std::result::Result<_, _>>()?;
-    fs::write(directory.join("arcforge-smoke.zip"), fixture)?;
+    fs::write(directory.join("arcforge-smoke.zip"), &fixture)?;
     let mut checks = Vec::new();
     for (index, (program, arguments)) in smoke_commands(target).iter().enumerate() {
         let stdout_path = directory.join(format!("smoke-{index}.stdout"));
@@ -402,6 +415,9 @@ fn smoke(directory: &Path, target: &Target) -> Result<Vec<Value>> {
             .into());
         }
         validate_smoke_output(index, &stdout)?;
+        if index == 6 {
+            validate_extracted_fixture(directory, &fixture)?;
+        }
         checks.push(json!({
             "program": program,
             "arguments": arguments,
@@ -412,9 +428,31 @@ fn smoke(directory: &Path, target: &Target) -> Result<Vec<Value>> {
     Ok(checks)
 }
 
+fn validate_extracted_fixture(directory: &Path, original: &[u8]) -> Result<()> {
+    let destination = directory.join(SMOKE_EXTRACT_DIRECTORY);
+    if !fs::symlink_metadata(&destination)?.file_type().is_dir()
+        || relative_files(&destination, &destination)?
+            != BTreeSet::from(["hello.txt".into(), "folder/Привет.txt".into()])
+    {
+        return Err("unpacked CLI produced an unexpected extraction inventory".into());
+    }
+    for (name, expected) in [
+        ("hello.txt", b"Hello from ArcForge.\n".as_slice()),
+        ("folder/Привет.txt", "Привет из ZIP.\n".as_bytes()),
+    ] {
+        if read_small(&destination.join(name), expected.len() as u64)? != expected {
+            return Err(format!("unpacked CLI extracted incorrect bytes for {name}").into());
+        }
+    }
+    if read_small(&directory.join("arcforge-smoke.zip"), original.len() as u64)? != original {
+        return Err("unpacked CLI changed the source archive during extraction".into());
+    }
+    Ok(())
+}
+
 fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
     if matches!(index, 0 | 3) {
-        if stdout != format!("ArcForge {VERSION} (zip-browser)\n").as_bytes() {
+        if stdout != format!("ArcForge {VERSION} (zip-extraction)\n").as_bytes() {
             return Err("unpacked executable reported an unexpected version".into());
         }
     } else {
@@ -423,8 +461,10 @@ fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
             let commands = value["data"]
                 .as_array()
                 .ok_or("commands response has no array")?;
-            let implemented = ["version", "commands", "doctor", "list", "info", "preview"];
-            let planned = ["create", "extract", "test", "update", "convert", "hash"];
+            let implemented = [
+                "version", "commands", "doctor", "list", "info", "preview", "extract",
+            ];
+            let planned = ["create", "test", "update", "convert", "hash"];
             let mut names = BTreeSet::new();
             if value["kind"] != "commands"
                 || commands.len() != implemented.len() + planned.len()
@@ -455,16 +495,18 @@ fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
             && (value["kind"] != "doctor"
                 || value["data"]["application"]["name"] != "ArcForge"
                 || value["data"]["application"]["version"] != VERSION
-                || value["data"]["application"]["stage"] != "zip-browser"
+                || value["data"]["application"]["stage"] != "zip-extraction"
                 || value["data"]["ready_for_archive_operations"] != true
                 || value["data"]["archive_provider_count"] != 1
                 || value["data"]["supported_archive_formats"] != json!(["zip", "zip64"])
                 || value["data"]["providers"][0]["operations"]
-                    != json!(["list", "info", "preview"])
+                    != json!(["list", "info", "preview", "extract"])
+                || value["data"]["providers"][0]["extraction_compression"]
+                    != json!(["stored", "deflate"])
                 || value["data"]["providers"][0]["write"] != false
                 || value["data"]["providers"][0]["encrypted_content"] != false)
         {
-            return Err("unpacked CLI violated read-only capability contract".into());
+            return Err("unpacked CLI violated the ZIP extraction capability contract".into());
         } else if index == 4 {
             let entries = &value["data"]["entries"];
             let revision = value["data"]["metadata_revision"].as_str().unwrap_or("");
@@ -488,6 +530,24 @@ fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
                 || value["data"]["preview"]["crc32_verified"] != true)
         {
             return Err("unpacked CLI could not verify the independent Deflate fixture".into());
+        } else if index == 6 {
+            let report = &value["data"]["report"];
+            if value["kind"] != "extract"
+                || report["status"] != "completed"
+                || report["destination_created"] != true
+                || report["entries_planned"] != 2
+                || report["completed_entries"] != json!([0, 1])
+                || report["files_written"] != 2
+                || report["directories_created"] != 1
+                || report["bytes_written"] != SMOKE_EXTRACT_BYTES
+                || !report["incomplete"].is_null()
+                || !report["error"].is_null()
+            {
+                return Err(
+                    "unpacked CLI did not complete extraction of the independent ZIP fixture"
+                        .into(),
+                );
+            }
         }
     }
     Ok(())

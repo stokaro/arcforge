@@ -61,8 +61,8 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     },
     CommandDescriptor {
         name: "extract",
-        description: "Extract archive entries",
-        availability: Availability::Planned,
+        description: "Extract selected Stored/Deflate ZIP entries into a new directory",
+        availability: Availability::Implemented,
     },
     CommandDescriptor {
         name: "test",
@@ -155,7 +155,7 @@ pub const fn application_info() -> ApplicationInfo {
     ApplicationInfo {
         name: "ArcForge",
         version: VERSION,
-        stage: "zip-browser",
+        stage: "zip-extraction",
         license: "MIT",
     }
 }
@@ -167,8 +167,10 @@ pub struct ProviderCapabilities {
     pub formats: &'static [&'static str],
     pub operations: &'static [&'static str],
     pub preview_compression: &'static [&'static str],
+    pub extraction_compression: &'static [&'static str],
     pub encrypted_content: bool,
     pub multi_disk: bool,
+    /// Whether the source archive can be created or modified.
     pub write: bool,
 }
 
@@ -176,8 +178,9 @@ pub const PROVIDERS: &[ProviderCapabilities] = &[ProviderCapabilities {
     name: "zip-rs",
     version: "9.8.2",
     formats: &["zip", "zip64"],
-    operations: &["list", "info", "preview"],
+    operations: &["list", "info", "preview", "extract"],
     preview_compression: &["stored", "deflate"],
+    extraction_compression: &["stored", "deflate"],
     encrypted_content: false,
     multi_disk: false,
     write: false,
@@ -204,7 +207,7 @@ pub const fn diagnostics() -> DiagnosticReport {
         providers: PROVIDERS,
         os: std::env::consts::OS,
         architecture: std::env::consts::ARCH,
-        scope: "Read-only ZIP listing, metadata and bounded Stored/Deflate previews. No extraction or editing. Compiled capabilities only; the system was not probed.",
+        scope: "ZIP listing, metadata, bounded previews and streamed Stored/Deflate extraction into a new directory. Source archives remain unchanged; editing is planned. Extraction requires resolved safe paths and rejects links, special files, collisions and encrypted content. Compiled capabilities only; the system was not probed.",
     }
 }
 
@@ -249,7 +252,8 @@ pub fn execute(command: Command) -> Result<CommandResult, CommandError> {
         Command::Archive(
             operation @ (ArchiveOperation::List
             | ArchiveOperation::Info
-            | ArchiveOperation::Preview),
+            | ArchiveOperation::Preview
+            | ArchiveOperation::Extract),
         ) => Err(CommandError::ArgumentsRequired(operation.name())),
         Command::Archive(operation) => Err(CommandError::NotImplemented(operation.name())),
     }
@@ -288,12 +292,19 @@ mod tests {
     }
 
     #[test]
-    fn discovery_advertises_only_read_only_zip_operations() {
+    fn discovery_advertises_extraction_without_archive_modification() {
         let report = diagnostics();
         assert!(report.ready_for_archive_operations);
         assert_eq!(report.archive_provider_count, 1);
         assert_eq!(report.supported_archive_formats, ["zip", "zip64"]);
-        assert_eq!(report.providers[0].operations, ["list", "info", "preview"]);
+        assert_eq!(
+            report.providers[0].operations,
+            ["list", "info", "preview", "extract"]
+        );
+        assert_eq!(
+            report.providers[0].extraction_compression,
+            ["stored", "deflate"]
+        );
         assert!(!report.providers[0].write);
         assert!(!report.providers[0].encrypted_content);
     }

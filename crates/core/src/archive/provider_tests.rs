@@ -1097,3 +1097,492 @@ fn redirected_zip64_locator_cannot_allocate_an_unchecked_extensible_sector() {
         );
     }
 }
+
+#[derive(Default)]
+struct CountingSink {
+    written: u64,
+    largest_chunk: usize,
+    crc: crc32fast::Hasher,
+}
+
+impl Write for CountingSink {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.written += bytes.len() as u64;
+        self.largest_chunk = self.largest_chunk.max(bytes.len());
+        self.crc.update(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        panic!("the provider must leave destination flushing to its caller")
+    }
+}
+
+#[test]
+fn streaming_large_stored_and_deflate_entries_uses_bounded_sink_chunks() {
+    let data = b"streamed payload\n".repeat(40_000);
+    let fixture = zip_fixture(
+        &[
+            EntryFixture::stored(b"stored", &data),
+            EntryFixture::deflated(b"deflated", &data),
+        ],
+        b"",
+    );
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    assert!(snapshot.entries[0].size > ArchiveLimits::default().max_preview_bytes);
+    let mut stream = begin_stream(
+        &snapshot,
+        &StreamLimits::default(),
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let mut last_progress = None;
+    for id in [0, 1] {
+        let mut sink = CountingSink::default();
+        let result = stream
+            .copy_entry(id, &mut sink, &mut |event| last_progress = Some(event))
+            .unwrap();
+        assert_eq!(result.bytes_written, data.len() as u64);
+        assert!(result.crc32_verified);
+        assert_eq!(sink.written, data.len() as u64);
+        assert_eq!(sink.crc.finalize(), crc32fast::hash(&data));
+        assert!(sink.largest_chunk <= 64 * 1024);
+    }
+    let totals = stream.finish().unwrap();
+    assert_eq!(totals.entries, 2);
+    assert_eq!(totals.bytes_written, data.len() as u64 * 2);
+    assert!(totals.bytes_read > snapshot.compressed_size);
+    assert_eq!(
+        last_progress.unwrap().total_bytes_written,
+        totals.bytes_written
+    );
+    assert_eq!(fs::read(&file.path).unwrap(), fixture.bytes);
+}
+
+#[test]
+fn streaming_sink_failure_counts_partial_writes_and_poison_prevents_false_success() {
+    struct FailingSink {
+        written: usize,
+    }
+    impl Write for FailingSink {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if self.written == 17 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "injected sink failure",
+                ));
+            }
+            let count = bytes.len().min(17 - self.written);
+            self.written += count;
+            Ok(count)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            panic!("unexpected flush")
+        }
+    }
+    let fixture = zip_fixture(&[EntryFixture::stored(b"large", &vec![7; 512 * 1024])], b"");
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    let mut stream = begin_stream(
+        &snapshot,
+        &StreamLimits::default(),
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let mut sink = FailingSink { written: 0 };
+    let mut progress = Vec::new();
+    let error = stream
+        .copy_entry(0, &mut sink, &mut |event| progress.push(event))
+        .unwrap_err();
+    assert!(matches!(error, ArchiveError::Io(_)));
+    assert_eq!(sink.written, 17);
+    assert_eq!(stream.totals().bytes_written, 17);
+    assert_eq!(stream.totals().entries, 0);
+    assert_eq!(progress.last().unwrap().entry_bytes_written, 17);
+    // An owned ZipFile would drain the remainder on Drop. This borrowed reader
+    // stops near the failed chunk instead of consuming the large stored body.
+    assert!(stream.totals().bytes_read < snapshot.entries[0].compressed_size);
+    let before_retry = stream.totals();
+    let mut untouched = CountingSink::default();
+    assert_eq!(
+        stream
+            .copy_entry(0, &mut untouched, &mut |_| {})
+            .unwrap_err(),
+        error
+    );
+    assert_eq!(untouched.written, 0);
+    assert_eq!(stream.totals(), before_retry);
+    assert_eq!(stream.finish().unwrap_err(), error);
+    assert_eq!(fs::read(&file.path).unwrap(), fixture.bytes);
+}
+
+#[test]
+fn streaming_mid_entry_cancellation_stops_without_drop_draining() {
+    let fixture = zip_fixture(&[EntryFixture::stored(b"large", &vec![9; 512 * 1024])], b"");
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    let cancel = CancellationToken::new();
+    let mut stream = begin_stream(&snapshot, &StreamLimits::default(), &cancel).unwrap();
+    let mut sink = CountingSink::default();
+    let error = stream
+        .copy_entry(0, &mut sink, &mut |event| {
+            if event.entry_bytes_written != 0 {
+                cancel.cancel();
+            }
+        })
+        .unwrap_err();
+    assert_eq!(error, ArchiveError::Cancelled);
+    assert!(sink.written > 0 && sink.written < snapshot.entries[0].size);
+    assert_eq!(stream.totals().bytes_written, sink.written);
+    assert_eq!(stream.totals().entries, 0);
+    assert!(stream.totals().bytes_read < snapshot.entries[0].compressed_size);
+    assert_eq!(stream.finish().unwrap_err(), ArchiveError::Cancelled);
+    assert_eq!(fs::read(&file.path).unwrap(), fixture.bytes);
+}
+
+#[test]
+fn streaming_enforces_entry_count_and_output_limits_before_sink_writes() {
+    let fixture = zip_fixture(&[EntryFixture::stored(b"file", b"data")], b"");
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    for limits in [
+        StreamLimits {
+            max_entries: 0,
+            ..StreamLimits::default()
+        },
+        StreamLimits {
+            max_entry_bytes: 3,
+            ..StreamLimits::default()
+        },
+        StreamLimits {
+            max_total_bytes: 3,
+            ..StreamLimits::default()
+        },
+    ] {
+        let mut stream = begin_stream(&snapshot, &limits, &CancellationToken::new()).unwrap();
+        let mut sink = CountingSink::default();
+        assert!(matches!(
+            stream.copy_entry(0, &mut sink, &mut |_| {}),
+            Err(ArchiveError::LimitExceeded(_))
+        ));
+        assert_eq!(sink.written, 0);
+        assert_eq!(stream.totals().bytes_written, 0);
+        assert!(matches!(
+            stream.finish(),
+            Err(ArchiveError::LimitExceeded(_))
+        ));
+    }
+}
+
+#[test]
+fn streaming_total_output_budget_is_shared_across_selected_entries() {
+    let fixture = zip_fixture(
+        &[
+            EntryFixture::stored(b"one", b"1234"),
+            EntryFixture::deflated(b"two", b"5678"),
+        ],
+        b"",
+    );
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    let limits = StreamLimits {
+        max_total_bytes: 6,
+        ..StreamLimits::default()
+    };
+    let mut stream = begin_stream(&snapshot, &limits, &CancellationToken::new()).unwrap();
+    let mut first = CountingSink::default();
+    assert!(
+        stream
+            .copy_entry(0, &mut first, &mut |_| {})
+            .unwrap()
+            .crc32_verified
+    );
+    let mut second = CountingSink::default();
+    assert!(matches!(
+        stream.copy_entry(1, &mut second, &mut |_| {}),
+        Err(ArchiveError::LimitExceeded(_))
+    ));
+    assert_eq!(first.written, 4);
+    assert_eq!(second.written, 0);
+    assert_eq!(stream.totals().entries, 1);
+    assert_eq!(stream.totals().bytes_written, 4);
+    assert!(matches!(
+        stream.finish(),
+        Err(ArchiveError::LimitExceeded(_))
+    ));
+}
+
+#[test]
+fn streaming_physical_read_budget_is_shared_and_charged_on_failure() {
+    let fixture = zip_fixture(
+        &[
+            EntryFixture::stored(b"one", &vec![1; 64 * 1024]),
+            EntryFixture::stored(b"two", &vec![2; 64 * 1024]),
+        ],
+        b"",
+    );
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    let limits = StreamLimits {
+        max_read_bytes: 100 * 1024,
+        ..StreamLimits::default()
+    };
+    let mut stream = begin_stream(&snapshot, &limits, &CancellationToken::new()).unwrap();
+    let mut first = CountingSink::default();
+    stream.copy_entry(0, &mut first, &mut |_| {}).unwrap();
+    let after_first = stream.totals();
+    assert!(after_first.bytes_read > first.written);
+    let mut second = CountingSink::default();
+    assert!(matches!(
+        stream.copy_entry(1, &mut second, &mut |_| {}),
+        Err(ArchiveError::LimitExceeded(_))
+    ));
+    assert!(second.written > 0 && second.written < 64 * 1024);
+    assert_eq!(stream.totals().bytes_read, limits.max_read_bytes);
+    assert_eq!(
+        stream.totals().bytes_written,
+        first.written + second.written
+    );
+    assert_eq!(stream.totals().entries, 1);
+    assert!(matches!(
+        stream.finish(),
+        Err(ArchiveError::LimitExceeded(_))
+    ));
+    assert_eq!(fs::read(&file.path).unwrap(), fixture.bytes);
+}
+
+#[test]
+fn streaming_crc_failure_retains_only_unverified_partial_output() {
+    let mut fixture = zip_fixture(&[EntryFixture::stored(b"file", b"original")], b"");
+    fixture.bytes[fixture.data_offsets[0]] ^= 1;
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    let mut stream = begin_stream(
+        &snapshot,
+        &StreamLimits::default(),
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let mut sink = CountingSink::default();
+    let error = stream.copy_entry(0, &mut sink, &mut |_| {}).unwrap_err();
+    assert!(matches!(error, ArchiveError::InvalidArchive(_)));
+    assert_eq!(sink.written, 8);
+    assert_eq!(stream.totals().entries, 0);
+    assert_eq!(stream.finish().unwrap_err(), error);
+    assert_eq!(fs::read(&file.path).unwrap(), fixture.bytes);
+}
+
+#[test]
+fn streaming_actual_expansion_cannot_write_beyond_the_declared_limit() {
+    let mut entry = EntryFixture::deflated(b"understated", &vec![0; 128 * 1024]);
+    entry.declared_size = Some(64 * 1024);
+    let fixture = zip_fixture(&[entry], b"");
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    let limits = StreamLimits {
+        max_entry_bytes: 64 * 1024,
+        max_total_bytes: 64 * 1024,
+        ..StreamLimits::default()
+    };
+    let mut stream = begin_stream(&snapshot, &limits, &CancellationToken::new()).unwrap();
+    let mut sink = CountingSink::default();
+    assert!(matches!(
+        stream.copy_entry(0, &mut sink, &mut |_| {}),
+        Err(ArchiveError::InvalidArchive(_))
+    ));
+    assert_eq!(sink.written, 64 * 1024);
+    assert_eq!(stream.totals().entries, 0);
+    assert!(matches!(
+        stream.finish(),
+        Err(ArchiveError::InvalidArchive(_))
+    ));
+}
+
+#[test]
+fn streaming_detects_replaced_source_before_writing_an_entry() {
+    let fixture = zip_fixture(&[EntryFixture::stored(b"file", b"data")], b"");
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    let mut stream = begin_stream(
+        &snapshot,
+        &StreamLimits::default(),
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let modified = fs::metadata(&file.path).unwrap().modified().unwrap();
+    fs::rename(&file.path, file.directory.join("original.zip")).unwrap();
+    fs::write(&file.path, &fixture.bytes).unwrap();
+    File::options()
+        .write(true)
+        .open(&file.path)
+        .unwrap()
+        .set_times(FileTimes::new().set_modified(modified))
+        .unwrap();
+    let mut sink = CountingSink::default();
+    assert_eq!(
+        stream.copy_entry(0, &mut sink, &mut |_| {}).unwrap_err(),
+        ArchiveError::SourceChanged
+    );
+    assert_eq!(sink.written, 0);
+    assert_eq!(stream.finish().unwrap_err(), ArchiveError::SourceChanged);
+}
+
+#[test]
+fn streaming_finish_rechecks_real_metadata_even_when_mtime_is_restored() {
+    let fixture = zip_fixture(&[EntryFixture::stored(b"file", b"data")], b"comment");
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    let mut stream = begin_stream(
+        &snapshot,
+        &StreamLimits::default(),
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let mut sink = CountingSink::default();
+    stream.copy_entry(0, &mut sink, &mut |_| {}).unwrap();
+    assert_eq!(stream.totals().entries, 1);
+    let modified = fs::metadata(&file.path).unwrap().modified().unwrap();
+    let mut writer = File::options().write(true).open(&file.path).unwrap();
+    writer.seek(SeekFrom::End(-1)).unwrap();
+    writer.write_all(b"X").unwrap();
+    writer
+        .set_times(FileTimes::new().set_modified(modified))
+        .unwrap();
+    assert_eq!(stream.finish().unwrap_err(), ArchiveError::SourceChanged);
+}
+
+#[test]
+fn streaming_classifies_raw_entry_modes_and_rejects_links_specials_and_conflicts() {
+    let cases = [
+        (b"regular".as_slice(), 0o104_755_u32, 0_u32, EntryKind::File),
+        (
+            b"directory/".as_slice(),
+            0o040_755,
+            0x10,
+            EntryKind::Directory,
+        ),
+        (b"link".as_slice(), 0o120_777, 0, EntryKind::Symlink),
+        (b"fifo".as_slice(), 0o010_644, 0, EntryKind::Special),
+        (b"device".as_slice(), 0o020_600, 0, EntryKind::Special),
+        (b"socket".as_slice(), 0o140_777, 0, EntryKind::Special),
+        (b"conflict/".as_slice(), 0o100_644, 0, EntryKind::Special),
+        (
+            b"flag-conflict".as_slice(),
+            0o100_644,
+            0x10,
+            EntryKind::Special,
+        ),
+        (b"link-dir/".as_slice(), 0o120_777, 0x10, EntryKind::Special),
+        (b"permissions-only".as_slice(), 0o600, 0, EntryKind::File),
+        (b"reparse".as_slice(), 0, 0x400, EntryKind::Special),
+    ];
+    let entries: Vec<_> = cases
+        .iter()
+        .map(|(name, _, _, kind)| {
+            EntryFixture::stored(
+                name,
+                if *kind == EntryKind::Directory {
+                    b""
+                } else {
+                    b"data"
+                },
+            )
+        })
+        .collect();
+    let mut fixture = zip_fixture(&entries, b"");
+    for (&central, &(_, mode, flags, _)) in fixture.central_headers.iter().zip(&cases) {
+        fixture.bytes[central + 5] = 3;
+        fixture.bytes[central + 38..central + 42]
+            .copy_from_slice(&((mode << 16) | flags).to_le_bytes());
+    }
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    for (id, &(_, mode, _, expected_kind)) in cases.iter().enumerate() {
+        assert_eq!(snapshot.entries[id].kind, expected_kind);
+        assert_eq!(snapshot.entries[id].unix_mode, (mode != 0).then_some(mode));
+        let mut stream = begin_stream(
+            &snapshot,
+            &StreamLimits::default(),
+            &CancellationToken::new(),
+        )
+        .unwrap();
+        let mut sink = CountingSink::default();
+        let result = stream.copy_entry(id as u64, &mut sink, &mut |_| {});
+        if matches!(expected_kind, EntryKind::File | EntryKind::Directory) {
+            assert!(result.unwrap().crc32_verified);
+            assert_eq!(stream.finish().unwrap().entries, 1);
+        } else {
+            assert!(matches!(result, Err(ArchiveError::Unsupported(_))));
+            assert_eq!(sink.written, 0);
+            assert!(matches!(stream.finish(), Err(ArchiveError::Unsupported(_))));
+        }
+    }
+    assert_eq!(fs::read(&file.path).unwrap(), fixture.bytes);
+}
+
+#[test]
+fn streaming_rechecks_private_type_even_when_public_snapshot_fields_are_changed() {
+    let mut fixture = zip_fixture(&[EntryFixture::stored(b"link", b"target")], b"");
+    let central = fixture.central_headers[0];
+    fixture.bytes[central + 5] = 3;
+    fixture.bytes[central + 38..central + 42].copy_from_slice(&(0o120_777_u32 << 16).to_le_bytes());
+    let file = TempArchive::new(&fixture.bytes);
+    let mut snapshot = file.open();
+    snapshot.entries[0].kind = EntryKind::File;
+    snapshot.entries[0].unix_mode = Some(0o100_644);
+    snapshot.entries[0].is_directory = false;
+    let mut stream = begin_stream(
+        &snapshot,
+        &StreamLimits::default(),
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let mut sink = CountingSink::default();
+    assert!(matches!(
+        stream.copy_entry(0, &mut sink, &mut |_| {}),
+        Err(ArchiveError::Unsupported(_))
+    ));
+    assert_eq!(sink.written, 0);
+}
+
+#[test]
+fn streaming_rejects_nonempty_directory_entries_instead_of_discarding_data() {
+    let fixture = zip_fixture(&[EntryFixture::stored(b"directory/", b"data")], b"");
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    assert_eq!(snapshot.entries[0].kind, EntryKind::Directory);
+    let mut stream = begin_stream(
+        &snapshot,
+        &StreamLimits::default(),
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let mut sink = CountingSink::default();
+    assert!(matches!(
+        stream.copy_entry(0, &mut sink, &mut |_| {}),
+        Err(ArchiveError::Unsupported(_))
+    ));
+    assert_eq!(sink.written, 0);
+}
+
+#[test]
+fn streaming_session_honors_cancel_and_timeout_before_reads() {
+    let fixture = zip_fixture(&[EntryFixture::stored(b"file", b"data")], b"");
+    let file = TempArchive::new(&fixture.bytes);
+    let snapshot = file.open();
+    let cancel = CancellationToken::new();
+    cancel.cancel();
+    assert!(matches!(
+        begin_stream(&snapshot, &StreamLimits::default(), &cancel),
+        Err(ArchiveError::Cancelled)
+    ));
+    let limits = StreamLimits {
+        operation_timeout: Duration::ZERO,
+        ..StreamLimits::default()
+    };
+    assert!(matches!(
+        begin_stream(&snapshot, &limits, &CancellationToken::new()),
+        Err(ArchiveError::LimitExceeded(_))
+    ));
+}

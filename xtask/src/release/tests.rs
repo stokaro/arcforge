@@ -272,6 +272,7 @@ fn evidence_requires_the_actual_native_command_contract() -> Result<()> {
     let build = build_info(&manifest, target, Some(COMMIT), false);
     let digest = "a".repeat(64);
     let evidence = evidence_fixture(target, &build, &digest);
+    assert_eq!(smoke_commands(target).len(), 7);
     validate_evidence(&evidence, target, &build, &digest)?;
     for key in ["host_target", "evidence_class"] {
         let mut invalid = evidence.clone();
@@ -285,7 +286,10 @@ fn evidence_requires_the_actual_native_command_contract() -> Result<()> {
     failed["checks"][0]["exit_code"] = json!(1);
     assert!(validate_evidence(&failed, target, &build, &digest).is_err());
     assert!(validate_smoke_output(0, b"wrong version").is_err());
-    validate_smoke_output(0, format!("ArcForge {VERSION} (zip-browser)\n").as_bytes())?;
+    validate_smoke_output(
+        0,
+        format!("ArcForge {VERSION} (zip-extraction)\n").as_bytes(),
+    )?;
     assert!(validate_smoke_output(1, br#"{"kind":"commands","data":[]}"#).is_err());
     let command_rows: Vec<_> = [
         "version", "commands", "doctor", "list", "info", "preview", "create", "extract", "test",
@@ -295,7 +299,8 @@ fn evidence_requires_the_actual_native_command_contract() -> Result<()> {
     .enumerate()
     .map(|(index, name)| {
         json!({
-            "name": name, "availability": if index < 6 { "implemented" } else { "planned" }
+            "name": name,
+            "availability": if index < 6 || *name == "extract" { "implemented" } else { "planned" }
         })
     })
     .collect();
@@ -311,6 +316,42 @@ fn evidence_requires_the_actual_native_command_contract() -> Result<()> {
     validate_smoke_output(5, &serde_json::to_vec(&preview)?)?;
     preview["data"]["preview"]["crc32_verified"] = json!(false);
     assert!(validate_smoke_output(5, &serde_json::to_vec(&preview)?).is_err());
+    let extraction = json!({"kind":"extract","data":{"report":{
+        "status":"completed","destination_created":true,"entries_planned":2,
+        "completed_entries":[0,1],"files_written":2,"directories_created":1,
+        "bytes_written":SMOKE_EXTRACT_BYTES,"incomplete":null,"error":null,
+    }}});
+    validate_smoke_output(6, &serde_json::to_vec(&extraction)?)?;
+    for status in ["failed", "cancelled"] {
+        let mut failed = extraction.clone();
+        failed["data"]["report"]["status"] = json!(status);
+        assert!(validate_smoke_output(6, &serde_json::to_vec(&failed)?).is_err());
+    }
+    let mut incomplete = extraction;
+    incomplete["data"]["report"]["completed_entries"] = json!([0]);
+    assert!(validate_smoke_output(6, &serde_json::to_vec(&incomplete)?).is_err());
+    Ok(())
+}
+
+#[test]
+fn extraction_smoke_checks_actual_delivered_bytes_and_source_preservation() -> Result<()> {
+    let directory = Directory::new()?;
+    let original = b"independent source bytes";
+    fs::write(directory.0.join("arcforge-smoke.zip"), original)?;
+    assert!(validate_extracted_fixture(&directory.0, original).is_err());
+    let destination = directory.0.join(SMOKE_EXTRACT_DIRECTORY);
+    fs::create_dir_all(destination.join("folder"))?;
+    fs::write(destination.join("hello.txt"), b"Hello from ArcForge.\n")?;
+    fs::write(destination.join("folder/Привет.txt"), "Привет из ZIP.\n")?;
+    validate_extracted_fixture(&directory.0, original)?;
+    fs::write(destination.join("hello.txt"), b"corrupt")?;
+    assert!(validate_extracted_fixture(&directory.0, original).is_err());
+    fs::write(destination.join("hello.txt"), b"Hello from ArcForge.\n")?;
+    fs::write(destination.join("unexpected.txt"), b"unexpected")?;
+    assert!(validate_extracted_fixture(&directory.0, original).is_err());
+    fs::remove_file(destination.join("unexpected.txt"))?;
+    fs::write(directory.0.join("arcforge-smoke.zip"), b"changed")?;
+    assert!(validate_extracted_fixture(&directory.0, original).is_err());
     Ok(())
 }
 

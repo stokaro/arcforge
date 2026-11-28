@@ -1,13 +1,15 @@
 //! Read-only archive snapshots shared by the GUI and standalone CLI.
 
+mod extraction;
 mod names;
 mod provider;
 
 #[cfg(test)]
 mod provider_tests;
 
+pub use extraction::*;
 pub use names::*;
-pub use provider::{open_archive, preview_entry, reinterpret};
+pub use provider::{ArchiveStream, begin_stream, open_archive, preview_entry, reinterpret};
 
 use std::fmt;
 use std::path::Path;
@@ -19,6 +21,15 @@ use serde::Serialize;
 
 /// Central-directory ordinal, scoped to one `ArchiveSnapshot::id`.
 pub type EntryId = u64;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EntryKind {
+    File,
+    Directory,
+    Symlink,
+    Special,
+}
 
 #[derive(Clone, Debug, Serialize)]
 pub struct ArchiveEntry {
@@ -32,6 +43,10 @@ pub struct ArchiveEntry {
     pub size: u64,
     pub compression_method: u16,
     pub crc32: u32,
+    pub kind: EntryKind,
+    /// Original nonzero high 16 bits of central external attributes. No
+    /// permissions, including privileged bits, are applied during streaming.
+    pub unix_mode: Option<u32>,
     pub is_directory: bool,
     pub encrypted: bool,
     pub local_header_offset: u64,
@@ -104,6 +119,53 @@ impl Default for ArchiveLimits {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct StreamLimits {
+    pub max_entries: u64,
+    pub max_entry_bytes: u64,
+    pub max_total_bytes: u64,
+    /// Cumulative physical reads, including source metadata verification.
+    pub max_read_bytes: u64,
+    /// Cooperative timeout covering the complete streaming session.
+    pub operation_timeout: Duration,
+}
+
+impl Default for StreamLimits {
+    fn default() -> Self {
+        Self {
+            max_entries: 100_000,
+            max_entry_bytes: 1024 * 1024 * 1024,
+            max_total_bytes: 4 * 1024 * 1024 * 1024,
+            max_read_bytes: 8 * 1024 * 1024 * 1024,
+            operation_timeout: Duration::from_secs(300),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub struct StreamProgress {
+    pub entry_id: EntryId,
+    pub entry_bytes_written: u64,
+    pub total_bytes_written: u64,
+    pub entry_size: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub struct StreamedEntry {
+    pub entry_id: EntryId,
+    pub bytes_written: u64,
+    pub crc32_verified: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct StreamTotals {
+    /// Entries whose local metadata, complete output and CRC were verified.
+    pub entries: u64,
+    /// Bytes actually accepted by sinks, including a partial entry on failure.
+    pub bytes_written: u64,
+    pub bytes_read: u64,
+}
+
 /// Cooperative cancellation, checked between bounded reads and metadata records.
 #[derive(Clone, Debug, Default)]
 pub struct CancellationToken(Arc<AtomicBool>);
@@ -140,6 +202,12 @@ pub enum ArchiveError {
     Cancelled,
     SourceChanged,
     EntryNotFound(EntryId),
+    FilenameEncodingRequired(Vec<EntryId>),
+    UnsafeEntryPath { entry_id: EntryId, reason: String },
+    PathCollision { path: String, entries: Vec<EntryId> },
+    InvalidDestination(String),
+    DestinationExists(String),
+    DestinationChanged,
 }
 
 impl fmt::Display for ArchiveError {
@@ -155,6 +223,28 @@ impl fmt::Display for ArchiveError {
             }
             Self::EntryNotFound(id) => {
                 write!(f, "entry {id} does not belong to this archive snapshot")
+            }
+            Self::FilenameEncodingRequired(entries) => write!(
+                f,
+                "an explicit filename encoding is required for {} selected entries",
+                entries.len()
+            ),
+            Self::UnsafeEntryPath { entry_id, reason } => {
+                write!(f, "unsafe extraction path for entry {entry_id}: {reason}")
+            }
+            Self::PathCollision { path, entries } => write!(
+                f,
+                "{} archive entries map to the same output path {path:?}",
+                entries.len()
+            ),
+            Self::InvalidDestination(message) => {
+                write!(f, "invalid extraction destination: {message}")
+            }
+            Self::DestinationExists(path) => {
+                write!(f, "extraction destination already exists: {path:?}")
+            }
+            Self::DestinationChanged => {
+                f.write_str("extraction destination changed during the operation")
             }
         }
     }

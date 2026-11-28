@@ -21,7 +21,7 @@ fn version_does_not_require_a_display() {
 }
 
 #[test]
-fn doctor_reports_read_only_zip_capabilities_in_json() {
+fn doctor_reports_zip_extraction_without_archive_modification() {
     let output = cli(&["doctor", "--json"]);
     assert!(output.status.success());
     let report: serde_json::Value = serde_json::from_slice(&output.stdout).expect("valid JSON");
@@ -31,13 +31,21 @@ fn doctor_reports_read_only_zip_capabilities_in_json() {
     assert_eq!(report["data"]["ready_for_archive_operations"], true);
     assert_eq!(report["data"]["archive_provider_count"], 1);
     assert_eq!(
+        report["data"]["providers"][0]["operations"],
+        serde_json::json!(["list", "info", "preview", "extract"])
+    );
+    assert_eq!(
+        report["data"]["providers"][0]["extraction_compression"],
+        serde_json::json!(["stored", "deflate"])
+    );
+    assert_eq!(
         report["data"]["supported_archive_formats"],
         serde_json::json!(["zip", "zip64"])
     );
 }
 
 #[test]
-fn discovery_does_not_claim_extract_is_available() {
+fn discovery_reports_extraction_as_implemented() {
     let output = cli(&["commands", "--json"]);
     assert!(output.status.success());
     let catalog: serde_json::Value = serde_json::from_slice(&output.stdout).expect("valid JSON");
@@ -47,12 +55,12 @@ fn discovery_does_not_claim_extract_is_available() {
         .iter()
         .find(|command| command["name"] == "extract")
         .expect("extract listed");
-    assert_eq!(extract["availability"], "planned");
+    assert_eq!(extract["availability"], "implemented");
 }
 
 #[test]
 fn planned_operation_fails_without_success_output() {
-    let output = cli(&["extract", "does-not-exist.zip"]);
+    let output = cli(&["create", "does-not-exist.zip"]);
     assert_eq!(output.status.code(), Some(3));
     assert!(output.stdout.is_empty());
     assert!(String::from_utf8_lossy(&output.stderr).contains("not implemented"));
@@ -82,7 +90,7 @@ fn command_failure_survives_a_closed_stderr_reader() {
 
     for (args, expected_code) in [
         (vec!["unknown"], 2),
-        (vec!["extract", "does-not-exist.zip"], 3),
+        (vec!["create", "does-not-exist.zip"], 3),
     ] {
         // Give stderr a real OS stream whose consumer has already closed. The
         // child receives EPIPE when reporting its error, without a timing race.

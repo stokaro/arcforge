@@ -1,11 +1,12 @@
 use std::ffi::OsString;
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use arcforge_core::archive::{
-    ArchiveError, ArchiveLimits, ArchiveSnapshot, CancellationToken, FilenameChoice,
-    FilenameEncoding, FilenamePolicy, NameState, escape_display, open_archive, preview_entry,
+    ArchiveError, ArchiveLimits, ArchiveSnapshot, CancellationToken, ExtractionLimits,
+    ExtractionReport, ExtractionSelection, ExtractionStatus, FilenameChoice, FilenameEncoding,
+    FilenamePolicy, NameState, escape_display, extract_archive, open_archive, preview_entry,
 };
 use arcforge_core::{
     ArchiveOperation, Availability, Command, CommandError, CommandResult, execute,
@@ -21,6 +22,7 @@ Usage: arcforge-cli <command> [arguments]
   list ZIP                   List every ZIP central-directory entry
   info ZIP                   Inspect ZIP metadata and filename diagnostics
   preview ZIP --entry ID     Read a small Stored/Deflate entry and verify its CRC
+  extract ZIP --output DIR   Extract all entries into a new directory
 
 Options:
   -h, --help                 Show this help
@@ -32,6 +34,8 @@ Options:
   --entry-encoding ID=NAME   Override an entry's fallback; requires --metadata-revision
   --recover-entry ID=NAME    Override an entry's declarations; requires --metadata-revision
   --metadata-revision SHA256  Require the metadata revision reported by list/info
+  --entry ID                 Select an entry; repeat for extraction (default: all)
+  --output DIR               New extraction directory; its parent must exist
   --max-bytes BYTES          Preview limit: 1..1048576 (default 262144)
   --                         End options; use before an option-like archive path
 
@@ -40,10 +44,13 @@ Metadata revisions bind retained directory bytes; they are not whole-file hashes
 Unmarked non-ASCII names use a visible provisional CP437 fallback. Filename choices
 do not change file contents or the archive. Preview is complete and CRC-checked;
 oversized entries, encrypted content and other compression methods are rejected.
-Extraction, editing and other planned operations remain unavailable.
+Extraction streams Stored/Deflate files with CRC verification. Names must be
+resolved; unsafe paths, collisions, symlinks and special files are rejected.
+The destination must not exist. Failure retains created files and reports the
+incomplete entry. Editing and other planned operations remain unavailable.
 
 Exit codes: 0 success, 1 output error, 2 invalid usage, 3 operation not implemented,
-4 archive inspection/preview failed. No interactive prompts or stdin reads.
+4 archive operation failed or cancelled. No interactive prompts or stdin reads.
 ";
 
 fn main() -> ExitCode {
@@ -99,7 +106,10 @@ fn run(args: &[OsString]) -> Output {
         Err(error) => return usage_error(&error.to_string()),
     };
     if let Command::Archive(
-        operation @ (ArchiveOperation::List | ArchiveOperation::Info | ArchiveOperation::Preview),
+        operation @ (ArchiveOperation::List
+        | ArchiveOperation::Info
+        | ArchiveOperation::Preview
+        | ArchiveOperation::Extract),
     ) = command
     {
         return match archive_options(operation, &args[1..]) {
@@ -131,7 +141,8 @@ struct ArchiveOptions {
     path: PathBuf,
     json: bool,
     policy: FilenamePolicy,
-    entry: Option<u64>,
+    entries: Vec<u64>,
+    output: Option<PathBuf>,
     metadata_revision: Option<String>,
     limits: ArchiveLimits,
 }
@@ -143,7 +154,9 @@ fn archive_options(
     let mut path = None;
     let mut json = false;
     let mut policy = FilenamePolicy::default();
-    let mut entry = None;
+    let mut entries = Vec::new();
+    let mut selected_ids = std::collections::BTreeSet::new();
+    let mut output = None;
     let mut metadata_revision = None;
     let mut limits = ArchiveLimits::default();
     let mut seen = std::collections::BTreeSet::new();
@@ -157,7 +170,9 @@ fn archive_options(
         let option = argument.to_str();
         if !positional && option.is_some_and(|value| value.starts_with('-')) {
             let option = option.expect("checked UTF-8 option");
-            if !matches!(option, "--entry-encoding" | "--recover-entry") && !seen.insert(option) {
+            if !matches!(option, "--entry-encoding" | "--recover-entry" | "--entry")
+                && !seen.insert(option)
+            {
                 return Err(format!("{option} may be supplied only once"));
             }
             if option == "--json" {
@@ -171,6 +186,7 @@ fn archive_options(
                     | "--entry-encoding"
                     | "--recover-entry"
                     | "--entry"
+                    | "--output"
                     | "--metadata-revision"
                     | "--max-bytes"
             ) {
@@ -180,7 +196,16 @@ fn archive_options(
             }
             let value = args
                 .next()
-                .and_then(|value| value.to_str())
+                .ok_or_else(|| format!("{option} requires a value"))?;
+            if option == "--output" {
+                if value.is_empty() {
+                    return Err("the extraction output path must not be empty".into());
+                }
+                output = Some(PathBuf::from(value));
+                continue;
+            }
+            let value = value
+                .to_str()
                 .ok_or_else(|| format!("{option} requires a UTF-8 value"))?;
             match option {
                 "--filename-encoding" => policy.archive.encoding = encoding(value, true)?,
@@ -208,11 +233,13 @@ fn archive_options(
                     }
                 }
                 "--entry" => {
-                    entry = Some(
-                        value
-                            .parse::<u64>()
-                            .map_err(|_| "entry ID must be an unsigned integer")?,
-                    )
+                    let id = value
+                        .parse::<u64>()
+                        .map_err(|_| "entry ID must be an unsigned integer")?;
+                    if !selected_ids.insert(id) {
+                        return Err(format!("entry {id} was selected more than once"));
+                    }
+                    entries.push(id);
                 }
                 "--metadata-revision" => {
                     if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
@@ -238,12 +265,23 @@ fn archive_options(
     let path = path
         .filter(|path| !path.as_os_str().is_empty())
         .ok_or("an archive path is required")?;
-    if matches!(operation, ArchiveOperation::Preview) {
-        if entry.is_none() {
-            return Err("preview requires --entry ID".into());
+    match operation {
+        ArchiveOperation::Preview if entries.len() != 1 => {
+            return Err("preview requires exactly one --entry ID".into());
         }
-    } else if entry.is_some() || seen.contains("--max-bytes") {
-        return Err("--entry and --max-bytes are preview options".into());
+        ArchiveOperation::Extract if output.is_none() => {
+            return Err("extract requires --output with a new directory path".into());
+        }
+        ArchiveOperation::List | ArchiveOperation::Info if !entries.is_empty() => {
+            return Err("--entry is supported by preview and extract".into());
+        }
+        _ => {}
+    }
+    if output.is_some() && operation != ArchiveOperation::Extract {
+        return Err("--output is an extract option".into());
+    }
+    if seen.contains("--max-bytes") && operation != ArchiveOperation::Preview {
+        return Err("--max-bytes is a preview option".into());
     }
     policy.validate()?;
     if !policy.entries.is_empty() && metadata_revision.is_none() {
@@ -255,7 +293,8 @@ fn archive_options(
         path,
         json,
         policy,
-        entry,
+        entries,
+        output,
         metadata_revision,
         limits,
     })
@@ -349,11 +388,28 @@ fn archive_operation(operation: ArchiveOperation, options: ArchiveOptions) -> Ou
         }
         ArchiveOperation::Preview => preview_output(
             &snapshot,
-            options.entry.expect("validated preview entry"),
+            options.entries[0],
             &options.limits,
             &cancel,
             options.json,
         ),
+        ArchiveOperation::Extract => {
+            let selection = if options.entries.is_empty() {
+                ExtractionSelection::All
+            } else {
+                ExtractionSelection::Entries(options.entries)
+            };
+            extraction_output(
+                &snapshot,
+                &selection,
+                options
+                    .output
+                    .as_deref()
+                    .expect("validated output directory"),
+                &cancel,
+                options.json,
+            )
+        }
         _ => command_error(CommandError::NotImplemented(operation.name())),
     }
 }
@@ -391,6 +447,106 @@ fn preview_output(
         }
         Err(error) => archive_error(error, json),
     }
+}
+
+fn extraction_output(
+    snapshot: &ArchiveSnapshot,
+    selection: &ExtractionSelection,
+    destination: &Path,
+    cancel: &CancellationToken,
+    json: bool,
+) -> Output {
+    match extract_archive(
+        snapshot,
+        selection,
+        destination,
+        &ExtractionLimits::default(),
+        cancel,
+        &mut |_| {},
+    ) {
+        Ok(report) => {
+            extraction_report_output(&snapshot.id, &snapshot.metadata_revision, report, json)
+        }
+        Err(error) => archive_error(error, json),
+    }
+}
+
+fn extraction_report_output(
+    snapshot_id: &str,
+    metadata_revision: &str,
+    report: ExtractionReport,
+    json: bool,
+) -> Output {
+    if report.status == ExtractionStatus::Completed {
+        return if json {
+            json_output(&serde_json::json!({"kind":"extract","data":{
+                "snapshot_id":snapshot_id,
+                "metadata_revision":metadata_revision,
+                "report":report,
+            }}))
+        } else {
+            Output {
+                code: 0,
+                text: format!(
+                    "Snapshot: {}\nMetadata revision: {}\nDestination: {}\nCompleted entries: {}\nFiles written: {}\nDirectories created: {}\nBytes written: {}\nExtraction completed; every selected entry passed CRC verification.\n",
+                    snapshot_id,
+                    metadata_revision,
+                    escape_display(&report.destination),
+                    report.completed_entries.len(),
+                    report.files_written,
+                    report.directories_created,
+                    report.bytes_written,
+                ),
+            }
+        };
+    }
+    if json {
+        return Output {
+            code: 4,
+            text: format!(
+                "{}\n",
+                serde_json::json!({"kind":"error","data":{
+                    "exit_code":4,
+                    "error":report.error,
+                    "snapshot_id":snapshot_id,
+                    "metadata_revision":metadata_revision,
+                    "extraction":report,
+                }})
+            ),
+        };
+    }
+    let status = if report.status == ExtractionStatus::Cancelled {
+        "cancelled"
+    } else {
+        "failed"
+    };
+    let reason = report
+        .error
+        .as_ref()
+        .map(ToString::to_string)
+        .unwrap_or_else(|| "operation did not complete".into());
+    let mut text = format!(
+        "arcforge-cli: extraction {status}: {}\nRetained output: {}\nCompleted entries: {} of {}\nFiles written: {}\nDirectories created: {}\nBytes written: {}\n",
+        escape_display(&reason),
+        escape_display(&report.destination),
+        report.completed_entries.len(),
+        report.entries_planned,
+        report.files_written,
+        report.directories_created,
+        report.bytes_written,
+    );
+    if let Some(entry) = report.incomplete {
+        use std::fmt::Write;
+        let _ = writeln!(
+            text,
+            "Incomplete entry: {} {} ({} bytes; not verified)",
+            entry.entry_id,
+            escape_display(&entry.path),
+            entry.bytes_written,
+        );
+    }
+    text.push_str("Created files remain in the destination; extraction did not complete.\n");
+    Output { code: 4, text }
 }
 
 fn json_output(value: &impl serde::Serialize) -> Output {
@@ -462,5 +618,48 @@ fn command_error(error: CommandError) -> Output {
     Output {
         code,
         text: format!("arcforge-cli: {}\n", escape_display(&error.to_string())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arcforge_core::archive::IncompleteExtractionEntry;
+
+    #[test]
+    fn failed_and_cancelled_extraction_reports_keep_retained_output_details() {
+        for (status, error) in [
+            (ExtractionStatus::Cancelled, ArchiveError::Cancelled),
+            (
+                ExtractionStatus::Failed,
+                ArchiveError::InvalidArchive("CRC mismatch".into()),
+            ),
+        ] {
+            let report = ExtractionReport {
+                destination: "retained output".into(),
+                destination_created: true,
+                status,
+                entries_planned: 2,
+                completed_entries: vec![0],
+                files_written: 1,
+                directories_created: 1,
+                bytes_written: 23,
+                incomplete: Some(IncompleteExtractionEntry {
+                    entry_id: 1,
+                    path: "folder/pending.txt".into(),
+                    bytes_written: 3,
+                }),
+                error: Some(error),
+            };
+            let expected = serde_json::to_value(&report).unwrap();
+            let output = extraction_report_output("snapshot", "revision", report, true);
+            assert_eq!(output.code, 4);
+            let value: serde_json::Value = serde_json::from_str(&output.text).unwrap();
+            assert_eq!(value["kind"], "error");
+            assert_eq!(value["data"]["exit_code"], 4);
+            assert_eq!(value["data"]["extraction"], expected);
+            assert_eq!(value["data"]["error"], expected["error"]);
+            assert_eq!(value["data"]["snapshot_id"], "snapshot");
+        }
     }
 }

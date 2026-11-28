@@ -1,0 +1,88 @@
+{
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "machine": "x86_64",
+  "os_release": "PRETTY_NAME=\"Debian GNU/Linux 13 (trixie)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"13\"\nVERSION=\"13 (trixie)\"\nVERSION_CODENAME=trixie\nDEBIAN_VERSION_FULL=13.7\nID=debian\nHOME_URL=\"https://www.debian.org/\"\nSUPPORT_URL=\"https://www.debian.org/support\"\nBUG_REPORT_URL=\"https://bugs.debian.org/\"\n",
+  "selected": {
+    "path": "/tmp/arcforge-selected",
+    "files": 1,
+    "directories_below_root": 1,
+    "bytes": 170,
+    "exact_contents": true
+  },
+  "existing_destination_after_refusal": "same expected inventory and contents",
+  "small_source_unchanged": true,
+  "cancelled": {
+    "path": "/tmp/arcforge-cancelled",
+    "files": [
+      {
+        "path": "Data/large-progress.bin",
+        "bytes": 306855936,
+        "declared_bytes": 536870912,
+        "complete": false,
+        "prefix_matches": true
+      },
+      {
+        "path": "Data/sample.bin",
+        "bytes": 2048,
+        "declared_bytes": 2048,
+        "complete": true,
+        "prefix_matches": true
+      },
+      {
+        "path": "Data/settings.json",
+        "bytes": 67,
+        "declared_bytes": 67,
+        "complete": true,
+        "prefix_matches": true
+      },
+      {
+        "path": "Documents/Guide.txt",
+        "bytes": 170,
+        "declared_bytes": 170,
+        "complete": true,
+        "prefix_matches": true
+      },
+      {
+        "path": "Documents/Notes/Привет.txt",
+        "bytes": 111,
+        "declared_bytes": 111,
+        "complete": true,
+        "prefix_matches": true
+      },
+      {
+        "path": "Documents/Release-notes.md",
+        "bytes": 108,
+        "declared_bytes": 108,
+        "complete": true,
+        "prefix_matches": true
+      },
+      {
+        "path": "README.txt",
+        "bytes": 226,
+        "declared_bytes": 226,
+        "complete": true,
+        "prefix_matches": true
+      },
+      {
+        "path": "Source/Cargo.toml",
+        "bytes": 72,
+        "declared_bytes": 72,
+        "complete": true,
+        "prefix_matches": true
+      },
+      {
+        "path": "Source/main.rs",
+        "bytes": 51,
+        "declared_bytes": 51,
+        "complete": true,
+        "prefix_matches": true
+      }
+    ],
+    "total_bytes": 306858789,
+    "large_source_unchanged": true
+  },
+  "status": "PASS",
+  "source_commit": "232f145df7aca73ad6497d221f6fed9e9e1ff617",
+  "recorded_on": "2026-11-28",
+  "scope": "Observed synthetic native GUI runs; cancellation counts vary with timing."
+}

@@ -3,6 +3,8 @@
 accepted = [
     "MIT",
     "Apache-2.0",
+    # winx 0.36.4 (cap-std's Windows adapter): retain the full Apache + LLVM text.
+    "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",

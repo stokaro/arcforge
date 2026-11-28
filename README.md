@@ -1,8 +1,8 @@
 # ArcForge
 
-A cross-platform archive-manager project written in Rust, targeting the archive-editing workflows of [BetterZip](https://macitbetter.com/) and the desktop interface of [OpenZip](https://github.com/burakgon/openzip-mac).
+A cross-platform archive-manager project written in Rust, with **BetterZip 6 look and feel as a mandatory target**. [OpenZip](https://github.com/burakgon/openzip-mac) supplies fallback UX/implementation references where BetterZip evidence is unclear; MIT-covered reuse retains attribution.
 
-**Status: read-only ZIP/ZIP64 browsing and bounded previews.** The Rust desktop and headless CLI share an archive reader, filename interpretation, metadata, and small-entry previews. Extraction, creation, editing, and saving remain planned. See the [current ZIP contracts](docs/zip-browser.md) and the [implementation epic](https://github.com/stokaro/arcforge/issues/1) for scope and remaining work.
+**Status: ZIP/ZIP64 browsing, bounded previews, and extraction into a new directory.** The Rust desktop and headless CLI share filename interpretation, metadata, previews, and validated streaming extraction with progress and partial-result reporting. Creation, archive editing, and saving remain planned. See the [current ZIP contracts](docs/zip-browser.md) and the [implementation epic](https://github.com/stokaro/arcforge/issues/1) for scope and remaining work.
 
 ## Run and build
 
@@ -15,6 +15,7 @@ cargo run --locked -p arcforge-cli -- commands --json
 cargo run --locked -p arcforge-cli -- doctor --json
 cargo run --locked -p arcforge-cli -- list example.zip --json
 cargo run --locked -p arcforge-cli -- preview example.zip --entry 0 --json
+cargo run --locked -p arcforge-cli -- extract example.zip --output new-output --json
 cargo xtask check
 cargo xtask package
 ```
@@ -24,14 +25,15 @@ cargo xtask package
 ## What works now
 
 - ZIP/ZIP64 metadata, stable entry IDs within a snapshot, and original filename/extra-field/comment bytes.
-- A three-pane desktop browser with a folder sidebar, virtualized entry table, search, information inspector, theme controls, and command discovery. Open one archive through a path field, startup argument, or native file drop.
+- A BetterZip 6-oriented workspace with session Favorites, a virtualized Outline/Flat contents table, selection, search, and Info/Preview. Open one archive through a path field, startup argument, or native file drop. [Reference decisions and remaining gaps](docs/reference/betterzip-6.md) and [actual screenshots](screenshots/README.md) record the current fidelity.
 - Bounded text/hex previews of complete Stored/Deflate entries up to 256 KiB, with CRC32 verification. Archive reads, filename reinterpretation, search preparation, and previews run on one cancellable worker outside the UI thread.
+- Selected/all Stored/Deflate extraction into a new directory, with portable name/collision checks, bounded streaming, CRC verification, cancellation, and an explicit report of completed and partial output. Existing destinations are never merged or overwritten.
 - Filename evidence and manual archive/per-entry interpretation controls, including explicit recovery. Reinterpretation preserves source bytes and entry identity.
 - One command catalog shared by GUI and CLI, with explicit implemented/planned states.
-- CLI help, version, command discovery, capability diagnostics, `list`, `info`, and `preview`, including JSON output.
+- CLI help, version, command discovery, capability diagnostics, `list`, `info`, `preview`, and `extract`, including JSON output.
 - Rust build orchestration, enforced dependency boundaries, portable packaging, and a six-target native CI matrix.
 
-`doctor` reports compiled capabilities; it does not inspect an archive or validate a desktop environment. Unsupported formats, encrypted payload previews, oversized previews, and planned operations return explicit errors. Add, Extract, Test, Delete, and Save remain disabled in the desktop. This slice does not complete M1 or the full filename-encoding work in [issue #7](https://github.com/stokaro/arcforge/issues/7).
+`doctor` reports compiled capabilities; it does not inspect an archive or validate a desktop environment. Unsupported formats, encrypted payload previews, oversized previews, and planned operations return explicit errors. Add, Test, Delete, and Save remain unavailable; extraction supports only a new destination directory. This slice does not complete M1 or the full filename-encoding work in [issue #7](https://github.com/stokaro/arcforge/issues/7).
 
 ## Workspace
 
@@ -47,15 +49,15 @@ The core and CLI cannot depend on UI/windowing libraries. `cargo xtask layers` c
 
 ## Product goal
 
-Browse an archive like a folder, preview its contents, extract selected items, edit files in another application, and save changes back into the archive. The design targets close visual and behavioral fidelity to the reference applications: a folder sidebar, detailed file table, preview and information inspector, familiar toolbar actions, and complete desktop keyboard and drag-and-drop workflows.
+Browse an archive like a folder, preview its contents, extract selected items, edit files in another application, and save changes back into the archive. The design must follow BetterZip 6: filesystem Favorites, a central archive outline, detailed file table, preview and information inspector, compact toolbar, and familiar desktop workflows. The [design/UX skill](.agents/skills/arcforge-design-ux/SKILL.md) requires source-backed decisions and native screenshot evidence. Full visual and interaction parity remains work in progress.
 
 ## Planned capabilities
 
 - Additional view modes, expanded previews, and multiple windows.
 - Add, remove, rename, move, and replace entries; staged edits, undo/redo, Save and Save As.
 - External-editor round trips and explicit handling of nested archive changes.
-- ZIP/ZIP64 extraction and writing; 7z, TAR and compressed streams, plus verified providers for RAR and additional formats.
-- Encryption, split-volume handling, presets, filters, conflict resolution, batch jobs, and progress/cancellation.
+- Existing-directory extraction and conflict handling, ZIP/ZIP64 writing; 7z, TAR and compressed streams, plus verified providers for RAR and additional formats.
+- Encryption, split-volume handling, presets, filters, conflict resolution, and independent batch jobs.
 - Further desktop and CLI operations through the shared Rust core.
 - Platform integrations and automated build, package, and release workflows.
 
