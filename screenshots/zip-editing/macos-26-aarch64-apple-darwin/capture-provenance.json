@@ -1,0 +1,110 @@
+{
+  "target": "aarch64-apple-darwin",
+  "source_commit": "06c11d1d3990ac64d86ba4e85919ee2aa83db90b",
+  "process_id": 1866,
+  "runtime": {
+    "architecture": "aarch64",
+    "environment": {
+      "ARCFORGE_CAPTURE_DISPLAY": "GitHub-hosted macOS 26 native desktop session",
+      "GITHUB_ACTIONS": "true",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_RUN_ID": "46142627237",
+      "GITHUB_SHA": "06c11d1d3990ac64d86ba4e85919ee2aa83db90b",
+      "ImageOS": "macos26",
+      "ImageVersion": "20261117.0516.1",
+      "RUNNER_ARCH": "ARM64",
+      "RUNNER_OS": "macOS"
+    },
+    "os": "macos",
+    "os_version": "ProductName:\t\tmacOS\nProductVersion:\t\t26.7.2\nBuildVersion:\t\t25G332",
+    "renderer": "production Glow backend; no offscreen or alternate renderer",
+    "window": "actual native eframe window with shared platform::native_options"
+  },
+  "fixture": {
+    "file": "workspace-demo.zip",
+    "generator": "scripts/generate_ui_fixture.py --images",
+    "generator_sha256": "f08427b3389702f953b7bbf84c14dc37dfe1a82b982864f3897ac7290a157aec",
+    "original_content": true,
+    "sha256": "eef9fd6de48a3e465ab99dae9cdb5df13353e25056fe9365584d9e722d0da70e",
+    "unchanged_after_capture": true
+  },
+  "saved_copy": {
+    "file": "workspace-demo-edited.zip",
+    "removed_entry": "Photos/Color-study.png",
+    "sha256": "8f0b93b598f4b8fdf64ef0e2d1405b3ae772ce9a0e0d0899200f34f33a5271f2",
+    "verified_independently_with": "Python zipfile"
+  },
+  "capture_run_sha256": "c7b55b0233065f449f3776a09c0c16e2951f5e97c0077f25549dcd5006480bd9",
+  "scenes": [
+    {
+      "scene": "05-staged-delete",
+      "file": "05-staged-delete-native-window.png",
+      "sha256": "bcdf305ceb8812350431ff338e161b337ffba9800f1052ea509ea1b24c31831a",
+      "size": [
+        1280,
+        884
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 1,
+      "visible_entry_count": 13,
+      "window": "application"
+    },
+    {
+      "scene": "06-discard-prompt",
+      "file": "06-discard-prompt-native-window.png",
+      "sha256": "1ead4c1a9ed01f487acac45e47ef0e9901ad8169a87c36a75c6fbf27ef8689a9",
+      "size": [
+        1280,
+        884
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 1,
+      "visible_entry_count": 13,
+      "window": "application"
+    },
+    {
+      "scene": "07-save-panel",
+      "file": "07-save-panel-native-window.png",
+      "sha256": "77e656fb94c0e6ee01e915e249a76c3d0b329de734efb6d0216fbbd6dbf7011d",
+      "size": [
+        1280,
+        884
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 1,
+      "visible_entry_count": 13,
+      "window": "save-panel"
+    },
+    {
+      "scene": "08-save-collision",
+      "file": "08-save-collision-native-window.png",
+      "sha256": "acc2f484fcb2665058c011dd247e66961fd8d453be24fef77e08280a80f72b63",
+      "size": [
+        1280,
+        884
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 1,
+      "visible_entry_count": 13,
+      "window": "application"
+    },
+    {
+      "scene": "09-saved-copy",
+      "file": "09-saved-copy-native-window.png",
+      "sha256": "4d3be5e9294fd2008cf153ae14cfc1cf9e2bfed0cd582f53bec8edfb1887c33f",
+      "size": [
+        1280,
+        884
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 0,
+      "visible_entry_count": 13,
+      "window": "application"
+    }
+  ]
+}

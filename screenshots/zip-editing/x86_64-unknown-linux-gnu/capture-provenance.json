@@ -1,0 +1,98 @@
+{
+  "target": "x86_64-unknown-linux-gnu",
+  "source_commit": "06c11d1d3990ac64d86ba4e85919ee2aa83db90b",
+  "process_id": 4440,
+  "runtime": {
+    "architecture": "x86_64",
+    "environment": {
+      "ARCFORGE_CAPTURE_DISPLAY": "Xvfb X11; Mesa software OpenGL requested",
+      "DISPLAY": ":99",
+      "GITHUB_ACTIONS": "true",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_RUN_ID": "46142627237",
+      "GITHUB_SHA": "06c11d1d3990ac64d86ba4e85919ee2aa83db90b",
+      "ImageOS": "ubuntu24",
+      "ImageVersion": "20261122.23.1",
+      "LIBGL_ALWAYS_SOFTWARE": "1",
+      "RUNNER_ARCH": "X64",
+      "RUNNER_OS": "Linux"
+    },
+    "os": "linux",
+    "os_version": "Linux runnervm0j63q 7.0.0-1020-azure #21~24.04.2-Ubuntu SMP PREEMPT Tue Nov 10 01:36:36 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux",
+    "renderer": "production Glow backend; no offscreen or alternate renderer",
+    "window": "actual native eframe window with shared platform::native_options"
+  },
+  "fixture": {
+    "file": "workspace-demo.zip",
+    "generator": "scripts/generate_ui_fixture.py --images",
+    "generator_sha256": "f08427b3389702f953b7bbf84c14dc37dfe1a82b982864f3897ac7290a157aec",
+    "original_content": true,
+    "sha256": "eef9fd6de48a3e465ab99dae9cdb5df13353e25056fe9365584d9e722d0da70e",
+    "unchanged_after_capture": true
+  },
+  "saved_copy": {
+    "file": "workspace-demo-edited.zip",
+    "removed_entry": "Photos/Color-study.png",
+    "sha256": "8f0b93b598f4b8fdf64ef0e2d1405b3ae772ce9a0e0d0899200f34f33a5271f2",
+    "verified_independently_with": "Python zipfile"
+  },
+  "capture_run_sha256": "8324c32634e8cd042c025fe853d5742706b8a2e1cde4d577b39cf366f5b26232",
+  "scenes": [
+    {
+      "scene": "05-staged-delete",
+      "file": "05-staged-delete.png",
+      "sha256": "60538d641da7c50e90bb049bc96ccb92dc7d1169467ce9fa7568f49602a6f869",
+      "size": [
+        1280,
+        800
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 1,
+      "visible_entry_count": 13,
+      "window": "client"
+    },
+    {
+      "scene": "06-discard-prompt",
+      "file": "06-discard-prompt.png",
+      "sha256": "c988c2ad71fd6fb3f113db8d5af7a59a691e735a9788e951431f1767af09775b",
+      "size": [
+        1280,
+        800
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 1,
+      "visible_entry_count": 13,
+      "window": "client"
+    },
+    {
+      "scene": "08-save-collision",
+      "file": "08-save-collision.png",
+      "sha256": "21574a07fcef1e83a2b8508b3100b48182b587f0804f0a0673cacbafdc8ef7c9",
+      "size": [
+        1280,
+        800
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 1,
+      "visible_entry_count": 13,
+      "window": "client"
+    },
+    {
+      "scene": "09-saved-copy",
+      "file": "09-saved-copy.png",
+      "sha256": "766cd383506b5b481237cf39f76bf6386533fa0c499d1f9a0a5a980e9ed17071",
+      "size": [
+        1280,
+        800
+      ],
+      "theme": "light",
+      "scale": 1.0,
+      "pending_deletions": 0,
+      "visible_entry_count": 13,
+      "window": "client"
+    }
+  ]
+}
