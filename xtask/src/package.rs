@@ -103,7 +103,7 @@ pub fn run(root: &Path, options: &Options) -> Result<()> {
     fs::write(
         staging.join("DEVELOPMENT-BUNDLE.txt"),
         format!(
-            "ArcForge {version}\nTarget: {target}\n\nUnsigned development bundle, not a production installer.\nNo file associations, shell extensions, signing or notarization are installed.\nThe current application is a bootstrap; consult README.md for implemented commands.\n"
+            "ArcForge {version}\nTarget: {target}\n\nUnsigned development bundle, not a production installer.\nNo file associations, shell extensions, signing or notarization are installed.\nThe application provides read-only ZIP browsing and small-entry previews; consult README.md for supported operations and limits.\n"
         ),
     )?;
     let (commit, dirty) = crate::release::source_state(root)?;

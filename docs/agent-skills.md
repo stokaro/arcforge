@@ -1,6 +1,6 @@
 # Repository agent skills
 
-ArcForge keeps seven focused workflows in the repository. They support implementation and review of the archive manager described in [issue #1](https://github.com/stokaro/arcforge/issues/1). They do not implement archive operations; the application remains a bootstrap.
+ArcForge keeps seven focused workflows in the repository. They support implementation and review of the archive manager described in [issue #1](https://github.com/stokaro/arcforge/issues/1). The application now provides read-only ZIP/ZIP64 browsing and bounded previews; extraction and editing remain planned. The skills guide development and verification rather than implement those operations.
 
 ## Discovery and use
 

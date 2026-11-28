@@ -285,17 +285,17 @@ fn evidence_requires_the_actual_native_command_contract() -> Result<()> {
     failed["checks"][0]["exit_code"] = json!(1);
     assert!(validate_evidence(&failed, target, &build, &digest).is_err());
     assert!(validate_smoke_output(0, b"wrong version").is_err());
-    validate_smoke_output(0, format!("ArcForge {VERSION} (bootstrap)\n").as_bytes())?;
+    validate_smoke_output(0, format!("ArcForge {VERSION} (zip-browser)\n").as_bytes())?;
     assert!(validate_smoke_output(1, br#"{"kind":"commands","data":[]}"#).is_err());
     let command_rows: Vec<_> = [
-        "version", "commands", "doctor", "list", "info", "create", "extract", "test", "update",
-        "convert", "hash",
+        "version", "commands", "doctor", "list", "info", "preview", "create", "extract", "test",
+        "update", "convert", "hash",
     ]
     .iter()
     .enumerate()
     .map(|(index, name)| {
         json!({
-            "name": name, "availability": if index < 3 { "implemented" } else { "planned" }
+            "name": name, "availability": if index < 6 { "implemented" } else { "planned" }
         })
     })
     .collect();
@@ -304,6 +304,13 @@ fn evidence_requires_the_actual_native_command_contract() -> Result<()> {
     commands["data"][6]["availability"] = json!("implemented");
     assert!(validate_smoke_output(1, &serde_json::to_vec(&commands)?).is_err());
     assert!(validate_smoke_output(2, br#"{"kind":"doctor","data":{}}"#).is_err());
+    assert!(validate_smoke_output(4, br#"{"kind":"list","data":{"entries":[]}}"#).is_err());
+    let mut preview = json!({"kind":"preview","data":{"preview":{
+        "entry_id":1,"text":"Привет из ZIP.\n","crc32_verified":true
+    }}});
+    validate_smoke_output(5, &serde_json::to_vec(&preview)?)?;
+    preview["data"]["preview"]["crc32_verified"] = json!(false);
+    assert!(validate_smoke_output(5, &serde_json::to_vec(&preview)?).is_err());
     Ok(())
 }
 

@@ -1072,6 +1072,26 @@ SHA-256: `62065228e42caebca7e7d7db1204cbb867033de5982ca4009928915e4095f3a3`.
 
 [Full notice](#notice-62065228e42caebca7e7d7db1204cbb867033de5982ca4009928915e4095f3a3).
 
+## core_detect@1.0.0
+
+Declared license: `MIT OR Apache-2.0`.
+
+Upstream: <https://github.com/thomcc/core_detect>.
+
+Manifest authors (not a substituted copyright notice): Thom Chiovoloni <chiovolonit@gmail.com>.
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb`.
+
+[Full notice](#notice-769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `8569ebf6bf52937b961d9c9c934d8400a2bb6b09651a9afacbb3fc18fe5c09b1`.
+
+[Full notice](#notice-8569ebf6bf52937b961d9c9c934d8400a2bb6b09651a9afacbb3fc18fe5c09b1).
+
 ## cpufeatures@0.2.17
 
 Declared license: `MIT OR Apache-2.0`.
@@ -1411,6 +1431,38 @@ Source: <https://github.com/emilk/egui/blob/3c6eb8261c3293ad9c7ea1ed58487e038860
 Shared egui 0.37 release license, pinned to eframe's published source revision; the other crate metadata revision was not available from upstream.
 
 [Full notice](#notice-aa55803cbe37fb5a418597bddc6505c134338320773418b005faad1a9ab043b8).
+
+## encoding_rs@0.8.44
+
+Declared license: `(Apache-2.0 OR MIT) AND BSD-3-Clause`.
+
+Upstream: <https://github.com/hsivonen/encoding_rs>.
+
+Manifest authors (not a substituted copyright notice): Henri Sivonen <hsivonen@hsivonen.fi>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `11789f45bb180841cd362a5eee6789c68ddb573a11105e30768c308a6add0190`.
+
+[Full notice](#notice-11789f45bb180841cd362a5eee6789c68ddb573a11105e30768c308a6add0190).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`.
+
+[Full notice](#notice-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c`.
+
+[Full notice](#notice-3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c).
+
+### Packaged source: LICENSE-WHATWG
+
+SHA-256: `838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50`.
+
+[Full notice](#notice-838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50).
 
 ## endi@1.1.1
 
@@ -2777,6 +2829,32 @@ SHA-256: `90bf2d659c43045111b65c733ab2a6d4cbcb422a098368c8c58a9ba3db4ed0c5`.
 SHA-256: `2aa92cada6431e75615e3fe6cb1a9082c98f777d48ae1c087c0da0e37f7b8bff`.
 
 [Full notice](#notice-2aa92cada6431e75615e3fe6cb1a9082c98f777d48ae1c087c0da0e37f7b8bff).
+
+## multiversion_no_op@1.0.0
+
+Declared license: `Apache-2.0 OR MIT`.
+
+Upstream: <https://github.com/hsivonen/multiversion_no_op>.
+
+Manifest authors (not a substituted copyright notice): Henri Sivonen <hsivonen@hsivonen.fi>.
+
+### Packaged source: COPYRIGHT
+
+SHA-256: `d2a809eafabba137f508bea16a1b93d8ff24df7da6f38129d830db9bc118bdfe`.
+
+[Full notice](#notice-d2a809eafabba137f508bea16a1b93d8ff24df7da6f38129d830db9bc118bdfe).
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`.
+
+[Full notice](#notice-cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c`.
+
+[Full notice](#notice-3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c).
 
 ## ndk-context@0.1.1
 
@@ -7527,6 +7605,28 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ````
 
+## Notice 11789f45bb180841cd362a5eee6789c68ddb573a11105e30768c308a6add0190
+
+````text
+encoding_rs is copyright Mozilla Foundation.
+
+Licensed under the Apache License, Version 2.0
+<LICENSE-APACHE or
+https://www.apache.org/licenses/LICENSE-2.0> or the MIT
+license <LICENSE-MIT or https://opensource.org/licenses/MIT>,
+at your option. All files in the project carrying such
+notice may not be copied, modified, or distributed except
+according to those terms.
+
+This crate includes data derived from the data files supplied
+with the WHATWG Encoding Standard, which, when incorporated into
+source code, are licensed under the BSD 3-Clause License
+<LICENSE-WHATWG>.
+
+Test code within encoding_rs is dedicated to the Public Domain when so
+designated (see the individual files for PD/CC0-dedicated sections).
+````
+
 ## Notice 122597c57b521bb35895e513adefe8c707d27da5e93371e8979d3ca7eb7705c8
 
 ````text
@@ -10166,6 +10266,36 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+````
+
+## Notice 3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c
+
+````text
+Copyright Mozilla Foundation
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 ````
 
 ## Notice 40d367bb2c505b1ac1678868816b8531437d92cfc146f8fc2168474c47ae722a
@@ -13358,6 +13488,37 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ````
 
+## Notice 838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50
+
+````text
+Copyright © WHATWG (Apple, Google, Mozilla, Microsoft).
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+````
+
 ## Notice 83c1763356e822adde0a2cae748d938a73fdc263849ccff6b27776dff213bd32
 
 ````text
@@ -13429,6 +13590,36 @@ Permission is granted to anyone to use this software for any purpose, including 
 2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
 
 3. This notice may not be removed or altered from any source distribution.
+````
+
+## Notice 8569ebf6bf52937b961d9c9c934d8400a2bb6b09651a9afacbb3fc18fe5c09b1
+
+````text
+Copyright (c) 2017-2020 The Rust Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 ````
 
 ## Notice 861399f8c21c042b110517e76dc6b63a2b334276c8cf17412fc3c8908ca8dc17
@@ -19655,6 +19846,26 @@ SOFTWARE.
 
     SPDX-License-Identifier: LGPL-2.1-or-later
   ]]></copyright>
+````
+
+## Notice d2a809eafabba137f508bea16a1b93d8ff24df7da6f38129d830db9bc118bdfe
+
+````text
+Copyright Mozilla Foundation
+
+Licensed under the Apache License (Version 2.0), or the MIT license,
+(the "Licenses") at your option. You may not use this file except in
+compliance with one of the Licenses. You may obtain copies of the
+Licenses at:
+
+   https://www.apache.org/licenses/LICENSE-2.0
+   https://opensource.org/licenses/MIT
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the Licenses is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the Licenses for the specific language governing permissions and
+limitations under the Licenses.
 ````
 
 ## Notice d35629aec828ca86834f76e4c813bd6a6f0dda9005da898b0f49021f8042c5bd

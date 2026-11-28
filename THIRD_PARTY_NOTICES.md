@@ -51,6 +51,10 @@ The underlying third-party skill sources retain their own terms:
 
 Paths above are relative to `.agents/skills/` in ArcForge. The Rust entry is rewritten for ArcForge and the CI entry is modified to use exact revision/run evidence and repository checks. The CI instruction is a development component under Apache-2.0; the project MIT license does not replace those terms. Its generated Claude entry point loads the canonical instruction. The Python helper, upstream agent metadata, hooks, and plugin configuration are not imported. Exact intermediate paths, revisions, changes, and architectural references are in [docs/hiewbie-reuse.md](docs/hiewbie-reuse.md).
 
+## ZIP filename mapping
+
+The CP437 high-byte mapping in `crates/core/src/archive/names.rs` is adapted from [zip-rs/zip2](https://github.com/zip-rs/zip2/blob/37a9a8156893c7bce8ac3bf5c3c7cf264f7242ba/src/cp437.rs), commit `37a9a8156893c7bce8ac3bf5c3c7cf264f7242ba` (published zip 9.8.2). The match table becomes a 128-character lookup table with an ASCII branch. Copyright **(c) 2014 Mathijs van de Nes**; **MIT**. The full unchanged [upstream license](licenses/zip-rs-MIT.txt) is retained. See [provider rationale](docs/zip-browser.md#provider-and-source-provenance) for the adapter boundary.
+
 ## Assets and dependencies
 
 ArtCraft marks, wordmarks, and the shared raven app icon are excluded from the upstream code licenses and are not included in ArcForge. The source reuse above does not import upstream fonts, icon packs, image assets, or their unrelated third-party dependencies.

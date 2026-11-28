@@ -5,7 +5,7 @@ description: "Implement or review nontrivial Rust ownership, APIs, error handlin
 
 # Apply Rust guidance to the actual boundary
 
-Read `AGENTS.md`, the changed code, its callers, and relevant tests. Follow the pinned toolchain, workspace dependency direction, and existing error/API conventions. State the invariant or observed problem before choosing an abstraction. The current application has no archive provider; avoid inventing successful behavior for planned operations.
+Read `AGENTS.md`, the changed code, its callers, and relevant tests. Follow the pinned toolchain, workspace dependency direction, and existing error/API conventions. State the invariant or observed problem before choosing an abstraction. The current provider exposes read-only ZIP/ZIP64 metadata and bounded previews through the shared core; avoid inventing successful behavior for planned extraction or editing operations.
 
 1. Prefer borrowed input when ownership is unnecessary. Justify clones and shared ownership by lifetimes, background snapshots, and API needs. Keep metadata valid for its document generation; do not retain views into replaced or mutable backing storage without an explicit ownership contract.
 2. Propagate expected failures with explicit errors and useful context. Validate external counts, offsets, lengths, and arithmetic before allocation or indexing. Keep archive offsets distinct from offsets inside decompressed entries. Convert to `usize` only after bounded size checks. Document and isolate any unsafe preconditions.

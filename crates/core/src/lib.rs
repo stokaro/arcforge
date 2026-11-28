@@ -1,7 +1,6 @@
-//! Shared application commands, independent of a UI, filesystem, or archive provider.
-//!
-//! This bootstrap deliberately reports no archive capabilities. Frontends must not
-//! turn a planned command into a successful operation or invent archive metadata.
+//! Shared application commands and truthful capabilities, independent of the UI.
+
+pub mod archive;
 
 use std::fmt;
 
@@ -42,13 +41,18 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     },
     CommandDescriptor {
         name: "list",
-        description: "List archive entries",
-        availability: Availability::Planned,
+        description: "List ZIP central-directory entries",
+        availability: Availability::Implemented,
     },
     CommandDescriptor {
         name: "info",
-        description: "Inspect archive metadata",
-        availability: Availability::Planned,
+        description: "Inspect ZIP metadata and filename diagnostics",
+        availability: Availability::Implemented,
+    },
+    CommandDescriptor {
+        name: "preview",
+        description: "Preview a complete small Stored/Deflate ZIP entry",
+        availability: Availability::Implemented,
     },
     CommandDescriptor {
         name: "create",
@@ -86,6 +90,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
 pub enum ArchiveOperation {
     List,
     Info,
+    Preview,
     Create,
     Extract,
     Test,
@@ -99,6 +104,7 @@ impl ArchiveOperation {
         match self {
             Self::List => "list",
             Self::Info => "info",
+            Self::Preview => "preview",
             Self::Create => "create",
             Self::Extract => "extract",
             Self::Test => "test",
@@ -125,6 +131,7 @@ impl Command {
             "doctor" => Ok(Self::Doctor),
             "list" => Ok(Self::Archive(ArchiveOperation::List)),
             "info" => Ok(Self::Archive(ArchiveOperation::Info)),
+            "preview" => Ok(Self::Archive(ArchiveOperation::Preview)),
             "create" => Ok(Self::Archive(ArchiveOperation::Create)),
             "extract" => Ok(Self::Archive(ArchiveOperation::Extract)),
             "test" => Ok(Self::Archive(ArchiveOperation::Test)),
@@ -148,10 +155,33 @@ pub const fn application_info() -> ApplicationInfo {
     ApplicationInfo {
         name: "ArcForge",
         version: VERSION,
-        stage: "bootstrap",
+        stage: "zip-browser",
         license: "MIT",
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub struct ProviderCapabilities {
+    pub name: &'static str,
+    pub version: &'static str,
+    pub formats: &'static [&'static str],
+    pub operations: &'static [&'static str],
+    pub preview_compression: &'static [&'static str],
+    pub encrypted_content: bool,
+    pub multi_disk: bool,
+    pub write: bool,
+}
+
+pub const PROVIDERS: &[ProviderCapabilities] = &[ProviderCapabilities {
+    name: "zip-rs",
+    version: "9.8.2",
+    formats: &["zip", "zip64"],
+    operations: &["list", "info", "preview"],
+    preview_compression: &["stored", "deflate"],
+    encrypted_content: false,
+    multi_disk: false,
+    write: false,
+}];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub struct DiagnosticReport {
@@ -159,16 +189,22 @@ pub struct DiagnosticReport {
     pub ready_for_archive_operations: bool,
     pub archive_provider_count: usize,
     pub supported_archive_formats: &'static [&'static str],
+    pub providers: &'static [ProviderCapabilities],
+    pub os: &'static str,
+    pub architecture: &'static str,
     pub scope: &'static str,
 }
 
 pub const fn diagnostics() -> DiagnosticReport {
     DiagnosticReport {
         application: application_info(),
-        ready_for_archive_operations: false,
-        archive_provider_count: 0,
-        supported_archive_formats: &[],
-        scope: "Compiled capabilities only; the filesystem, graphics, and external tools were not probed.",
+        ready_for_archive_operations: true,
+        archive_provider_count: PROVIDERS.len(),
+        supported_archive_formats: &["zip", "zip64"],
+        providers: PROVIDERS,
+        os: std::env::consts::OS,
+        architecture: std::env::consts::ARCH,
+        scope: "Read-only ZIP listing, metadata and bounded Stored/Deflate previews. No extraction or editing. Compiled capabilities only; the system was not probed.",
     }
 }
 
@@ -183,6 +219,7 @@ pub enum CommandResult {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CommandError {
     UnknownCommand(String),
+    ArgumentsRequired(&'static str),
     NotImplemented(&'static str),
 }
 
@@ -190,6 +227,9 @@ impl fmt::Display for CommandError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnknownCommand(name) => write!(formatter, "unknown command '{name}'"),
+            Self::ArgumentsRequired(name) => {
+                write!(formatter, "'{name}' requires archive arguments")
+            }
             Self::NotImplemented(name) => write!(
                 formatter,
                 "'{name}' is planned but not implemented; no archive operation was performed"
@@ -206,6 +246,11 @@ pub fn execute(command: Command) -> Result<CommandResult, CommandError> {
         Command::Version => Ok(CommandResult::Version(application_info())),
         Command::Commands => Ok(CommandResult::Commands(COMMANDS)),
         Command::Doctor => Ok(CommandResult::Doctor(diagnostics())),
+        Command::Archive(
+            operation @ (ArchiveOperation::List
+            | ArchiveOperation::Info
+            | ArchiveOperation::Preview),
+        ) => Err(CommandError::ArgumentsRequired(operation.name())),
         Command::Archive(operation) => Err(CommandError::NotImplemented(operation.name())),
     }
 }
@@ -221,7 +266,10 @@ mod tests {
             assert!(names.insert(descriptor.name), "duplicate command");
             let result = execute(Command::parse(descriptor.name).expect("known command"));
             match descriptor.availability {
-                Availability::Implemented => assert!(result.is_ok()),
+                Availability::Implemented => assert!(
+                    result.is_ok()
+                        || result == Err(CommandError::ArgumentsRequired(descriptor.name))
+                ),
                 Availability::Planned => {
                     assert_eq!(result, Err(CommandError::NotImplemented(descriptor.name)))
                 }
@@ -240,10 +288,13 @@ mod tests {
     }
 
     #[test]
-    fn bootstrap_does_not_advertise_archive_support() {
+    fn discovery_advertises_only_read_only_zip_operations() {
         let report = diagnostics();
-        assert!(!report.ready_for_archive_operations);
-        assert_eq!(report.archive_provider_count, 0);
-        assert!(report.supported_archive_formats.is_empty());
+        assert!(report.ready_for_archive_operations);
+        assert_eq!(report.archive_provider_count, 1);
+        assert_eq!(report.supported_archive_formats, ["zip", "zip64"]);
+        assert_eq!(report.providers[0].operations, ["list", "info", "preview"]);
+        assert!(!report.providers[0].write);
+        assert!(!report.providers[0].encrypted_content);
     }
 }

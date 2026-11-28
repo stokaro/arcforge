@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 arcforge-core.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 
 [lints]

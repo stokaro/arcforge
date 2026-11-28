@@ -9,6 +9,12 @@ repository.workspace = true
 
 [dependencies]
 serde.workspace = true
+zip = { workspace = true, features = ["deflate-flate2"] }
+flate2.workspace = true
+crc32fast.workspace = true
+sha2.workspace = true
+same-file.workspace = true
+encoding_rs.workspace = true
 
 [lints]
 workspace = true
