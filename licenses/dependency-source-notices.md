@@ -6826,6 +6826,56 @@ SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
 
 [Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
 
+## zune-core@0.5.3
+
+Declared license: `MIT OR Apache-2.0 OR Zlib`.
+
+Upstream: <https://github.com/etemesi254/zune-image>.
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4`.
+
+[Full notice](#notice-c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745`.
+
+[Full notice](#notice-d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745).
+
+### Packaged source: LICENSE-ZLIB
+
+SHA-256: `d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c`.
+
+[Full notice](#notice-d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c).
+
+## zune-jpeg@0.5.15
+
+Declared license: `MIT OR Apache-2.0 OR Zlib`.
+
+Upstream: <https://github.com/etemesi254/zune-image/tree/dev/crates/zune-jpeg>.
+
+Manifest authors (not a substituted copyright notice): caleb <etemesicaleb@gmail.com>.
+
+### Packaged source: LICENSE-APACHE
+
+SHA-256: `c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4`.
+
+[Full notice](#notice-c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4).
+
+### Packaged source: LICENSE-MIT
+
+SHA-256: `d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745`.
+
+[Full notice](#notice-d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745).
+
+### Packaged source: LICENSE-ZLIB
+
+SHA-256: `d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c`.
+
+[Full notice](#notice-d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c).
+
 ## zvariant@5.15.1
 
 Declared license: `MIT`.
@@ -20873,6 +20923,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
+## Notice d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c
+
+````text
+zlib License
+
+(C) zune-image developers
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+````
+
 ## Notice d2444b2052eccb99d8d47036bc722bf8415ec0aed505e35ec93721f8da60c06d
 
 ````text
@@ -20901,6 +20975,32 @@ distributed under the Licenses is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the Licenses for the specific language governing permissions and
 limitations under the Licenses.
+````
+
+## Notice d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745
+
+````text
+MIT License
+
+Copyright (c) zune-image developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ````
 
 ## Notice d35629aec828ca86834f76e4c813bd6a6f0dda9005da898b0f49021f8042c5bd

@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use arcforge_core::archive::{ArchiveLimits, EntryPreview, open_archive, reinterpret};
 
+use super::jobs::FolderTotals;
 use super::*;
 
 static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(1);
@@ -624,6 +625,105 @@ fn outline_disclosures_search_and_flat_view_preserve_archive_identity() {
 }
 
 #[test]
+fn unrelated_outline_disclosure_preserves_primary_selection_and_prepared_preview() {
+    let fixture = Fixture::new(b"placeholder.txt");
+    fs::write(
+        &fixture.path,
+        stored_zip_entries(&[
+            (b"Documents/Guide.txt", b"Guide"),
+            (b"Photos/Color-study.png", b"Image fixture"),
+            (b"Source/lib.rs", b"fn main() {}"),
+        ]),
+    )
+    .expect("write separate archive branches");
+    let document = fixture.document();
+    let context = egui::Context::default();
+
+    for selected in [0, 1] {
+        let expanded = BTreeSet::from(["Documents/".into(), "Photos/".into()]);
+        let rows = document
+            .view_rows(
+                "",
+                None,
+                ViewMode::Outline,
+                &expanded,
+                &CancellationToken::new(),
+            )
+            .expect("initial outline rows");
+        let mut prepared = preview(selected);
+        if selected == 1 {
+            prepared.image = Some(egui::ColorImage::new(
+                [1, 1],
+                vec![egui::Color32::from_rgb(28, 100, 180)],
+            ));
+        }
+        let (worker, incoming, _outgoing) = Worker::test_channels();
+        let mut workspace = ArchiveWorkspace {
+            worker: Some(worker),
+            document: Some(document.clone()),
+            rows,
+            selected: Some(selected),
+            selected_entries: BTreeSet::from([selected]),
+            preview: Some(prepared),
+            preview_show_image: selected == 1,
+            expanded_folders: expanded.clone(),
+            applied_expanded_folders: expanded,
+            ..Default::default()
+        };
+        for expanded in [true, false] {
+            workspace.toggle_folder("Source/".into(), &context);
+            assert_eq!(
+                workspace.selected,
+                Some(selected),
+                "changing another branch must retain the inspector's primary selection"
+            );
+            assert!(
+                workspace.preview.is_some(),
+                "a completed preview remains available while the layout job is pending"
+            );
+            let request = incoming.try_recv().expect("queued outline update");
+            let result = match &request.task {
+                Task::Filter {
+                    document,
+                    query,
+                    folder,
+                    mode,
+                    expanded,
+                } => Completed::Filter {
+                    rows: document
+                        .view_rows(query, folder.as_deref(), *mode, expanded, &request.cancel)
+                        .expect("updated outline rows"),
+                    query: query.clone(),
+                    folder: folder.clone(),
+                    mode: *mode,
+                    expanded: expanded.clone(),
+                },
+                _ => panic!("an outline disclosure must only update the prepared view"),
+            };
+            workspace.apply(Reply {
+                ticket: request.ticket,
+                result: Ok(result),
+            });
+            assert_eq!(workspace.expanded_folders.contains("Source/"), expanded);
+            assert_eq!(workspace.selected, Some(selected));
+            assert_eq!(workspace.selected_entries, BTreeSet::from([selected]));
+            assert!(workspace.rows.iter().any(|row| {
+                row.entry.map(|index| document.snapshot.entries[index].id) == Some(selected)
+            }));
+            let retained = workspace
+                .preview
+                .as_ref()
+                .expect("retained completed preview");
+            assert_eq!(retained.preview.entry_id, selected);
+            assert_eq!(retained.preview.bytes, b"hi");
+            assert!(retained.preview.crc32_verified);
+            assert_eq!(retained.image.is_some(), selected == 1);
+            assert_eq!(workspace.preview_show_image, selected == 1);
+        }
+    }
+}
+
+#[test]
 fn folder_totals_include_each_nested_payload_once_for_explicit_and_implicit_folders() {
     let fixture = Fixture::new(b"placeholder.txt");
     fs::write(
@@ -816,22 +916,31 @@ fn frame(workspace: &mut ArchiveWorkspace) -> String {
         }
     }
     let context = egui::Context::default();
-    let mut output = context.run_ui(
-        egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(
-                egui::Pos2::ZERO,
-                egui::vec2(1100.0, 680.0),
-            )),
-            ..Default::default()
-        },
-        |ui| workspace.show(ui),
-    );
+    configure_style(&context);
     let mut text = String::new();
-    for shape in &output.shapes {
-        collect(&shape.shape, &mut text);
+    // A new egui Window uses an invisible sizing pass before it is painted.
+    // Retain the Context across deterministic layout/animation frames, then
+    // inspect only the settled frame rather than relying on an incidental Grid
+    // multipass elsewhere in the workspace. No native display or sleep is needed.
+    for frame_index in 0..3 {
+        let mut output = context.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1100.0, 680.0),
+                )),
+                time: Some(f64::from(frame_index) * 0.1),
+                ..Default::default()
+            },
+            |ui| workspace.show(ui),
+        );
+        text.clear();
+        for shape in &output.shapes {
+            collect(&shape.shape, &mut text);
+        }
+        // This harness inspects shapes without a GPU painter, so discard uploads.
+        output.textures_delta.clear();
     }
-    // This harness inspects shapes without a GPU painter, so discard its texture uploads.
-    output.textures_delta.clear();
     text
 }
 
@@ -848,8 +957,10 @@ fn empty_populated_and_error_workspaces_render_without_a_native_window() {
     }];
     workspace.selected = Some(0);
     let text = frame(&mut workspace);
-    assert!(text.contains("folder/entry.txt"));
-    assert!(text.contains("Info"));
+    assert!(text.contains("entry.txt"));
+    assert!(text.contains("Path"));
+    assert!(text.contains("folder"));
+    assert!(text.contains("Attributes"));
     assert!(text.contains("CRC32"));
     assert!(text.contains("Load preview"));
     workspace.error = Some("Fixture archive is truncated".into());
@@ -871,7 +982,10 @@ fn extraction_form_and_retained_output_report_render_without_filesystem_work() {
     };
     workspace.open_extraction(ExtractionScope::Selected);
     let text = frame(&mut workspace);
-    assert!(text.contains("Selected (1)"));
+    assert!(
+        text.contains("Selected (1)"),
+        "the extraction form must render its selected scope; rendered text:\n{text}"
+    );
     assert!(text.contains("Extract 1 selected item"));
     assert!(!text.contains("1 selected items"));
     assert!(text.contains("destination must not exist"));

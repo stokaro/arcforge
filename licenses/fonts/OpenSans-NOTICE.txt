@@ -1,0 +1,21 @@
+Open Sans Regular and Semibold, Version 1.10
+
+OpenSans-Regular.ttf:
+Digitized data copyright © 2010-2011, Google Corporation.
+
+OpenSans-Semibold.ttf:
+Digitized data copyright © 2011, Google Corporation.
+
+Both original font name tables state:
+Licensed under the Apache License, Version 2.0
+http://www.apache.org/licenses/LICENSE-2.0
+
+The complete original license is retained in OpenSans-Apache-2.0.txt.
+
+Source distribution: Debian fonts-open-sans 1.11-2
+https://sources.debian.org/src/fonts-open-sans/1.11-2/
+
+The font files are unmodified. ArcForge uses them as embedded regular and
+semibold fallbacks. Their Apache-2.0 terms remain separate from ArcForge's MIT
+license. Exact file hashes and source URLs are recorded in
+docs/reference/typography.md.

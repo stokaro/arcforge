@@ -21,6 +21,7 @@ cargo xtask build --release
 cargo xtask package --release
 cargo xtask ci-matrix
 cargo xtask verify-package --target x86_64-unknown-linux-gnu
+cargo xtask gui-capture --directory target/native-gui/local-review
 ```
 
 `check` is the standard local gate: formatting, scoped skills, dependency boundaries, license notices, Clippy, tests, and builds. `layers`, `notices`, and `skills` run their respective checks alone. `skills-sync` regenerates Claude entry points from canonical repository skills; see [skill maintenance](agent-skills.md). `build`, `test`, and `package` use the shared Rust orchestration rather than requiring a particular shell. Target/profile options affect Cargo build/test steps, not source-only checks. Packaging always builds the release profile; supplying `--release` to `package` is optional. `ci-matrix`, `verify-package`, and `verify-release` share the [target manifest and release contract](release.md); see `cargo xtask --help` for their options. The target and profile can be supplied explicitly:
@@ -82,3 +83,11 @@ After dependencies or features change, follow [license bundle regeneration](../l
 Tests use synthetic archives and isolated temporary directories for archive behavior. Test the same shared operation through core and CLI contracts, and add UI/native integration tests for behavior that the core cannot prove. The committed [Python zipfile fixture](../tests/fixtures/python-zipfile.hex) supplies independent Stored/Deflate ZIP input to tests and package smoke verification; the optional [generator](../scripts/generate_zip_fixture.py) regenerates it. Normal tests, builds, and package verification consume the committed bytes and do not require Python. Add interoperability fixtures as provider coverage grows.
 
 For visual work, record the fixture, window size, scale, theme, OS, and reference version. Compare repeatable states rather than unrelated screenshots. Report the commands and platforms actually verified in the PR, along with any pending checks.
+
+`gui-capture` launches the actual native desktop with a developer-only feature,
+waits for real text and PNG preview results and rendered frames, and writes PNGs
+plus source/runtime/scale/font provenance into a new directory. It requires a
+native display session and Python 3 for the original fixture generator. Normal
+release packaging does not enable the capture feature. See [native GUI captures](native-captures.md)
+for the six-target CI steps, additional macOS 26 capture job, optional macOS window
+chrome capture, and the distinction between native client pixels and a full OS window.

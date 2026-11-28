@@ -7,10 +7,17 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+default = []
+# Maintainer-only capture of the real native renderer; never enabled by package.
+native-capture = ["arcforge-ui-egui/native-capture", "dep:image", "dep:serde_json"]
+
 [dependencies]
 arcforge-core.workspace = true
 arcforge-ui-egui.workspace = true
 eframe.workspace = true
+image = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 
 [lints]
 workspace = true

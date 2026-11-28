@@ -4,6 +4,8 @@ Source: the locked epaint_default_fonts 0.37.0 crate. Full original font license
 
 Hack, Ubuntu Light, and the egui icon subset are unconditional upstream font assets. Noto Emoji and the full emoji-icon font are feature-gated; their notices are included conservatively and do not claim they are active in every binary.
 
+ArcForge also embeds the unmodified legacy Open Sans Regular and Semibold Version 1.10 files from Debian fonts-open-sans 1.11-2. Their separate [Apache-2.0 license](OpenSans-Apache-2.0.txt), [original copyright records](OpenSans-NOTICE.txt), and [exact source/hash inventory](../../docs/reference/typography.md) apply to those files. System Apple/Microsoft fonts are read on the user's machine and are not redistributed.
+
 ## Hack-Regular.ttf
 
 ### copyright
