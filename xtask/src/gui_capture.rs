@@ -196,6 +196,7 @@ fn capture(
                 let mut panel =
                     capture_mac_window(&mac_helper, directory, scene, child.0.id(), Some(panel_id));
                 if panel["status"] != "captured"
+                    || panel["capture_presentation"] != "sheet"
                     || panel["window_id"].as_u64() != Some(u64::from(panel_id))
                     || panel["process_id"].as_u64() != Some(u64::from(child.0.id()))
                 {
@@ -592,6 +593,9 @@ fn capture_mac_window(
     command.arg(pid.to_string()).arg(&png);
     if let Some(window_id) = window_id {
         command.arg(window_id.to_string());
+        if matches!(scene, "04-open-panel" | "07-save-panel") {
+            command.arg("--sheet");
+        }
     }
     let result = logged_command(&mut command, directory, &stem, Duration::from_secs(15))
         .and_then(|()| read_json(&directory.join(format!("{stem}.stdout.log"))));

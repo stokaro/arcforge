@@ -169,13 +169,14 @@ if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "--describe-d
     exit(0)
 }
 
-guard (3...4).contains(CommandLine.arguments.count),
+let captureSheet = CommandLine.arguments.count == 5 && CommandLine.arguments[4] == "--sheet"
+guard (3...4).contains(CommandLine.arguments.count) || captureSheet,
       let pid = Int32(CommandLine.arguments[1]) else {
-    output(["status": "unavailable", "reason": "expected PID, PNG output path and optional actual window ID"])
+    output(["status": "unavailable", "reason": "expected PID, PNG path and optional window ID [--sheet]"])
     exit(2)
 }
 let requestedWindowID: UInt32?
-if CommandLine.arguments.count == 4 {
+if CommandLine.arguments.count >= 4 {
     guard let parsed = UInt32(CommandLine.arguments[3]), parsed != kCGNullWindowID else {
         output(["status": "unavailable", "reason": "invalid requested CoreGraphics window ID"])
         exit(2)
@@ -197,6 +198,8 @@ var selectedWindow: [String: Any]?
 var previousBounds: [Double]?
 var stableSince = visibilityStarted
 var matchingWindows = 0
+var lastCandidateBounds: Any = NSNull()
+var lastCandidateAlpha: Any = NSNull()
 while ProcessInfo.processInfo.systemUptime < visibilityDeadline {
     let now = ProcessInfo.processInfo.systemUptime
     let windows = CGWindowListCopyWindowInfo(
@@ -212,11 +215,13 @@ while ProcessInfo.processInfo.systemUptime < visibilityDeadline {
         return (window[kCGWindowLayer as String] as? NSNumber)?.intValue == 0
     }
     matchingWindows = candidates.count
+    lastCandidateBounds = candidates.first?[kCGWindowBounds as String] ?? NSNull()
+    lastCandidateAlpha = candidates.first?[kCGWindowAlpha as String] ?? NSNull()
     if candidates.count == 1, let candidate = candidates.first,
        let bounds = candidate[kCGWindowBounds as String] as? [String: NSNumber],
        let x = bounds["X"]?.doubleValue, let y = bounds["Y"]?.doubleValue,
        let width = bounds["Width"]?.doubleValue, let height = bounds["Height"]?.doubleValue,
-       width >= 320, height >= 200,
+       (captureSheet ? width > 0 && height > 0 : width >= 320 && height >= 200),
        (candidate[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 0 >= 0.99 {
         let observed = [x, y, width, height]
         if observed != previousBounds {
@@ -239,6 +244,8 @@ guard let window = selectedWindow,
         "reason": "requested native window was not uniquely visible with stable bounds within three seconds",
         "matching_windows": matchingWindows,
         "process_id": pid,
+        "last_candidate_bounds": lastCandidateBounds,
+        "last_candidate_alpha": lastCandidateAlpha,
     ])
     exit(0)
 }
@@ -277,6 +284,7 @@ do {
         "process_id": pid,
         "window_id": windowID,
         "selection": requestedWindowID == nil ? "single-ordinary-window" : "explicit-owned-window-id",
+        "capture_presentation": captureSheet ? "sheet" : "window",
         "visible_stable_bounds_seconds": 0.15,
         "visibility_wait_seconds": ProcessInfo.processInfo.systemUptime - visibilityStarted,
         "window_bounds": window[kCGWindowBounds as String] ?? NSNull(),

@@ -113,7 +113,10 @@ a client-area image labelled as a full native window.
 
 The helper also accepts an explicit CoreGraphics window ID supplied by the
 application for a native dialog. It still requires the requested window to be
-on-screen and owned by the launched application's PID. Without an explicit ID,
+on-screen and owned by the launched application's PID. An identified sheet can
+be smaller than the minimum document window size, as with the compact Save As
+panel on macOS 15. The same ownership, opacity and stable-bounds checks apply.
+Without an explicit ID,
 the ordinary workspace capture continues to require one unambiguous ordinary
 window. A native panel must be captured as an OS window; a client framebuffer
 cannot establish its appearance. Each file-panel scene saves a readiness record
