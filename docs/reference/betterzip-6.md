@@ -66,6 +66,8 @@ This table records intended behavior and the boundaries of the current extractio
 
 Native ArcForge evidence is indexed in [screenshots](../../screenshots/README.md). Build/CLI smoke results cover their stated targets only; they cannot establish native desktop parity on other operating systems.
 
+The [ZIP extraction scenes](../../screenshots/zip-extraction/README.md) record five actual Linux captures: workspace, selected destination, completion, existing-destination rejection, and cancellation with retained output. Native interaction and an independent file-content check accompany the images. The captures also expose current adaptations, including text toolbar menus, the additional status footer and the portable destination form; they are not a full-parity sign-off.
+
 ## Filling a reference gap
 
 Record the unresolved question before selecting a fallback. Inspect the relevant file in the pinned OpenZip tree; record the actual behavior and the piece being adapted. Prefer the narrowest reusable solution that preserves BetterZip's surrounding layout and staged editing model. In particular, do not import immediate destructive editing merely because the fallback application uses it.
