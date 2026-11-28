@@ -10,6 +10,7 @@ The Rust workspace provides ZIP/ZIP64 metadata, bounded Stored/Deflate previews,
 | --- | --- | --- |
 | `crates/core` | `arcforge-core` | UI-independent models, operation/capability registry, and shared command behavior |
 | `crates/ui-egui` | `arcforge-ui-egui` | Rust desktop presentation and interaction over the shared core |
+| `crates/platform-macos` | `arcforge-platform-macos` | macOS AppKit toolbar, menus and typed native command/state boundary |
 | `apps/arcforge` | `arcforge` | Desktop executable and platform entry point |
 | `apps/arcforge-cli` | `arcforge-cli` | Headless command-line interface over the same core |
 | `xtask` | `xtask` | Checks, builds, tests, and portable development packaging |
@@ -17,12 +18,23 @@ The Rust workspace provides ZIP/ZIP64 metadata, bounded Stored/Deflate previews,
 ```mermaid
 flowchart TD
     G["Desktop executable"] --> U["Rust UI"]
+    G --> N["AppKit shell on macOS"]
     U --> C["Shared core and commands"]
     L["Standalone CLI"] --> C
     X["xtask boundary checks"] -.-> C
 ```
 
 The core must not depend on `egui`, `eframe`, windowing, or native dialog libraries. The CLI depends on shared core behavior without importing the UI. The desktop executable connects platform startup to the UI. `cargo xtask check` enforces the configured workspace boundaries alongside the other development checks.
+
+### Native presentation boundary
+
+On macOS, the desktop entry point attaches an actual `NSToolbar` and `NSMenu` to its own `NSWindow`. AppKit owns window controls, toolbar layout/materials, menu interaction, search and overflow; egui renders the document contents below it. The adapter has no core or egui dependency. The executable maps its typed commands to the same UI command dispatcher used by portable controls, and mirrors availability, selection, navigation and search state back to AppKit. Unsupported operations remain disabled. The portable toolbar remains available on Windows/Linux and as an explicit attach-failure fallback; a fallback cannot pass macOS native-shell capture acceptance.
+
+The only application-owned unsafe code is the private macOS interoperation module, using typed `objc2` bindings and main-thread-only retained objects. Its [safety contract](../crates/platform-macos/README.md) covers target/action ABI, weak native delegate ownership, teardown and owned-window identification. Core, CLI, UI and all other workspace packages retain the unsafe-code prohibition.
+
+Normal Open and extraction-parent selection use `rfd` native asynchronous panels parented to the real application window. The UI starts and polls the future on its main thread; it retains native `PathBuf` values independently of lossy display text. One pending picker prevents duplicate panels. A document generation guards each result, so cancellation or a stale completion cannot replace a newer document. An extraction parent choice is followed by a compact scope/new-folder review; final placement still uses the core's exclusive new-directory contract. A deliberate advanced Open-by-path action remains secondary.
+
+Filesystem Favorites use a separate worker for actual platform Desktop, Documents and Downloads locations, falling back to an existing Home directory when none are available. Discovery and directory reads happen off the UI thread and cannot cancel an archive job. Scans inspect immediate children only, limited to 512 entries, 1 MiB of retained metadata and 500 ms checked between filesystem calls. OS-blocked calls are not preemptible. The cache holds at most 32 directories with 16 pending requests; per-path generations reject superseded results. Display labels are separate from native paths. A ZIP badge reports a complete immediate scan of regular `.zip` candidates, not recursive totals or proven-valid archives; partial/error listings have no complete-count badge. Persistence, custom places and recursive indexing remain planned.
 
 ## Shared operations
 

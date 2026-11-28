@@ -16,6 +16,9 @@ arcforge-core.workspace = true
 egui.workspace = true
 skrifa.workspace = true
 image.workspace = true
+rfd.workspace = true
+raw-window-handle.workspace = true
+dirs.workspace = true
 
 [lints]
 workspace = true

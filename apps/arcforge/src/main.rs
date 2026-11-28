@@ -82,8 +82,7 @@ fn main() -> ExitCode {
         Box::new(move |_| {
             Ok(Box::new(DesktopApp {
                 workspace: ArchiveWorkspace::new(path),
-                #[cfg(feature = "native-capture")]
-                capture: None,
+                ..Default::default()
             }))
         }),
     ) {
@@ -98,16 +97,37 @@ fn main() -> ExitCode {
 #[derive(Default)]
 struct DesktopApp {
     workspace: ArchiveWorkspace,
+    native_shell: platform::NativeShell,
     #[cfg(feature = "native-capture")]
     capture: Option<capture::Session>,
 }
 
 impl eframe::App for DesktopApp {
-    fn ui(&mut self, ui: &mut eframe::egui::Ui, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut eframe::egui::Ui, frame: &mut eframe::Frame) {
+        self.workspace.enable_filesystem_favorites(ui.ctx());
+        self.native_shell
+            .before_frame(&mut self.workspace, ui.ctx(), frame);
         self.workspace.show(ui);
+        self.workspace.service_native_picker(frame, ui.ctx());
+        self.native_shell.after_frame(&self.workspace);
         #[cfg(feature = "native-capture")]
         if let Some(capture) = &mut self.capture {
-            capture.after_frame(&mut self.workspace, ui.ctx());
+            let panel = self
+                .native_shell
+                .active_open_panel()
+                .map(|panel| capture::OpenPanel {
+                    window_id: panel.window_id,
+                    parent_window_id: panel.parent_window_id,
+                });
+            capture.after_frame(
+                &mut self.workspace,
+                ui.ctx(),
+                self.native_shell.window_id(),
+                panel,
+            );
+            if let Some(panel_id) = capture.take_panel_to_cancel() {
+                self.native_shell.cancel_open_panel(panel_id);
+            }
         }
     }
 }

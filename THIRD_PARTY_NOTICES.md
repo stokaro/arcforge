@@ -71,4 +71,6 @@ ArcForge also embeds unmodified **Open Sans Regular and Semibold, internal Versi
 
 The full selected dependency terms and crate mappings are in [licenses/dependencies.md](licenses/dependencies.md). Original packaged and pinned upstream notices are preserved in [licenses/dependency-source-notices.md](licenses/dependency-source-notices.md), including copyright information absent from generic SPDX templates. These reports cover the active locked graph across all targets and activated workspace features, conservatively including build/development dependencies.
 
+The unmodified `option-ext 0.2.0` transitive dependency retains **MPL-2.0**. Its complete original source archive is included in every binary bundle at `licenses/source/option-ext-0.2.0.crate`, with [source availability and extraction instructions](licenses/source/README.md). The MPL terms apply to that dependency; ArcForge's original source remains MIT.
+
 The complete `licenses/` directory accompanies binary bundles. [licenses/dependencies.lock.json](licenses/dependencies.lock.json) records the input/output hashes checked by `cargo xtask notices`. See [maintenance instructions](licenses/README.md) for the pinned generator and regeneration procedure.

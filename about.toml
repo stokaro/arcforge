@@ -24,3 +24,8 @@ ignore-transitive-dependencies = false
 
 # Workspace packages have the repository's own LICENSE and source-reuse notices.
 private = { ignore = true }
+
+# Unmodified dirs-sys dependency; exact source and full MPL terms ship in licenses/.
+# Scope the additional license to this crate rather than accepting it globally.
+[option-ext]
+accepted = ["MPL-2.0"]

@@ -1,0 +1,28 @@
+[package]
+name = "arcforge-platform-macos"
+description = "ArcForge native macOS toolbar and menu presentation adapter"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+native-capture = []
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "=0.6.5"
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSApplication", "NSCell", "NSControl", "NSEvent", "NSImage", "NSMenu", "NSMenuItem", "NSMenuToolbarItem", "NSOpenPanel", "NSPanel", "NSResponder", "NSSavePanel", "NSSearchField", "NSSearchToolbarItem", "NSTextField", "NSToolbar", "NSToolbarItem", "NSToolbarItemGroup", "NSView", "NSWindow", "objc2-core-foundation"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSObject", "NSString"] }
+raw-window-handle.workspace = true
+
+# This is the only native FFI boundary. macos.rs documents and locally permits
+# the objc2 class, selector and target-action operations; portable code denies it.
+[lints.rust]
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

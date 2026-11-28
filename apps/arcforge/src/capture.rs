@@ -45,6 +45,7 @@ pub(crate) fn run(options: Options) -> ExitCode {
             Ok(Box::new(super::DesktopApp {
                 workspace: arcforge_ui_egui::ArchiveWorkspace::new(Some(options.archive)),
                 capture: Some(capture),
+                ..Default::default()
             }))
         }),
     );
@@ -59,7 +60,7 @@ pub(crate) fn run(options: Options) -> ExitCode {
             ExitCode::FAILURE
         }
         None => {
-            eprintln!("arcforge capture: window closed before both scenes completed");
+            eprintln!("arcforge capture: window closed before all scenes completed");
             ExitCode::FAILURE
         }
     }
@@ -73,8 +74,16 @@ enum Event {
 
 struct Shot {
     scene: Scene,
-    image: Arc<egui::ColorImage>,
+    image: Option<Arc<egui::ColorImage>>,
     metadata: Value,
+}
+
+/// Identifiers observed from the owned native NSOpenPanel, never guessed from
+/// an eframe viewport identifier. The external driver validates PID ownership.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct OpenPanel {
+    pub window_id: u32,
+    pub parent_window_id: u32,
 }
 
 enum Phase {
@@ -93,6 +102,8 @@ pub(crate) struct Session {
     event_sender: SyncSender<Event>,
     writer: SyncSender<Shot>,
     outcome: Outcome,
+    panel_window_id: Option<u32>,
+    panel_to_cancel: Option<u32>,
 }
 
 impl Session {
@@ -124,6 +135,8 @@ impl Session {
             event_sender,
             writer,
             outcome,
+            panel_window_id: None,
+            panel_to_cancel: None,
         })
     }
 
@@ -131,8 +144,17 @@ impl Session {
         &mut self,
         workspace: &mut arcforge_ui_egui::ArchiveWorkspace,
         context: &egui::Context,
+        native_window_id: Option<u32>,
+        open_panel: Option<OpenPanel>,
     ) {
         if matches!(self.phase, Phase::Finished) {
+            return;
+        }
+        if cfg!(target_os = "macos") && native_window_id.is_none() {
+            self.finish(
+                Err("the required native macOS shell did not attach".into()),
+                context,
+            );
             return;
         }
         if self.started.elapsed() > DEADLINE {
@@ -183,6 +205,49 @@ impl Session {
                 return;
             }
         };
+        #[cfg(target_os = "macos")]
+        if scene == Scene::OpenPanel {
+            let Some(panel) = open_panel else {
+                context.request_repaint_after(Duration::from_millis(25));
+                return;
+            };
+            if panel.window_id == 0
+                || panel.parent_window_id == 0
+                || panel.window_id == panel.parent_window_id
+                || Some(panel.parent_window_id) != native_window_id
+            {
+                self.finish(
+                    Err("native Open panel identifiers are invalid".into()),
+                    context,
+                );
+                return;
+            }
+            let mut metadata = scene_metadata(scene, &ready, context, native_window_id);
+            metadata["capture_kind"] = json!("native-panel-request");
+            metadata["capture_api"] =
+                json!("owned NSOpenPanel observation; external native window capture required");
+            metadata["rendered_frames_after_ready"] = json!(0);
+            metadata["native_panel"] = json!({
+                "class": "NSOpenPanel",
+                "window_id": panel.window_id,
+                "parent_window_id": panel.parent_window_id,
+            });
+            self.panel_window_id = Some(panel.window_id);
+            self.phase = Phase::Saving;
+            if let Err(error) = self.writer.try_send(Shot {
+                scene,
+                image: None,
+                metadata,
+            }) {
+                self.finish(
+                    Err(format!("native panel writer was unavailable: {error}")),
+                    context,
+                );
+            }
+            return;
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = open_panel;
         let visible = context.input(|input| {
             let viewport = input.viewport();
             viewport.minimized != Some(true) && viewport.occluded != Some(true)
@@ -206,7 +271,7 @@ impl Session {
                 context.request_repaint();
             }
             Phase::Painted(previous) if previous == &ready => {
-                let metadata = scene_metadata(scene, &ready, context);
+                let metadata = scene_metadata(scene, &ready, context, native_window_id);
                 self.phase = Phase::Saving;
                 let writer = self.writer.clone();
                 let sender = self.event_sender.clone();
@@ -214,7 +279,7 @@ impl Session {
                 context.request_screenshot(move |image| {
                     if let Err(error) = writer.try_send(Shot {
                         scene,
-                        image,
+                        image: Some(image),
                         metadata,
                     }) {
                         let _ = sender.try_send(Event::Failed(format!(
@@ -238,11 +303,21 @@ impl Session {
             *outcome = Some(result);
         }
         self.phase = Phase::Finished;
+        self.panel_to_cancel = self.panel_window_id.take();
         context.send_viewport_cmd(egui::ViewportCommand::Close);
+    }
+
+    pub(crate) fn take_panel_to_cancel(&mut self) -> Option<u32> {
+        self.panel_to_cancel.take()
     }
 }
 
-fn scene_metadata(scene: Scene, ready: &ReadyScene, context: &egui::Context) -> Value {
+fn scene_metadata(
+    scene: Scene,
+    ready: &ReadyScene,
+    context: &egui::Context,
+    native_window_id: Option<u32>,
+) -> Value {
     let viewport = context.input(|input| {
         let viewport = input.viewport();
         let rectangle = |rect: Option<egui::Rect>| {
@@ -268,11 +343,13 @@ fn scene_metadata(scene: Scene, ready: &ReadyScene, context: &egui::Context) -> 
             "variation_coordinates": face.variation_coordinates,
         })
     };
-    json!({
-        "schema_version": 1,
+    let mut value = json!({
+        "schema_version": 2,
         "scene": scene.name(),
         "capture_kind": "native-client-area",
         "native_window_chrome": false,
+        "native_shell_attached": native_window_id.is_some(),
+        "native_window_id": native_window_id,
         "capture_api": "egui::Context::request_screenshot",
         "renderer": "eframe Glow",
         "rendered_frames_after_ready": 2,
@@ -284,43 +361,38 @@ fn scene_metadata(scene: Scene, ready: &ReadyScene, context: &egui::Context) -> 
         "theme": if context.global_style().visuals.dark_mode { "dark" } else { "light" },
         "viewport": viewport,
         "fonts": {"regular": font(fonts.regular), "semibold": font(fonts.semibold)},
-        "snapshot_id": ready.snapshot_id,
-        "metadata_revision": ready.metadata_revision,
-        "selected_entry_id": ready.entry_id,
-        "selected_entry_name": ready.entry_name,
-        "preview_bytes": ready.preview_bytes,
-        "preview_crc32_verified": true,
-        "preview_image_size": ready.image_size,
-    })
+    });
+    match ready {
+        ReadyScene::Preview(preview) => {
+            value["archive_open"] = json!(true);
+            value["snapshot_id"] = json!(preview.snapshot_id);
+            value["metadata_revision"] = json!(preview.metadata_revision);
+            value["selected_entry_id"] = json!(preview.entry_id);
+            value["selected_entry_name"] = json!(preview.entry_name);
+            value["preview_bytes"] = json!(preview.preview_bytes);
+            value["preview_crc32_verified"] = json!(true);
+            value["preview_image_size"] = json!(preview.image_size);
+        }
+        ReadyScene::Empty => {
+            value["archive_open"] = json!(false);
+            value["native_picker_pending"] = json!(false);
+        }
+        #[cfg(target_os = "macos")]
+        ReadyScene::OpenPanelRequested => {
+            value["archive_open"] = json!(false);
+            value["native_picker_pending"] = json!(true);
+        }
+    }
+    value
 }
 
 fn save_shot(directory: &Path, mut shot: Shot) -> Result<(), String> {
-    let [width, height] = shot.image.size;
-    let count = width
-        .checked_mul(height)
-        .ok_or("capture dimensions overflow")?;
-    if width < 320 || height < 240 || count > MAX_PIXELS || shot.image.pixels.len() != count {
-        return Err("capture has invalid or excessive pixel dimensions".into());
+    if let Some(image) = &shot.image {
+        let dimensions = write_client_image(directory, shot.scene, image)?;
+        shot.metadata["pixel_dimensions"] = json!(dimensions);
+    } else if shot.metadata["capture_kind"] != "native-panel-request" {
+        return Err("a client capture requires renderer pixels".into());
     }
-    if shot
-        .image
-        .pixels
-        .iter()
-        .all(|pixel| *pixel == shot.image.pixels[0])
-    {
-        return Err("renderer returned a uniform image, not the prepared workspace".into());
-    }
-    // egui stores premultiplied colors; PNG requires straight alpha. This is an
-    // encoding conversion, preserving the renderer's colors and transparency.
-    let bytes: Vec<_> = shot
-        .image
-        .pixels
-        .iter()
-        .flat_map(egui::Color32::to_srgba_unmultiplied)
-        .collect();
-    let path = directory.join(format!("{}.png", shot.scene.name()));
-    write_png(&path, width as u32, height as u32, &bytes)?;
-    shot.metadata["pixel_dimensions"] = json!([width, height]);
     let metadata_path = directory.join(format!("{}.json", shot.scene.name()));
     let mut metadata = OpenOptions::new()
         .write(true)
@@ -338,8 +410,7 @@ fn save_shot(directory: &Path, mut shot: Shot) -> Result<(), String> {
         .open(directory.join(format!("{}.ready", shot.scene.name())))
         .map_err(|error| format!("publish capture readiness: {error}"))?;
 
-    // The native window stays on this exact scene while xtask optionally captures
-    // its OS chrome. Only the writer thread polls; the UI remains responsive.
+    // Only the writer waits; the actual window or native sheet remains live.
     let acknowledgement = directory.join(format!("{}.continue", shot.scene.name()));
     let started = Instant::now();
     loop {
@@ -350,12 +421,37 @@ fn save_shot(directory: &Path, mut shot: Shot) -> Result<(), String> {
             return Ok(());
         }
         if started.elapsed() > ACK_DEADLINE {
-            return Err(
-                "capture driver did not acknowledge the saved scene within 45 seconds".into(),
-            );
+            return Err("capture driver did not acknowledge the scene within 45 seconds".into());
         }
         std::thread::sleep(Duration::from_millis(50));
     }
+}
+
+fn write_client_image(
+    directory: &Path,
+    scene: Scene,
+    image: &egui::ColorImage,
+) -> Result<[usize; 2], String> {
+    let [width, height] = image.size;
+    let count = width
+        .checked_mul(height)
+        .ok_or("capture dimensions overflow")?;
+    if width < 320 || height < 240 || count > MAX_PIXELS || image.pixels.len() != count {
+        return Err("capture has invalid or excessive pixel dimensions".into());
+    }
+    if image.pixels.iter().all(|pixel| *pixel == image.pixels[0]) {
+        return Err("renderer returned a uniform image, not the prepared workspace".into());
+    }
+    // egui stores premultiplied colors; PNG requires straight alpha. This is an
+    // encoding conversion, preserving the renderer's colors and transparency.
+    let bytes: Vec<_> = image
+        .pixels
+        .iter()
+        .flat_map(egui::Color32::to_srgba_unmultiplied)
+        .collect();
+    let path = directory.join(format!("{}.png", scene.name()));
+    write_png(&path, width as u32, height as u32, &bytes)?;
+    Ok([width, height])
 }
 
 fn write_png(path: &Path, width: u32, height: u32, bytes: &[u8]) -> Result<(), String> {
@@ -386,7 +482,7 @@ mod tests {
         for image in invalid {
             let shot = Shot {
                 scene: Scene::Text,
-                image: Arc::new(image),
+                image: Some(Arc::new(image)),
                 metadata: json!({}),
             };
             assert!(save_shot(Path::new("unused-capture-directory"), shot).is_err());

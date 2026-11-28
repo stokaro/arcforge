@@ -50,7 +50,7 @@ cargo run --locked -p arcforge-cli -- preview example.zip --entry 0 --json
 cargo run --locked -p arcforge-cli -- extract example.zip --output new-output --json
 ```
 
-The desktop opens a ZIP/ZIP64 browser with selected/all extraction into a new directory. It accepts one native path at startup, a path in the Open window, or a file drop; use `-- PATH` for a startup path beginning with a dash. Search, filename interpretation, archive reads, and preview preparation run on a bounded worker outside the UI thread. The CLI implements `version`, `commands`, `doctor`, `list`, `info`, bounded `preview`, and `extract` through the shared core. `doctor` reports compiled capabilities without probing the machine or opening an archive. Planned commands still return explicit not-implemented errors. See [the ZIP contract](zip-browser.md) for limits, filename options, metadata revisions, and unsupported cases.
+The desktop opens a ZIP/ZIP64 browser with selected/all extraction into a new directory. It accepts one native path at startup, a selection in the native Open panel, or a file drop; use `-- PATH` for a startup path beginning with a dash. Search, filename interpretation, archive reads, and preview preparation run on a bounded worker outside the UI thread. The CLI implements `version`, `commands`, `doctor`, `list`, `info`, bounded `preview`, and `extract` through the shared core. `doctor` reports compiled capabilities without probing the machine or opening an archive. Planned commands still return explicit not-implemented errors. See [the ZIP contract](zip-browser.md) for limits, filename options, metadata revisions, and unsupported cases.
 
 ## Primary target matrix
 

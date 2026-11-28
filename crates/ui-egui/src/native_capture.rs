@@ -9,15 +9,27 @@ use super::{ArchiveWorkspace, EntryId, ViewMode};
 pub enum Scene {
     Text,
     Image,
+    Empty,
+    #[cfg(target_os = "macos")]
+    OpenPanel,
 }
 
 impl Scene {
-    pub const ALL: [Self; 2] = [Self::Text, Self::Image];
+    pub const ALL: &'static [Self] = &[
+        Self::Text,
+        Self::Image,
+        Self::Empty,
+        #[cfg(target_os = "macos")]
+        Self::OpenPanel,
+    ];
 
     pub fn name(self) -> &'static str {
         match self {
             Self::Text => "01-text-preview",
             Self::Image => "02-image-preview",
+            Self::Empty => "03-empty-window",
+            #[cfg(target_os = "macos")]
+            Self::OpenPanel => "04-open-panel",
         }
     }
 
@@ -25,13 +37,24 @@ impl Scene {
         match self {
             Self::Text => "Documents/Guide.txt",
             Self::Image => "Photos/Color-study.png",
+            Self::Empty => "",
+            #[cfg(target_os = "macos")]
+            Self::OpenPanel => "",
         }
     }
 }
 
 /// Observed state after the worker has returned a complete CRC-checked preview.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ReadyScene {
+pub enum ReadyScene {
+    Preview(ReadyPreview),
+    Empty,
+    #[cfg(target_os = "macos")]
+    OpenPanelRequested,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReadyPreview {
     pub snapshot_id: String,
     pub metadata_revision: String,
     pub entry_id: EntryId,
@@ -49,6 +72,33 @@ impl ArchiveWorkspace {
         scene: Scene,
         context: &egui::Context,
     ) -> Result<Option<ReadyScene>, String> {
+        if let Some(error) = self.filesystem_favorites_startup_error() {
+            return Err(error.to_owned());
+        }
+        if !self.filesystem_favorites_ready() {
+            return Ok(None);
+        }
+        if scene.entry_name().is_empty() {
+            if self.document.is_some() || self.initial_path.is_some() {
+                self.close();
+                return Ok(None);
+            }
+            if self.current.is_some() {
+                return Ok(None);
+            }
+            #[cfg(target_os = "macos")]
+            if scene == Scene::OpenPanel {
+                if !self.native_picker_pending() {
+                    self.request_open_archive();
+                    return Ok(None);
+                }
+                return Ok(Some(ReadyScene::OpenPanelRequested));
+            }
+            if self.selected.is_some() || self.preview.is_some() || self.native_picker_pending() {
+                return Err("empty capture retained a selection, preview, or active picker".into());
+            }
+            return Ok(Some(ReadyScene::Empty));
+        }
         if let Some(error) = &self.error {
             return Err(error.clone());
         }
@@ -130,14 +180,19 @@ impl ArchiveWorkspace {
                 }
                 Some(image.size)
             }
+            Scene::Empty => unreachable!("empty scenes return before archive inspection"),
+            #[cfg(target_os = "macos")]
+            Scene::OpenPanel => {
+                unreachable!("native panel scenes return before archive inspection")
+            }
         };
-        Ok(Some(ReadyScene {
+        Ok(Some(ReadyScene::Preview(ReadyPreview {
             snapshot_id: document.snapshot.id.clone(),
             metadata_revision: document.snapshot.metadata_revision.clone(),
             entry_id: entry.id,
             entry_name: entry.name.display.clone(),
             preview_bytes: preview.preview.bytes.len(),
             image_size,
-        }))
+        })))
     }
 }

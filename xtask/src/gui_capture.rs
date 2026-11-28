@@ -11,9 +11,12 @@ use sha2::{Digest, Sha256};
 
 use crate::{Options, Result};
 
-const SCENES: [(&str, &str); 2] = [
-    ("01-text-preview", "Documents/Guide.txt"),
-    ("02-image-preview", "Photos/Color-study.png"),
+const SCENES: &[(&str, Option<&str>)] = &[
+    ("01-text-preview", Some("Documents/Guide.txt")),
+    ("02-image-preview", Some("Photos/Color-study.png")),
+    ("03-empty-window", None),
+    #[cfg(target_os = "macos")]
+    ("04-open-panel", None),
 ];
 const PROCESS_DEADLINE: Duration = Duration::from_secs(150);
 const MAX_FILE_BYTES: u64 = 64 * 1024 * 1024;
@@ -84,7 +87,7 @@ pub(crate) fn run(root: &Path, options: &Options) -> Result<()> {
     write_json(&directory.join("capture-run.json"), &evidence)?;
     result?;
     println!(
-        "Captured two real native client scenes for {target}: {}",
+        "Captured native workspace and first-use scenes for {target}: {}",
         directory.display()
     );
     Ok(())
@@ -134,6 +137,7 @@ fn capture(
         "original_content": true,
     });
     let mac_helper = prepare_mac_helper(root, directory);
+    evidence["display_configuration"] = configure_mac_display(&mac_helper, directory);
     let clients = directory.join("client");
     let stdout = directory.join("app.stdout.log");
     let stderr = directory.join("app.stderr.log");
@@ -169,25 +173,46 @@ fn capture(
         if let Some((scene, entry)) = SCENES.get(captured.len())
             && clients.join(format!("{scene}.ready")).try_exists()?
         {
-            let png = clients.join(format!("{scene}.png"));
             let scene_json = clients.join(format!("{scene}.json"));
             let observed = read_json(&scene_json)?;
-            let dimensions = png_dimensions(&png)?;
-            validate_scene(&observed, scene, entry, dimensions)?;
             if observed["process_id"].as_u64() != Some(u64::from(child.0.id())) {
                 return Err(
                     "scene provenance does not belong to the launched native process".into(),
                 );
             }
-            let chrome = capture_mac_window(&mac_helper, directory, scene, child.0.id());
-            captured.push(json!({
+            let mut recorded = json!({
                 "scene": scene,
-                "client_png": format!("client/{scene}.png"),
-                "client_sha256": file_sha256(&png)?,
                 "metadata": format!("client/{scene}.json"),
                 "metadata_sha256": file_sha256(&scene_json)?,
-                "native_window": chrome,
-            }));
+            });
+            if *scene == "04-open-panel" {
+                let panel_id = validate_open_panel(&observed)?;
+                let mut panel =
+                    capture_mac_window(&mac_helper, directory, scene, child.0.id(), Some(panel_id));
+                if panel["status"] != "captured"
+                    || panel["window_id"].as_u64() != Some(u64::from(panel_id))
+                    || panel["process_id"].as_u64() != Some(u64::from(child.0.id()))
+                {
+                    recorded["native_window"] = panel;
+                    captured.push(recorded);
+                    evidence["scenes"] = json!(captured);
+                    return Err("the actual native Open panel could not be captured; inspect its native-window logs".into());
+                }
+                panel["window_role"] = json!("open-panel");
+                recorded["native_window"] = panel;
+            } else {
+                let png = clients.join(format!("{scene}.png"));
+                let dimensions = png_dimensions(&png)?;
+                validate_scene(&observed, scene, *entry, dimensions)?;
+                recorded["client_png"] = json!(format!("client/{scene}.png"));
+                recorded["client_sha256"] = json!(file_sha256(&png)?);
+                let window_id = observed["native_window_id"]
+                    .as_u64()
+                    .and_then(|id| u32::try_from(id).ok());
+                recorded["native_window"] =
+                    capture_mac_window(&mac_helper, directory, scene, child.0.id(), window_id);
+            }
+            captured.push(recorded);
             // The application advances only after the exact scene's native
             // window capture attempt has finished and its outcome is recorded.
             evidence["scenes"] = json!(captured);
@@ -204,7 +229,7 @@ fn capture(
                 );
             }
             if captured.len() != SCENES.len() {
-                return Err("native GUI exited before both validated scenes were captured".into());
+                return Err("native GUI exited before all required scenes were captured".into());
             }
             break;
         }
@@ -221,35 +246,93 @@ fn capture(
     Ok(())
 }
 
-fn validate_scene(value: &Value, scene: &str, entry: &str, dimensions: [u32; 2]) -> Result<()> {
-    if value["schema_version"] != 1
-        || value["scene"] != scene
-        || value["selected_entry_name"] != entry
+fn valid_source(value: &Value, scene: &str) -> bool {
+    value["schema_version"] == 2
+        && value["scene"] == scene
+        && value["os"] == std::env::consts::OS
+        && value["architecture"] == std::env::consts::ARCH
+}
+
+fn validate_scene(
+    value: &Value,
+    scene: &str,
+    entry: Option<&str>,
+    dimensions: [u32; 2],
+) -> Result<()> {
+    if !valid_source(value, scene)
         || value["capture_kind"] != "native-client-area"
         || value["native_window_chrome"] != false
         || value["renderer"] != "eframe Glow"
-        || value["preview_crc32_verified"] != true
         || value["rendered_frames_after_ready"] != 2
-        || value["os"] != std::env::consts::OS
-        || value["architecture"] != std::env::consts::ARCH
         || value["pixel_dimensions"] != json!(dimensions)
         || !value["pixels_per_point"]
             .as_f64()
             .is_some_and(|scale| scale.is_finite() && scale > 0.0)
-        || value["snapshot_id"].as_str().is_none_or(str::is_empty)
-        || value["metadata_revision"].as_str().is_none_or(|revision| {
-            revision.len() != 64
-                || !revision
-                    .bytes()
-                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        })
     {
         return Err(format!("invalid native scene provenance for {scene}").into());
+    }
+    if cfg!(target_os = "macos")
+        && (value["native_shell_attached"] != true
+            || value["native_window_id"]
+                .as_u64()
+                .is_none_or(|id| id == 0 || id > u64::from(u32::MAX)))
+    {
+        return Err("macOS capture did not use the required AppKit shell".into());
+    }
+    if let Some(entry) = entry {
+        if value["archive_open"] != true
+            || value["selected_entry_name"] != entry
+            || value["preview_crc32_verified"] != true
+            || value["snapshot_id"].as_str().is_none_or(str::is_empty)
+            || value["metadata_revision"].as_str().is_none_or(|revision| {
+                revision.len() != 64
+                    || !revision
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            })
+        {
+            return Err(format!("invalid archive preview provenance for {scene}").into());
+        }
+    } else if scene != "03-empty-window"
+        || value["archive_open"] != false
+        || value["native_picker_pending"] != false
+        || !value["snapshot_id"].is_null()
+        || !value["selected_entry_name"].is_null()
+    {
+        return Err("empty scene retained archive, selection, or picker state".into());
     }
     if scene == "02-image-preview" && value["preview_image_size"] != json!([960, 640]) {
         return Err("image scene did not show the fixture's decoded 960×640 PNG".into());
     }
     Ok(())
+}
+
+fn validate_open_panel(value: &Value) -> Result<u32> {
+    let panel = &value["native_panel"];
+    let window = panel["window_id"]
+        .as_u64()
+        .and_then(|id| u32::try_from(id).ok());
+    let parent = panel["parent_window_id"]
+        .as_u64()
+        .and_then(|id| u32::try_from(id).ok());
+    if !valid_source(value, "04-open-panel")
+        || value["os"] != "macos"
+        || value["capture_kind"] != "native-panel-request"
+        || value["archive_open"] != false
+        || value["native_picker_pending"] != true
+        || value["native_shell_attached"] != true
+        || value["native_window_id"].as_u64() != parent.map(u64::from)
+        || value["rendered_frames_after_ready"] != 0
+        || !value["pixel_dimensions"].is_null()
+        || !value["snapshot_id"].is_null()
+        || panel["class"] != "NSOpenPanel"
+        || window.is_none_or(|id| id == 0)
+        || parent.is_none_or(|id| id == 0)
+        || window == parent
+    {
+        return Err("native Open readiness did not identify an actual owned NSOpenPanel".into());
+    }
+    Ok(window.expect("nonzero window ID validated"))
 }
 
 fn runtime_provenance() -> Value {
@@ -265,6 +348,12 @@ fn runtime_provenance() -> Value {
         "ARCFORGE_CAPTURE_DISPLAY",
         "DISPLAY",
         "LIBGL_ALWAYS_SOFTWARE",
+        "ARCFORGE_CAPTURE_GL_DRIVER",
+        "ARCFORGE_CAPTURE_GL_SOURCE_COMMIT",
+        "ARCFORGE_CAPTURE_GL_PACKAGE_SHA256",
+        "ARCFORGE_CAPTURE_GL_LIBRARY_SHA256",
+        "ARCFORGE_CAPTURE_GL_LIBRARY_PATH",
+        "ARCFORGE_CAPTURE_GL_LICENSES",
     ]
     .into_iter()
     .filter_map(|key| {
@@ -316,7 +405,36 @@ fn prepare_mac_helper(root: &Path, directory: &Path) -> Result<PathBuf> {
     Ok(binary)
 }
 
-fn capture_mac_window(helper: &Result<PathBuf>, directory: &Path, scene: &str, pid: u32) -> Value {
+fn configure_mac_display(helper: &Result<PathBuf>, directory: &Path) -> Value {
+    if !cfg!(target_os = "macos") || std::env::var("GITHUB_ACTIONS").as_deref() != Ok("true") {
+        return json!({"status": "not-requested", "reason": "desktop mode selection is limited to macOS CI"});
+    }
+    let binary = match helper {
+        Ok(binary) => binary,
+        Err(error) => return json!({"status": "unavailable", "reason": error.to_string()}),
+    };
+    let mut command = Command::new(binary);
+    command.arg("--fit-desktop");
+    match logged_command(
+        &mut command,
+        directory,
+        "mac-display",
+        Duration::from_secs(10),
+    )
+    .and_then(|()| read_json(&directory.join("mac-display.stdout.log")))
+    {
+        Ok(report) => report,
+        Err(error) => json!({"status": "unavailable", "reason": error.to_string()}),
+    }
+}
+
+fn capture_mac_window(
+    helper: &Result<PathBuf>,
+    directory: &Path,
+    scene: &str,
+    pid: u32,
+    window_id: Option<u32>,
+) -> Value {
     let binary = match helper {
         Ok(binary) => binary,
         Err(error) => return json!({"status": "unavailable", "reason": error.to_string()}),
@@ -325,6 +443,9 @@ fn capture_mac_window(helper: &Result<PathBuf>, directory: &Path, scene: &str, p
     let png = directory.join(format!("{stem}.png"));
     let mut command = Command::new(binary);
     command.arg(pid.to_string()).arg(&png);
+    if let Some(window_id) = window_id {
+        command.arg(window_id.to_string());
+    }
     let result = logged_command(&mut command, directory, &stem, Duration::from_secs(15))
         .and_then(|()| read_json(&directory.join(format!("{stem}.stdout.log"))));
     match result {
@@ -467,7 +588,7 @@ mod tests {
 
     fn scene() -> Value {
         json!({
-            "schema_version": 1, "scene": "02-image-preview",
+            "schema_version": 2, "scene": "02-image-preview", "archive_open": true,
             "selected_entry_name": "Photos/Color-study.png",
             "capture_kind": "native-client-area", "native_window_chrome": false,
             "renderer": "eframe Glow", "preview_crc32_verified": true,
@@ -475,6 +596,8 @@ mod tests {
             "architecture": std::env::consts::ARCH, "pixel_dimensions": [1280, 800],
             "pixels_per_point": 1.0, "snapshot_id": "opened-real-fixture",
             "metadata_revision": "ab".repeat(32), "preview_image_size": [960, 640],
+            "native_shell_attached": cfg!(target_os = "macos"),
+            "native_window_id": if cfg!(target_os = "macos") { Some(12) } else { None },
         })
     }
 
@@ -504,5 +627,64 @@ mod tests {
         assert!(require_clean_source(&(Some("a".repeat(40)), false)).is_ok());
         assert!(require_clean_source(&(Some("a".repeat(40)), true)).is_err());
         assert!(require_clean_source(&(None, false)).is_err());
+    }
+
+    #[test]
+    fn empty_capture_rejects_a_retained_document_selection_or_picker() {
+        let mut empty = scene();
+        empty["scene"] = json!("03-empty-window");
+        empty["archive_open"] = json!(false);
+        empty["native_picker_pending"] = json!(false);
+        empty.as_object_mut().unwrap().remove("snapshot_id");
+        empty.as_object_mut().unwrap().remove("selected_entry_name");
+        assert!(validate_scene(&empty, "03-empty-window", None, [1280, 800]).is_ok());
+        for (key, value) in [
+            ("archive_open", json!(true)),
+            ("native_picker_pending", json!(true)),
+            ("snapshot_id", json!("a-retained-document")),
+            ("selected_entry_name", json!("Documents/Guide.txt")),
+        ] {
+            let mut invalid = empty.clone();
+            invalid[key] = value;
+            assert!(validate_scene(&invalid, "03-empty-window", None, [1280, 800]).is_err());
+        }
+    }
+
+    #[test]
+    fn a_client_frame_cannot_establish_a_native_open_panel() {
+        assert!(validate_open_panel(&scene()).is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn native_open_readiness_requires_distinct_real_window_identities() {
+        let ready = json!({
+            "schema_version": 2, "scene": "04-open-panel",
+            "os": "macos", "architecture": std::env::consts::ARCH,
+            "capture_kind": "native-panel-request", "archive_open": false,
+            "native_picker_pending": true, "rendered_frames_after_ready": 0,
+            "native_shell_attached": true, "native_window_id": 12,
+            "native_panel": {"class": "NSOpenPanel", "window_id": 14, "parent_window_id": 12},
+        });
+        assert_eq!(validate_open_panel(&ready).unwrap(), 14);
+        for value in [json!(0), json!(12), json!(u64::MAX), json!(null)] {
+            let mut invalid = ready.clone();
+            invalid["native_panel"]["window_id"] = value;
+            assert!(validate_open_panel(&invalid).is_err());
+        }
+        for (key, value) in [
+            ("native_window_id", json!(13)),
+            ("native_shell_attached", json!(false)),
+        ] {
+            let mut invalid = ready.clone();
+            invalid[key] = value;
+            assert!(validate_open_panel(&invalid).is_err());
+        }
+        let mut wrong_parent = ready.clone();
+        wrong_parent["native_panel"]["parent_window_id"] = json!(13);
+        assert!(validate_open_panel(&wrong_parent).is_err());
+        let mut reconstructed = ready;
+        reconstructed["pixel_dimensions"] = json!([1280, 800]);
+        assert!(validate_open_panel(&reconstructed).is_err());
     }
 }

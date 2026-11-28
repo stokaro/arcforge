@@ -5,7 +5,7 @@ description: "Design, implement, or review ArcForge interface and UX code: panes
 
 # Implement the reference interface
 
-Read [AGENTS.md](../../../AGENTS.md), the affected contracts, and the [reference evidence and parity inventory](../../../docs/reference/betterzip-6.md). Keep **BetterZip 6 look and feel mandatory, with macOS the primary visual target**. Preserve Windows/Linux support. Use OpenZip for unresolved details, not as an alternative theme.
+Read [AGENTS.md](../../../AGENTS.md), affected contracts, and the [reference inventory](../../../docs/reference/betterzip-6.md). **A BetterZip 6 user must recognize the original application's appearance and interaction on first use.** This is faithful recreation, not loose inspiration. macOS is the primary visual target; retain Windows/Linux support. Use OpenZip only for unresolved details.
 
 ## Resolve the design from evidence
 
@@ -17,6 +17,8 @@ Read [AGENTS.md](../../../AGENTS.md), the affected contracts, and the [reference
 ## Preserve the visual and interaction structure
 
 Keep a compact desktop workspace: integrated filename/toolbar, rounded groups of line-icon actions, archive search at the upper right, filesystem Favorites at the left, central archive Outline, and right Info/Preview. Put navigation and breadcrumbs above the contents. Use actual native window controls; integrate the macOS titlebar without painting imitation traffic lights.
+
+Use native platform UI for normal Open/Save/destination selection and macOS titlebar/toolbar behavior where the reference relies on it. A handwritten path-entry form is not the normal Open flow. Keep advanced path entry deliberate and secondary. Coordinate real window controls, toolbar baseline, materials and dragging; rounded painted buttons alone do not establish a native Mac interface. If the renderer blocks the requirement, change the presentation boundary while retaining the shared Rust core. Follow the observed empty document: places, central drop target and inspector. New BetterZip evidence supersedes an earlier OpenZip fallback; preserve documented toolbar/menu order.
 
 Compare proportions, type weights, spacing and states individually. The supplied wide-window scene has approximately **18% Favorites / 49% contents / 33% inspector**; use these as initial proportions, preserving resizing and smaller windows. Treat pixel measurements as belonging to their source image, not as known logical points when display scale is unknown. Use a genuine regular font and a genuine semibold face for headings, consistent readable icons, continuing full-height row stripes, restrained separators and full-row selection. Center the selected basename in the inspector, separate its path, align quiet labels against values, and give previews useful space. A thin fallback font, text-button toolbar or narrow debug-style inspector is an open fidelity defect.
 
@@ -33,5 +35,7 @@ Run relevant controller/core regressions for changed behavior; do not create imp
 Follow [screenshot conventions](../../../screenshots/README.md): retain real, unaltered native captures for **macOS, Windows and Linux**, with source snapshot, fixture, reproducible scenes, OS/architecture, actual window/pixel dimensions, scale/theme and limits. Readiness must follow completed loading/selection/layout, not a guessed delay. Distinguish native framebuffer/client-area captures from OS window captures including chrome; neither a Linux image with a Mac frame nor a headless reconstruction proves macOS. If a runner cannot render/capture, retain the failure and mark that platform unverified.
 
 Inspect every image against the primary reference. Report the actual result for toolbar/titlebar, typography, pane proportions, outline rows, inspector and preview separately. Treat successful build/startup checks, three-pane structure and functional extraction as insufficient visual acceptance. Do not declare macOS fidelity complete without an actual macOS image and remaining differences reviewed. Keep proprietary images external unless redistribution is specifically permitted.
+
+Include empty startup and the real Open picker in visible-flow acceptance, not only a preloaded archive. Compare matched window sizes/scales where available; retain smaller-window captures as separate coverage. An owner-rejected appearance remains a failed visual acceptance gate until the specific defects are corrected and recaptured.
 
 Update the parity inventory and PR with the behavior changed, reference used, visible evidence, tests, and remaining gaps. Apply [verification](../arcforge-verify/SKILL.md) and one coherent independent review when required. Continue authorized work without adding approval stages.

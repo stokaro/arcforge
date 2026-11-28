@@ -83,6 +83,14 @@ def main() -> None:
         raise SystemExit("Cargo.lock changed during notice generation; retry after dependency changes finish")
 
     packages = {f"{entry['package']['name']}@{entry['package']['version']}": entry["package"] for entry in report["crates"]}
+    mpl_package = packages.get("option-ext@0.2.0")
+    if mpl_package is None:
+        raise SystemExit("Review the corresponding MPL source distribution after changing option-ext")
+    mpl_lock = next((block for block in (ROOT / "Cargo.lock").read_text().split("[[package]]")
+                     if re.search(r'^name = "option-ext"$', block, re.M)), "")
+    mpl_checksum = re.search(r'^checksum = "([0-9a-f]{64})"$', mpl_lock, re.M)
+    if mpl_checksum is None or digest(LICENSES / "source/option-ext-0.2.0.crate") != mpl_checksum[1]:
+        raise SystemExit("The distributed option-ext source is not the exact locked registry package")
     source_map = json.loads((LICENSES / "upstream-sources.json").read_text(encoding="utf-8"))
     upstream: dict[str, list[dict]] = {}
     for source in source_map["sources"]:

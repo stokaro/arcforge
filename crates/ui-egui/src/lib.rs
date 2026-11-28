@@ -1,5 +1,6 @@
 //! Desktop presentation over shared archive browsing and extraction commands.
 
+mod filesystem;
 mod jobs;
 mod preview_image;
 pub mod typography;
@@ -12,8 +13,11 @@ mod tests;
 
 use std::collections::BTreeSet;
 use std::ffi::OsStr;
+use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context as TaskContext, Poll, Wake, Waker};
 
 use arcforge_core::archive::{
     ArchiveEntry, ArchiveError, CancellationToken, EntryId, EntryKind, ExtractionLimits,
@@ -21,10 +25,79 @@ use arcforge_core::archive::{
     FilenameChoice, FilenameEncoding, FilenamePolicy, NameProvenance, NameState, escape_display,
 };
 use arcforge_core::{Availability, COMMANDS, VERSION};
+use filesystem::FilesystemBrowser;
 use jobs::{
     Completed, PreparedDocument, PreparedPreview, ProgressReply, Reply, Request, Task, Ticket,
     ViewMode, ViewRow, Worker,
 };
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+
+struct PendingNativePicker {
+    generation: u64,
+    purpose: NativePickerPurpose,
+    future: Pin<Box<dyn Future<Output = Option<PathBuf>> + Send>>,
+    waker: Waker,
+}
+
+struct PickerRepaint(egui::Context);
+
+impl Wake for PickerRepaint {
+    fn wake(self: Arc<Self>) {
+        self.0.request_repaint();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.0.request_repaint();
+    }
+}
+
+/// Commands shared by a native menu/toolbar and the portable workspace.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum WorkspaceCommand {
+    OpenArchive,
+    OpenByPath,
+    OpenSettings,
+    CloseArchive,
+    ExtractAll,
+    ExtractSelected,
+    TestArchive,
+    PreviewSelected,
+    ViewOutline,
+    ViewFlat,
+    GoBack,
+    GoForward,
+    ToggleFavorites,
+    ToggleInspector,
+    FocusSearch,
+    SearchQuery(String),
+    SelectAll,
+    CancelOperation,
+    Cut,
+    Copy,
+    Paste,
+}
+
+/// Actual controller state for enabling native controls without duplicating logic.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ToolbarState {
+    pub title: String,
+    pub can_open: bool,
+    pub can_close: bool,
+    pub can_extract_all: bool,
+    pub can_extract_selected: bool,
+    pub can_test: bool,
+    pub can_preview: bool,
+    pub can_select_all: bool,
+    pub can_cancel: bool,
+    pub can_search: bool,
+    pub can_change_view: bool,
+    pub can_go_back: bool,
+    pub can_go_forward: bool,
+    pub favorites_visible: bool,
+    pub inspector_visible: bool,
+    pub outline_view: bool,
+    pub search_query: String,
+}
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum RowKey {
@@ -32,11 +105,20 @@ enum RowKey {
     Folder(String),
 }
 
-#[derive(Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 enum ExtractionScope {
     #[default]
     Selected,
     All,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum NativePickerPurpose {
+    OpenArchive,
+    ExtractionParent {
+        scope: ExtractionScope,
+        keep_name: bool,
+    },
 }
 
 #[derive(Default)]
@@ -56,8 +138,26 @@ struct ExtractionDialog {
     open: bool,
     scope: ExtractionScope,
     destination: PathBuf,
-    destination_input: String,
+    name_input: String,
     state: ExtractionState,
+}
+
+#[derive(Clone, Copy)]
+enum FavoritesRowKind {
+    Directory {
+        expanded: bool,
+        count: Option<usize>,
+    },
+    Archive,
+    Notice,
+}
+
+#[derive(Clone)]
+struct FavoritesRow {
+    path: PathBuf,
+    label: String,
+    depth: usize,
+    kind: FavoritesRowKind,
 }
 
 pub struct ArchiveWorkspace {
@@ -78,10 +178,19 @@ pub struct ArchiveWorkspace {
     navigation_index: usize,
     recent_archives: Vec<PathBuf>,
     favorites_query: String,
+    filesystem: Option<FilesystemBrowser>,
+    filesystem_initialized: bool,
+    filesystem_startup_expanded: bool,
+    filesystem_error: Option<String>,
+    expanded_places: BTreeSet<PathBuf>,
+    selected_place: Option<PathBuf>,
+    favorites_rows: Vec<FavoritesRow>,
+    favorites_content_width: f32,
     show_sidebar: bool,
     sidebar_width: f32,
     show_search: bool,
     show_settings: bool,
+    native_toolbar_attached: bool,
     style_initialized: bool,
     extraction: ExtractionDialog,
     preview: Option<PreparedPreview>,
@@ -94,7 +203,9 @@ pub struct ArchiveWorkspace {
     applied_query: String,
     applied_folder: Option<String>,
     path_input: String,
-    show_open: bool,
+    show_open_path: bool,
+    native_picker_request: Option<NativePickerPurpose>,
+    native_picker: Option<PendingNativePicker>,
     show_inspector: bool,
     show_commands: bool,
     generation: u64,
@@ -132,10 +243,19 @@ impl ArchiveWorkspace {
             navigation_index: 0,
             recent_archives: Vec::new(),
             favorites_query: String::new(),
+            filesystem: None,
+            filesystem_initialized: false,
+            filesystem_startup_expanded: false,
+            filesystem_error: None,
+            expanded_places: BTreeSet::new(),
+            selected_place: None,
+            favorites_rows: Vec::new(),
+            favorites_content_width: 0.0,
             show_sidebar: true,
             sidebar_width: 0.0,
             show_search: false,
             show_settings: false,
+            native_toolbar_attached: false,
             style_initialized: false,
             extraction: ExtractionDialog::default(),
             preview: None,
@@ -148,7 +268,9 @@ impl ArchiveWorkspace {
             applied_query: String::new(),
             applied_folder: None,
             path_input: String::new(),
-            show_open: false,
+            show_open_path: false,
+            native_picker_request: None,
+            native_picker: None,
             show_inspector: true,
             show_commands: false,
             generation: 0,
@@ -161,12 +283,349 @@ impl ArchiveWorkspace {
         }
     }
 
+    pub fn toolbar_state(&self) -> ToolbarState {
+        let idle = !self.extraction_active() && !self.native_picker_pending();
+        let has_archive = self.document.is_some();
+        let ready = has_archive && !self.blocks_selection && !self.source_changed && idle;
+        ToolbarState {
+            title: self.document.as_ref().map_or_else(
+                || "Untitled".into(),
+                |document| {
+                    bounded_display(
+                        &document
+                            .snapshot
+                            .path()
+                            .file_name()
+                            .unwrap_or(OsStr::new("Archive"))
+                            .to_string_lossy(),
+                    )
+                },
+            ),
+            can_open: idle,
+            can_close: has_archive && idle,
+            can_extract_all: ready,
+            can_extract_selected: ready && self.selection_count() > 0,
+            can_test: false,
+            can_preview: ready
+                && self
+                    .selected
+                    .and_then(|id| self.document.as_ref()?.entry(id))
+                    .is_some_and(|entry| !entry.is_directory),
+            can_select_all: has_archive && !self.blocks_selection && idle,
+            can_cancel: self.current.is_some()
+                && !self.native_picker_pending()
+                && !matches!(
+                    self.extraction.state,
+                    ExtractionState::Running {
+                        cancel_requested: true,
+                        ..
+                    }
+                ),
+            can_search: has_archive && !self.source_changed && idle,
+            can_change_view: has_archive && !self.source_changed && idle,
+            can_go_back: idle && self.navigation_index > 0,
+            can_go_forward: idle && self.navigation_index + 1 < self.navigation.len(),
+            favorites_visible: self.show_sidebar,
+            inspector_visible: self.show_inspector,
+            outline_view: self.view_mode == ViewMode::Outline,
+            search_query: self.query.clone(),
+        }
+    }
+
+    /// Opt in from a real desktop host. Rendering alone never scans local folders.
+    pub fn enable_filesystem_favorites(&mut self, context: &egui::Context) {
+        if self.filesystem_initialized {
+            return;
+        }
+        self.filesystem_initialized = true;
+        match FilesystemBrowser::new(context.clone()) {
+            Ok(browser) => self.filesystem = Some(browser),
+            Err(error) => {
+                self.filesystem_error = Some(format!("Could not load Favorites: {error}"))
+            }
+        }
+    }
+
+    /// Capture only after discovery and the one initial place scan have settled.
+    pub fn filesystem_favorites_ready(&self) -> bool {
+        self.filesystem_startup_expanded
+            && self.filesystem.as_ref().is_some_and(|browser| {
+                !browser.roots_pending()
+                    && self
+                        .expanded_places
+                        .iter()
+                        .all(|path| !browser.pending(path))
+            })
+    }
+
+    pub fn filesystem_favorites_startup_error(&self) -> Option<&str> {
+        self.filesystem
+            .is_none()
+            .then_some(self.filesystem_error.as_deref())
+            .flatten()
+    }
+
+    fn poll_filesystem_favorites(&mut self) {
+        let Some(browser) = &mut self.filesystem else {
+            return;
+        };
+        let mut changed = browser.poll();
+        if !self.filesystem_startup_expanded && !browser.roots_pending() {
+            self.filesystem_startup_expanded = true;
+            let initial = browser
+                .roots()
+                .iter()
+                .find(|place| place.label == "Downloads")
+                .or_else(|| browser.roots().first())
+                .map(|place| place.path.clone());
+            if let Some(path) = initial {
+                self.expanded_places.insert(path.clone());
+                self.selected_place = Some(path.clone());
+                if let Err(error) = browser.request(path) {
+                    self.filesystem_error = Some(error);
+                }
+            }
+            changed = true;
+        }
+        if changed {
+            self.rebuild_favorites_rows();
+        }
+    }
+
+    fn rebuild_favorites_rows(&mut self) {
+        self.favorites_rows = self.filesystem.as_ref().map_or_else(Vec::new, |browser| {
+            build_favorites_rows(browser, &self.expanded_places, &self.favorites_query)
+        });
+        self.favorites_content_width = self
+            .favorites_rows
+            .iter()
+            .map(|row| 180.0 + row.depth as f32 * 15.0)
+            .fold(0.0, f32::max);
+    }
+
+    fn toggle_place(&mut self, path: PathBuf) {
+        let Some(browser) = &mut self.filesystem else {
+            return;
+        };
+        self.selected_place = Some(path.clone());
+        if !self.expanded_places.remove(&path) {
+            if self.expanded_places.len() == 32 {
+                self.filesystem_error = Some("Close a folder before opening another.".into());
+                return;
+            }
+            // Keep expanded cached folders recent without requesting evicted ones.
+            // This lets the bounded cache evict a closed folder first.
+            for expanded in &self.expanded_places {
+                if browser.listing(expanded).is_some() || browser.pending(expanded) {
+                    let _ = browser.request(expanded.clone());
+                }
+            }
+            match browser.request(path.clone()) {
+                Ok(()) => {
+                    self.expanded_places.insert(path);
+                    self.filesystem_error = None;
+                }
+                Err(error) => self.filesystem_error = Some(error),
+            }
+        }
+        self.rebuild_favorites_rows();
+    }
+
+    fn refresh_place(&mut self, path: PathBuf) {
+        if let Some(browser) = &mut self.filesystem {
+            self.filesystem_error = browser.refresh(path).err();
+            self.rebuild_favorites_rows();
+        }
+    }
+
+    /// Hide the portable header only after the host has installed its native one.
+    pub fn set_native_toolbar_attached(&mut self, attached: bool) {
+        self.native_toolbar_attached = attached;
+    }
+
+    pub fn dispatch_command(&mut self, command: WorkspaceCommand, context: &egui::Context) {
+        match command {
+            WorkspaceCommand::OpenArchive => self.request_open_archive(),
+            WorkspaceCommand::OpenByPath if self.toolbar_state().can_open => {
+                self.show_open_path = true
+            }
+            WorkspaceCommand::OpenSettings if self.toolbar_state().can_open => {
+                self.show_settings = true
+            }
+            WorkspaceCommand::CloseArchive if !self.native_picker_pending() => self.close(),
+            WorkspaceCommand::ExtractAll => self.open_extraction(ExtractionScope::All),
+            WorkspaceCommand::ExtractSelected => self.open_extraction(ExtractionScope::Selected),
+            WorkspaceCommand::TestArchive => {
+                self.error = Some("Archive testing is not available yet.".into());
+            }
+            WorkspaceCommand::PreviewSelected if self.toolbar_state().can_preview => {
+                self.show_inspector = true;
+                self.preview_selected(context);
+            }
+            WorkspaceCommand::ViewOutline if !self.native_picker_pending() => {
+                self.set_view(ViewMode::Outline, context);
+            }
+            WorkspaceCommand::ViewFlat if !self.native_picker_pending() => {
+                self.set_view(ViewMode::Flat, context);
+            }
+            WorkspaceCommand::GoBack if self.toolbar_state().can_go_back => {
+                self.navigate_history(true, context)
+            }
+            WorkspaceCommand::GoForward if self.toolbar_state().can_go_forward => {
+                self.navigate_history(false, context)
+            }
+            WorkspaceCommand::ToggleFavorites => self.show_sidebar = !self.show_sidebar,
+            WorkspaceCommand::ToggleInspector => self.show_inspector = !self.show_inspector,
+            WorkspaceCommand::FocusSearch if !self.native_toolbar_attached => {
+                self.show_search = true;
+                context
+                    .memory_mut(|memory| memory.request_focus(egui::Id::unique("archive_search")));
+            }
+            WorkspaceCommand::SearchQuery(query)
+                if !self.extraction_active()
+                    && !self.native_picker_pending()
+                    && !self.source_changed
+                    && query != self.query =>
+            {
+                self.query = query;
+                self.filter(context);
+            }
+            WorkspaceCommand::SelectAll if context.text_edit_focused() => {
+                // The native responder chain already handled AppKit text editors.
+                // Forward Select All to an active egui path/other text field.
+                context.input_mut(|input| {
+                    input.events.push(egui::Event::Key {
+                        key: egui::Key::A,
+                        physical_key: None,
+                        pressed: true,
+                        repeat: false,
+                        modifiers: egui::Modifiers::COMMAND,
+                    })
+                });
+            }
+            WorkspaceCommand::SelectAll if !self.native_picker_pending() => {
+                self.select_all_visible()
+            }
+            WorkspaceCommand::CancelOperation if self.current.is_some() => self.cancel(),
+            WorkspaceCommand::Cut => context.send_viewport_cmd(egui::ViewportCommand::RequestCut),
+            WorkspaceCommand::Copy => context.send_viewport_cmd(egui::ViewportCommand::RequestCopy),
+            WorkspaceCommand::Paste => {
+                context.send_viewport_cmd(egui::ViewportCommand::RequestPaste)
+            }
+            _ => {}
+        }
+    }
+
+    /// Queue the same native Open action used by menus, toolbar and shortcuts.
+    /// The desktop host starts the dialog with its real parent window after `show`.
+    pub fn request_open_archive(&mut self) {
+        if self.extraction_active() || self.native_picker_pending() {
+            return;
+        }
+        self.show_open_path = false;
+        self.native_picker_request = Some(NativePickerPurpose::OpenArchive);
+    }
+
+    /// Start and poll one native file chooser on the window's UI thread.
+    /// macOS requires a running native event loop to present an asynchronous sheet.
+    pub fn service_native_picker<W: HasWindowHandle + HasDisplayHandle + ?Sized>(
+        &mut self,
+        parent: &W,
+        context: &egui::Context,
+    ) {
+        if self.native_picker.is_none()
+            && let Some(purpose) = self.native_picker_request.take()
+        {
+            if self.extraction_active() {
+                return;
+            }
+            if let Err(error) = parent
+                .window_handle()
+                .map(|_| ())
+                .and_then(|()| parent.display_handle().map(|_| ()))
+            {
+                self.error = Some(format!("Could not open the file chooser: {error}"));
+                return;
+            }
+            let mut dialog =
+                rfd::AsyncFileDialog::new()
+                    .set_parent(parent)
+                    .set_title(match purpose {
+                        NativePickerPurpose::OpenArchive => "Open archive",
+                        NativePickerPurpose::ExtractionParent { .. } => {
+                            "Choose a folder for extraction"
+                        }
+                    });
+            let archive_directory = self
+                .document
+                .as_ref()
+                .map(|document| document.snapshot.path())
+                .or_else(|| self.recent_archives.first().map(PathBuf::as_path))
+                .and_then(Path::parent);
+            let directory = match purpose {
+                NativePickerPurpose::ExtractionParent {
+                    keep_name: true, ..
+                } => self.extraction.destination.parent().or(archive_directory),
+                _ => archive_directory,
+            };
+            if let Some(directory) = directory {
+                dialog = dialog.set_directory(directory);
+            }
+            // Calling pick_file here creates the macOS sheet on the main thread.
+            // Windows/Linux native backends perform their blocking work internally.
+            let future: Pin<Box<dyn Future<Output = Option<rfd::FileHandle>> + Send>> =
+                match purpose {
+                    NativePickerPurpose::OpenArchive => Box::pin(dialog.pick_file()),
+                    NativePickerPurpose::ExtractionParent { .. } => Box::pin(dialog.pick_folder()),
+                };
+            self.native_picker = Some(PendingNativePicker {
+                generation: self.generation,
+                purpose,
+                future: Box::pin(async move { future.await.map(PathBuf::from) }),
+                waker: Waker::from(Arc::new(PickerRepaint(context.clone()))),
+            });
+        }
+        self.poll_native_picker(context);
+    }
+
+    fn native_picker_pending(&self) -> bool {
+        self.native_picker_request.is_some() || self.native_picker.is_some()
+    }
+
+    fn poll_native_picker(&mut self, context: &egui::Context) {
+        let completed = self.native_picker.as_mut().and_then(|pending| {
+            let mut task_context = TaskContext::from_waker(&pending.waker);
+            match pending.future.as_mut().poll(&mut task_context) {
+                Poll::Pending => None,
+                Poll::Ready(path) => Some((pending.generation, pending.purpose, path)),
+            }
+        });
+        if let Some((generation, purpose, path)) = completed {
+            self.native_picker = None;
+            // A later drop/open/close takes precedence over an older chooser.
+            // Cancellation (and backend failures exposed by rfd as None) leaves
+            // the existing document, selection, preview and worker untouched.
+            if generation == self.generation
+                && !self.extraction_active()
+                && let Some(path) = path
+            {
+                match purpose {
+                    NativePickerPurpose::OpenArchive => self.open(path, context),
+                    NativePickerPurpose::ExtractionParent { scope, keep_name } => {
+                        self.review_extraction_parent(scope, path, keep_name);
+                    }
+                }
+            }
+        }
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui) {
         if !self.style_initialized {
             configure_style(ui.ctx());
             self.style_initialized = true;
         }
         self.poll();
+        self.poll_filesystem_favorites();
         if let Some(path) = self.initial_path.take() {
             self.open(path, ui.ctx());
         }
@@ -185,12 +644,13 @@ impl ArchiveWorkspace {
         if !self.extraction_active()
             && ui.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::O))
         {
-            self.show_open = true;
+            self.request_open_archive();
         }
         if ui.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::B)) {
             self.show_sidebar = !self.show_sidebar;
         }
-        if !self.extraction_active()
+        if !self.native_toolbar_attached
+            && !self.extraction_active()
             && ui.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::F))
         {
             self.show_search = true;
@@ -198,7 +658,8 @@ impl ArchiveWorkspace {
         }
         if !self.extraction_active()
             && !ui.ctx().text_edit_focused()
-            && !self.show_open
+            && !self.show_open_path
+            && !self.native_picker_pending()
             && !self.extraction.open
         {
             if ui.input_mut(|input| input.consume_key(egui::Modifiers::COMMAND, egui::Key::A)) {
@@ -213,19 +674,23 @@ impl ArchiveWorkspace {
                 }
             }
         }
-        if ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+        if !self.native_picker_pending()
+            && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
+        {
             if self.extraction_active() {
                 self.cancel();
             } else if self.extraction.open {
                 self.extraction.open = false;
-            } else if self.show_open {
-                self.show_open = false;
+            } else if self.show_open_path {
+                self.show_open_path = false;
             } else if self.current.is_some() {
                 self.cancel();
             }
         }
         let workspace_width = ui.available_width();
-        self.toolbar(ui);
+        if !self.native_toolbar_attached {
+            self.toolbar(ui);
+        }
         self.status_bar(ui);
         if self.show_sidebar {
             self.favorites(ui, workspace_width);
@@ -234,7 +699,7 @@ impl ArchiveWorkspace {
             self.inspector(ui, workspace_width);
         }
         self.entries(ui);
-        self.open_window(ui.ctx());
+        self.open_path_window(ui.ctx());
         self.extraction_window(ui.ctx());
         self.settings_window(ui.ctx());
         self.commands_window(ui.ctx());
@@ -470,6 +935,7 @@ impl ArchiveWorkspace {
         if !self.next_generation() {
             return;
         }
+        self.native_picker_request = None;
         self.document = None;
         self.rows.clear();
         self.selected = None;
@@ -508,6 +974,7 @@ impl ArchiveWorkspace {
             return;
         }
         self.next_generation();
+        self.native_picker_request = None;
         self.document = None;
         self.rows.clear();
         self.selected = None;
@@ -677,37 +1144,78 @@ impl ArchiveWorkspace {
     }
 
     fn open_extraction(&mut self, scope: ExtractionScope) {
-        if self.extraction_active() || self.blocks_selection || self.source_changed {
+        self.request_extraction_parent(scope, false);
+    }
+
+    fn request_extraction_parent(&mut self, scope: ExtractionScope, keep_name: bool) {
+        if self.extraction_active()
+            || self.blocks_selection
+            || self.source_changed
+            || self.native_picker_pending()
+        {
             return;
         }
-        let Some(document) = &self.document else {
+        if self.document.is_none() {
             return;
-        };
+        }
         if self.selected_entries.is_empty()
             && self.selected_folders.is_empty()
             && let Some(entry) = self.selected
         {
             self.selected_entries.insert(entry);
         }
-        let destination = default_extraction_destination(document.snapshot.path());
+        if scope == ExtractionScope::Selected && self.selection_count() == 0 {
+            return;
+        }
+        self.native_picker_request =
+            Some(NativePickerPurpose::ExtractionParent { scope, keep_name });
+    }
+
+    fn review_extraction_parent(
+        &mut self,
+        scope: ExtractionScope,
+        parent: PathBuf,
+        keep_name: bool,
+    ) {
+        let Some(document) = &self.document else {
+            return;
+        };
+        let default = default_extraction_destination(document.snapshot.path());
+        let name = if keep_name {
+            self.extraction
+                .destination
+                .file_name()
+                .or_else(|| default.file_name())
+        } else {
+            default.file_name()
+        }
+        .unwrap_or(OsStr::new("Archive-extracted"))
+        .to_os_string();
+        let destination = parent.join(&name);
         self.extraction = ExtractionDialog {
             open: true,
             scope,
-            destination_input: destination.to_string_lossy().into_owned(),
+            name_input: name.to_string_lossy().into_owned(),
             destination,
             state: ExtractionState::Editing,
         };
     }
 
     fn start_extraction(&mut self, context: &egui::Context) {
-        if self.extraction_active() || self.blocks_selection || self.source_changed {
+        if self.extraction_active()
+            || self.blocks_selection
+            || self.source_changed
+            || self.native_picker_pending()
+        {
             return;
         }
         let Some(document) = self.document.clone() else {
             return;
         };
-        if self.extraction.destination.as_os_str().is_empty() {
-            self.error = Some("Enter the full path of a new destination directory.".into());
+        if self.extraction.destination.as_os_str().is_empty()
+            || !valid_new_folder_name(&self.extraction.name_input)
+        {
+            self.error = Some("Enter a name for the new folder.".into());
             return;
         }
         let selection = match self.extraction.scope {
@@ -792,7 +1300,7 @@ impl ArchiveWorkspace {
     }
 
     fn select_row(&mut self, index: usize, modifiers: egui::Modifiers) {
-        if self.blocks_selection || self.extraction_active() {
+        if self.blocks_selection || self.extraction_active() || self.native_picker_pending() {
             return;
         }
         let Some(document) = self.document.clone() else {
@@ -839,7 +1347,7 @@ impl ArchiveWorkspace {
     }
 
     fn select_all_visible(&mut self) {
-        if self.blocks_selection || self.extraction_active() {
+        if self.blocks_selection || self.extraction_active() || self.native_picker_pending() {
             return;
         }
         let Some(document) = self.document.clone() else {
@@ -902,8 +1410,69 @@ impl ArchiveWorkspace {
         }
     }
 
+    fn empty_workspace(&mut self, ui: &mut egui::Ui) {
+        ui.add_space(((ui.available_height() - 235.0) / 2.0).max(24.0));
+        ui.vertical_centered(|ui| {
+            if self.current.is_some() {
+                ui.spinner();
+                ui.add_space(12.0);
+                ui.label(egui::RichText::new("Opening archive…").font(typography::semibold(20.0)));
+                return;
+            }
+            let size = ui.available_width().min(132.0);
+            let (target, _) = ui.allocate_exact_size(egui::vec2(size, size), egui::Sense::hover());
+            let highlight = ui.input(|input| !input.raw.hovered_files.is_empty());
+            let color = if highlight {
+                selection_color()
+            } else {
+                quiet_color(ui)
+            };
+            let mut outline = Vec::with_capacity(25);
+            let radius = 10.0;
+            for (center, first_angle) in [
+                (
+                    target.left_top() + egui::vec2(radius, radius),
+                    std::f32::consts::PI,
+                ),
+                (
+                    target.right_top() + egui::vec2(-radius, radius),
+                    -std::f32::consts::FRAC_PI_2,
+                ),
+                (target.right_bottom() - egui::vec2(radius, radius), 0.0),
+                (
+                    target.left_bottom() + egui::vec2(radius, -radius),
+                    std::f32::consts::FRAC_PI_2,
+                ),
+            ] {
+                for step in 0..=5 {
+                    let angle = first_angle + step as f32 * std::f32::consts::FRAC_PI_2 / 5.0;
+                    outline.push(center + egui::vec2(angle.cos(), angle.sin()) * radius);
+                }
+            }
+            outline.push(outline[0]);
+            ui.painter().extend(egui::Shape::dashed_line(
+                &outline,
+                egui::Stroke::new(1.2, color),
+                7.0,
+                4.0,
+            ));
+            ui.add_space(12.0);
+            ui.label(egui::RichText::new("Drop an archive here to open").color(quiet_color(ui)));
+            ui.add_space(16.0);
+            if ui
+                .add_enabled(
+                    !self.native_picker_pending(),
+                    egui::Button::new("Open archive…").min_size(egui::vec2(150.0, 32.0)),
+                )
+                .clicked()
+            {
+                self.request_open_archive();
+            }
+        });
+    }
+
     fn toolbar(&mut self, ui: &mut egui::Ui) {
-        let idle = !self.extraction_active();
+        let idle = !self.extraction_active() && !self.native_picker_pending();
         let ready =
             self.document.is_some() && !self.blocks_selection && !self.source_changed && idle;
         let title = self
@@ -918,7 +1487,7 @@ impl ArchiveWorkspace {
                     .to_string_lossy()
                     .into_owned()
             })
-            .unwrap_or_else(|| "ArcForge".into());
+            .unwrap_or_else(|| "Untitled".into());
         egui::Panel::top("toolbar")
             .frame(
                 egui::Frame::NONE
@@ -928,6 +1497,7 @@ impl ArchiveWorkspace {
             .show(ui, |ui| {
                 let width = ui.available_width();
                 let wide = width >= 1100.0;
+                let full = width >= 1560.0;
                 let native_inset = if cfg!(target_os = "macos") { 80.0 } else { 0.0 };
                 let sidebar_span = if self.show_sidebar {
                     if self.sidebar_width > 0.0 {
@@ -939,8 +1509,13 @@ impl ArchiveWorkspace {
                     native_inset + 42.0
                 };
                 let searching = self.show_search || !self.query.is_empty();
-                let controls_width =
-                    if wide { 600.0 } else { 440.0 } + if searching { 170.0 } else { 0.0 };
+                let controls_width = if full {
+                    760.0
+                } else if wide {
+                    610.0
+                } else {
+                    450.0
+                } + if searching { 170.0 } else { 0.0 };
                 let title_width = (width - sidebar_span - controls_width).clamp(110.0, 340.0);
                 ui.horizontal(|ui| {
                     ui.allocate_ui_with_layout(
@@ -988,46 +1563,24 @@ impl ArchiveWorkspace {
                     }
                     drag.on_hover_text(bounded_display(&title));
                     toolbar_group(ui, |ui| {
-                        if toolbar_icon(
-                            ui,
-                            LineIcon::Open,
-                            "Open archive… (Ctrl/Cmd+O)",
-                            idle,
-                            false,
-                        )
-                        .clicked()
-                        {
-                            self.show_open = true;
-                        }
-                        if wide {
-                            toolbar_icon(ui, LineIcon::Save, "Save — planned", false, false);
-                        }
-                        toolbar_menu(ui, LineIcon::Outline, "View options", idle, |ui| {
-                            self.view_menu(ui)
+                        toolbar_menu(ui, LineIcon::Extract, "Extract", ready, |ui| {
+                            self.extract_menu(ui)
                         });
+                        toolbar_icon(ui, LineIcon::Save, "Save — planned", false, false);
+                        toolbar_icon(ui, LineIcon::Check, "Test — planned", false, false);
                         if wide {
-                            toolbar_icon(
-                                ui,
-                                LineIcon::Check,
-                                "Test archive — planned",
-                                false,
-                                false,
-                            );
+                            toolbar_icon(ui, LineIcon::Move, "Move — planned", false, false);
                         }
                     });
                     toolbar_group(ui, |ui| {
-                        toolbar_menu(
-                            ui,
-                            LineIcon::Extract,
-                            "Extract selected items or all entries…",
-                            ready,
-                            |ui| self.extract_menu(ui),
-                        );
+                        if wide {
+                            toolbar_icon(ui, LineIcon::Add, "Add — planned", false, false);
+                        }
                         if toolbar_icon(
                             ui,
                             LineIcon::Preview,
-                            "Preview selected item",
-                            ready && self.selected.is_some(),
+                            "View selected item",
+                            self.toolbar_state().can_preview,
                             false,
                         )
                         .clicked()
@@ -1037,9 +1590,30 @@ impl ArchiveWorkspace {
                         }
                         if wide {
                             toolbar_icon(ui, LineIcon::Delete, "Delete — planned", false, false);
-                            toolbar_icon(ui, LineIcon::Add, "Add files — planned", false, false);
+                            toolbar_icon(
+                                ui,
+                                LineIcon::NewFolder,
+                                "New Folder — planned",
+                                false,
+                                false,
+                            );
                         }
                     });
+                    if full {
+                        toolbar_group(ui, |ui| {
+                            toolbar_icon(ui, LineIcon::Collect, "Collect — planned", false, false);
+                            toolbar_icon(
+                                ui,
+                                LineIcon::DirectMode,
+                                "Direct Mode — planned",
+                                false,
+                                false,
+                            );
+                        });
+                        toolbar_group(ui, |ui| {
+                            toolbar_icon(ui, LineIcon::Share, "Share — planned", false, false);
+                        });
+                    }
                     toolbar_group(ui, |ui| {
                         toolbar_menu(
                             ui,
@@ -1139,14 +1713,36 @@ impl ArchiveWorkspace {
     }
 
     fn archive_menu(&mut self, ui: &mut egui::Ui) {
-        let idle = !self.extraction_active();
+        let idle = !self.extraction_active() && !self.native_picker_pending();
         if ui
             .add_enabled(idle, egui::Button::new("Open archive…"))
             .clicked()
         {
-            self.show_open = true;
+            self.request_open_archive();
             ui.close();
         }
+        ui.add_enabled_ui(idle && !self.recent_archives.is_empty(), |ui| {
+            ui.menu_button("Open Recent", |ui| {
+                let mut open = None;
+                for path in &self.recent_archives {
+                    let name = path
+                        .file_name()
+                        .unwrap_or(path.as_os_str())
+                        .to_string_lossy();
+                    if ui
+                        .button(bounded_display(&name))
+                        .on_hover_text(escape_display(&path.to_string_lossy()))
+                        .clicked()
+                    {
+                        open = Some(path.clone());
+                        ui.close();
+                    }
+                }
+                if let Some(path) = open {
+                    self.open(path, ui.ctx());
+                }
+            });
+        });
         if ui
             .add_enabled(
                 self.document.is_some() && idle,
@@ -1170,14 +1766,38 @@ impl ArchiveWorkspace {
             ui.close();
         }
         ui.separator();
-        for label in ["Save", "Delete", "Add files…", "Test archive"] {
+        ui.menu_button("View", |ui| self.view_menu(ui));
+        ui.separator();
+        for label in [
+            "Save",
+            "Test",
+            "Move",
+            "Add files…",
+            "Delete",
+            "New Folder",
+            "Collect",
+            "Direct Mode",
+            "Share",
+        ] {
             disabled_action(ui, label);
         }
         ui.separator();
-        if ui.button("Settings…").clicked() {
-            self.show_settings = true;
+        if ui
+            .add_enabled(idle, egui::Button::new("Settings…"))
+            .clicked()
+        {
+            self.dispatch_command(WorkspaceCommand::OpenSettings, ui.ctx());
             ui.close();
         }
+        ui.menu_button("Advanced", |ui| {
+            if ui
+                .add_enabled(idle, egui::Button::new("Open by path…"))
+                .clicked()
+            {
+                self.show_open_path = true;
+                ui.close();
+            }
+        });
         if ui.button("Command availability…").clicked() {
             self.show_commands = true;
             ui.close();
@@ -1234,6 +1854,7 @@ impl ArchiveWorkspace {
             .document
             .as_ref()
             .map(|document| document.snapshot.path().to_path_buf());
+        let can_open = !self.extraction_active() && !self.native_picker_pending();
         let panel = egui::Panel::left("favorites")
             .default_size(workspace_width * 0.18)
             .min_size(160.0)
@@ -1248,12 +1869,32 @@ impl ArchiveWorkspace {
                             .inner_margin(egui::Margin::symmetric(0, 6)),
                     )
                     .show(ui, |ui| {
-                        ui.add(
-                            egui::TextEdit::singleline(&mut self.favorites_query)
-                                .hint_text("Search Favorites")
-                                .font(typography::regular(13.0))
-                                .desired_width(f32::INFINITY),
-                        );
+                        ui.horizontal(|ui| {
+                            let available = (ui.available_width() - 38.0).max(70.0);
+                            if ui
+                                .add(
+                                    egui::TextEdit::singleline(&mut self.favorites_query)
+                                        .hint_text("Search Favorites")
+                                        .font(typography::regular(13.0))
+                                        .desired_width(available),
+                                )
+                                .changed()
+                            {
+                                self.rebuild_favorites_rows();
+                            }
+                            if icon_button(
+                                ui,
+                                LineIcon::Refresh,
+                                "Refresh folder",
+                                self.selected_place.is_some(),
+                                false,
+                            )
+                            .clicked()
+                                && let Some(path) = self.selected_place.clone()
+                            {
+                                self.refresh_place(path);
+                            }
+                        });
                     });
                 ui.add_space(6.0);
                 ui.label(
@@ -1262,67 +1903,171 @@ impl ArchiveWorkspace {
                         .color(quiet_color(ui)),
                 );
                 ui.add_space(8.0);
-                if self.recent_archives.is_empty() {
-                    ui.weak("Opened archives appear here.");
+                if let Some(error) = self.filesystem_error.as_deref().or_else(|| {
+                    self.filesystem
+                        .as_ref()
+                        .and_then(FilesystemBrowser::roots_error)
+                }) {
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(bounded_display(error))
+                                .color(ui.visuals().error_fg_color),
+                        )
+                        .wrap(),
+                    );
                 }
-                let query = self.favorites_query.to_lowercase();
+                if self
+                    .filesystem
+                    .as_ref()
+                    .is_some_and(FilesystemBrowser::roots_pending)
+                {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.weak("Loading Favorites…");
+                    });
+                }
+                let mut toggle = None;
                 let mut open = None;
-                egui::ScrollArea::vertical()
-                    .id_salt("favorite_archives")
-                    .show(ui, |ui| {
-                        ui.add_enabled_ui(!self.extraction_active(), |ui| {
-                            for path in &self.recent_archives {
-                                let title = path
-                                    .file_name()
-                                    .unwrap_or(path.as_os_str())
-                                    .to_string_lossy();
-                                if !path.to_string_lossy().to_lowercase().contains(&query) {
-                                    continue;
+                let mut refresh = None;
+                ui.spacing_mut().item_spacing.y = 0.0;
+                egui::ScrollArea::both()
+                    .id_salt("filesystem_favorites")
+                    .auto_shrink([false, false])
+                    .show_rows(ui, 29.0, self.favorites_rows.len(), |ui, range| {
+                        ui.set_min_width(self.favorites_content_width.max(ui.available_width()));
+                        for index in range {
+                            let row = &self.favorites_rows[index];
+                            let (rect, response) = ui.allocate_exact_size(
+                                egui::vec2(ui.available_width(), 29.0),
+                                egui::Sense::click(),
+                            );
+                            let selected = match row.kind {
+                                FavoritesRowKind::Archive => current.as_ref() == Some(&row.path),
+                                FavoritesRowKind::Directory { .. } => {
+                                    self.selected_place.as_ref() == Some(&row.path)
                                 }
-                                let selected = current.as_ref() == Some(path);
-                                let (rect, response) = ui.allocate_exact_size(
-                                    egui::vec2(ui.available_width(), 31.0),
-                                    egui::Sense::click(),
-                                );
-                                if selected {
-                                    ui.painter()
-                                        .rect_filled(rect, 6, sidebar_selection_color(ui));
+                                FavoritesRowKind::Notice => false,
+                            };
+                            if selected {
+                                ui.painter()
+                                    .rect_filled(rect, 6, sidebar_selection_color(ui));
+                            }
+                            let left = rect.left() + row.depth as f32 * 15.0;
+                            let mut label_right = rect.right() - 3.0;
+                            let enabled = !self.native_picker_pending()
+                                && (!matches!(row.kind, FavoritesRowKind::Archive) || can_open);
+                            let color = if matches!(row.kind, FavoritesRowKind::Notice) || !enabled
+                            {
+                                quiet_color(ui)
+                            } else {
+                                ui.visuals().text_color()
+                            };
+                            match row.kind {
+                                FavoritesRowKind::Directory { expanded, count } => {
+                                    paint_disclosure(
+                                        ui.painter(),
+                                        egui::Rect::from_min_size(
+                                            egui::pos2(left, rect.center().y - 9.0),
+                                            egui::vec2(18.0, 18.0),
+                                        ),
+                                        expanded,
+                                        color,
+                                    );
+                                    paint_folder_icon(
+                                        ui.painter(),
+                                        egui::Rect::from_min_size(
+                                            egui::pos2(left + 18.0, rect.center().y - 11.0),
+                                            egui::vec2(22.0, 22.0),
+                                        ),
+                                    );
+                                    if let Some(count) = count {
+                                        let badge = egui::Rect::from_min_size(
+                                            egui::pos2(rect.right() - 36.0, rect.center().y - 9.0),
+                                            egui::vec2(33.0, 18.0),
+                                        );
+                                        ui.painter().rect_filled(
+                                            badge,
+                                            9,
+                                            egui::Color32::from_rgb(166, 184, 210),
+                                        );
+                                        ui.painter().text(
+                                            badge.center(),
+                                            egui::Align2::CENTER_CENTER,
+                                            count.to_string(),
+                                            typography::semibold(12.0),
+                                            egui::Color32::WHITE,
+                                        );
+                                        label_right = badge.left() - 3.0;
+                                    }
                                 }
-                                paint_archive_icon(
+                                FavoritesRowKind::Archive => paint_archive_icon(
                                     ui.painter(),
                                     egui::Rect::from_min_size(
-                                        rect.left_center() + egui::vec2(5.0, -10.0),
-                                        egui::vec2(19.0, 20.0),
+                                        egui::pos2(left + 18.0, rect.center().y - 10.0),
+                                        egui::vec2(20.0, 20.0),
                                     ),
                                     false,
-                                );
-                                let label_rect = rect.with_min_x(rect.left() + 31.0);
-                                paint_cell(
-                                    ui,
-                                    label_rect,
-                                    &bounded_display(&title),
-                                    ui.visuals().text_color(),
-                                    false,
-                                );
-                                response.widget_info(|| {
-                                    egui::WidgetInfo::selected(
-                                        egui::Role::ListBoxOption,
-                                        ui.is_enabled(),
-                                        selected,
-                                        title.as_ref(),
+                                ),
+                                FavoritesRowKind::Notice => {}
+                            }
+                            let label_left = left
+                                + if matches!(row.kind, FavoritesRowKind::Notice) {
+                                    18.0
+                                } else {
+                                    44.0
+                                };
+                            let text_rect = egui::Rect::from_min_max(
+                                egui::pos2(label_left, rect.top()),
+                                egui::pos2(label_right.max(label_left), rect.bottom()),
+                            );
+                            paint_cell(ui, text_rect, &bounded_display(&row.label), color, false);
+                            response.widget_info(|| {
+                                egui::WidgetInfo::selected(
+                                    egui::Role::ListBoxOption,
+                                    enabled,
+                                    selected,
+                                    row.label.as_str(),
+                                )
+                            });
+                            let tip = match row.kind {
+                                FavoritesRowKind::Directory {
+                                    count: Some(count), ..
+                                } => {
+                                    format!(
+                                        "{}\n{count} ZIP archives in this folder",
+                                        escape_display(&row.path.to_string_lossy())
                                     )
-                                });
-                                if response
-                                    .on_hover_text(escape_display(&path.to_string_lossy()))
-                                    .clicked()
-                                    && !selected
-                                {
-                                    open = Some(path.clone());
+                                }
+                                FavoritesRowKind::Notice => format!(
+                                    "{}\nClick to refresh this folder.",
+                                    escape_display(&row.label)
+                                ),
+                                _ => escape_display(&row.path.to_string_lossy()),
+                            };
+                            if response.on_hover_text(tip).clicked() && enabled {
+                                match row.kind {
+                                    FavoritesRowKind::Directory { .. } => {
+                                        toggle = Some(row.path.clone())
+                                    }
+                                    FavoritesRowKind::Archive
+                                        if current.as_ref() != Some(&row.path) =>
+                                    {
+                                        open = Some(row.path.clone())
+                                    }
+                                    FavoritesRowKind::Notice => refresh = Some(row.path.clone()),
+                                    _ => {}
                                 }
                             }
-                        });
+                        }
                     });
+                if let Some(path) = toggle {
+                    self.toggle_place(path);
+                }
+                if let Some(path) = refresh {
+                    self.refresh_place(path);
+                }
                 if let Some(path) = open {
+                    self.selected_place = path.parent().map(Path::to_path_buf);
                     self.open(path, ui.ctx());
                 }
             });
@@ -1387,17 +2132,7 @@ impl ArchiveWorkspace {
         let document = self.document.clone();
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(content_color(ui)).inner_margin(6)).show(ui, |ui| {
             let Some(document) = document else {
-                ui.add_space(90.0);
-                ui.vertical_centered(|ui| {
-                    ui.heading("No archive open");
-                    ui.add_space(10.0);
-                    ui.label("Open a ZIP archive or drop one into this window.");
-                    ui.weak("Browse, preview, and extract into a new directory.");
-                    ui.add_space(12.0);
-                    if ui.button("Open archive…").clicked() {
-                        self.show_open = true;
-                    }
-                });
+                self.empty_workspace(ui);
                 return;
             };
             self.navigation_bar(ui, &document);
@@ -1516,8 +2251,16 @@ impl ArchiveWorkspace {
             .frame(egui::Frame::NONE.fill(content_color(ui)))
             .show(ui, |ui| {
                 let Some(document) = document else {
-                    ui.add_space(35.0);
-                    centered_heading(ui, "No item selected");
+                    egui::Panel::top("empty_inspector_properties")
+                        .exact_size(190.0)
+                        .frame(egui::Frame::NONE.fill(content_color(ui)).inner_margin(egui::Margin::symmetric(18, 20)))
+                        .show(ui, |ui| {
+                            centered_heading(ui, "No files selected");
+                            ui.add_space(18.0);
+                            for label in ["Path", "Kind", "Size", "Modified"] {
+                                inspector_property(ui, label, "");
+                            }
+                        });
                     return;
                 };
                 let height = ui.available_height();
@@ -1821,23 +2564,22 @@ impl ArchiveWorkspace {
             );
     }
 
-    fn open_window(&mut self, context: &egui::Context) {
-        if !self.show_open {
+    fn open_path_window(&mut self, context: &egui::Context) {
+        if !self.show_open_path {
             return;
         }
         let mut visible = true;
         let mut open = false;
-        egui::Window::new("Open ZIP")
+        egui::Window::new("Open by path")
             .open(&mut visible)
             .collapsible(false)
             .default_width(480.0)
+            .auto_sized()
             .show(context, |ui| {
+                ui.set_width(480.0);
                 ui.label("Archive path:");
                 let field = ui.add(
                     egui::TextEdit::singleline(&mut self.path_input).desired_width(f32::INFINITY),
-                );
-                ui.small(
-                    "You can also drop one file into the workspace or pass its path at launch.",
                 );
                 open = ui
                     .add_enabled(!self.path_input.is_empty(), egui::Button::new("Open"))
@@ -1846,7 +2588,7 @@ impl ArchiveWorkspace {
                         && ui.input(|input| input.key_pressed(egui::Key::Enter))
                         && !self.path_input.is_empty());
             });
-        self.show_open = visible && !open;
+        self.show_open_path = visible && !open;
         if open {
             self.open(PathBuf::from(&self.path_input), context);
         }
@@ -1868,6 +2610,7 @@ impl ArchiveWorkspace {
         let mut cancel = false;
         let mut edit = false;
         let mut dismiss = false;
+        let mut change_parent = false;
         let mut window = egui::Window::new("Extract")
             .id(egui::Id::unique("extraction_sheet"))
             .anchor(egui::Align2::CENTER_TOP, [0.0, 100.0])
@@ -1880,6 +2623,9 @@ impl ArchiveWorkspace {
             // Fix the width for readable wrapping, while the height follows
             // the current form/progress/result rather than Window's 420px default.
             ui.set_width(500.0);
+            if self.native_picker_pending() {
+                ui.disable();
+            }
             match &self.extraction.state {
                 ExtractionState::Editing => {
                     ui.heading(match self.extraction.scope {
@@ -1896,15 +2642,27 @@ impl ArchiveWorkspace {
                     });
                     ui.small("Selected folders include their descendants. Paths inside the archive are preserved.");
                     ui.add_space(12.0);
-                    ui.label("To — new directory");
-                    let field = ui.add(egui::TextEdit::singleline(&mut self.extraction.destination_input)
+                    let parent = self.extraction.destination.parent().unwrap_or(Path::new("")).to_path_buf();
+                    ui.horizontal(|ui| {
+                        ui.label("Where");
+                        let width = (ui.available_width() - 95.0).max(60.0);
+                        ui.add_sized(egui::vec2(width, 24.0), egui::Label::new(bounded_display(&parent.to_string_lossy())).truncate())
+                            .on_hover_text(escape_display(&parent.to_string_lossy()));
+                        change_parent = ui.button("Choose…").clicked();
+                    });
+                    ui.add_space(6.0);
+                    ui.label("New folder");
+                    let field = ui.add(egui::TextEdit::singleline(&mut self.extraction.name_input)
                         .desired_width(f32::INFINITY)
-                        .hint_text("Full path of a new directory"));
-                    if field.changed() {
-                        self.extraction.destination = PathBuf::from(&self.extraction.destination_input);
+                        .hint_text("Folder name"));
+                    let name_valid = valid_new_folder_name(&self.extraction.name_input);
+                    if field.changed() && name_valid {
+                        self.extraction.destination = parent.join(&self.extraction.name_input);
                     }
-                    if self.extraction.destination.to_str().is_none() {
-                        ui.small("The native path is preserved. Editing this display replaces it with the entered Unicode path.");
+                    if !name_valid {
+                        ui.colored_label(ui.visuals().error_fg_color, "Use one folder name without / or \\, other than . or ..");
+                    } else if self.extraction.destination.file_name().is_some_and(|name| name.to_str().is_none()) {
+                        ui.small("Editing the name replaces characters that cannot be displayed.");
                     }
                     ui.add_space(8.0);
                     ui.label("The destination must not exist. Its parent must already exist.");
@@ -1923,7 +2681,7 @@ impl ArchiveWorkspace {
                         });
                     });
                     ui.add_space(10.0);
-                    let allowed = !self.extraction.destination.as_os_str().is_empty()
+                    let allowed = name_valid && !self.extraction.destination.as_os_str().is_empty()
                         && (self.extraction.scope == ExtractionScope::All || selected > 0)
                         && !self.blocks_selection && !self.source_changed;
                     dialog_actions(ui, |ui| {
@@ -2026,6 +2784,9 @@ impl ArchiveWorkspace {
         if edit {
             self.extraction.state = ExtractionState::Editing;
         }
+        if change_parent {
+            self.request_extraction_parent(self.extraction.scope, true);
+        }
         if start {
             self.start_extraction(context);
         }
@@ -2087,6 +2848,110 @@ impl ArchiveWorkspace {
                     });
             });
     }
+}
+
+fn build_favorites_rows(
+    browser: &FilesystemBrowser,
+    expanded: &BTreeSet<PathBuf>,
+    query: &str,
+) -> Vec<FavoritesRow> {
+    // At most 32 expanded, bounded 512-entry listings plus their status rows.
+    const MAX_ROWS: usize = 32 * 514 + 8;
+    fn append_directory(
+        rows: &mut Vec<FavoritesRow>,
+        browser: &FilesystemBrowser,
+        expanded: &BTreeSet<PathBuf>,
+        path: &Path,
+        label: &str,
+        depth: usize,
+    ) {
+        if rows.len() >= MAX_ROWS || depth > 32 {
+            return;
+        }
+        let listing = browser.listing(path);
+        let is_expanded = expanded.contains(path);
+        rows.push(FavoritesRow {
+            path: path.to_path_buf(),
+            label: label.to_owned(),
+            depth,
+            kind: FavoritesRowKind::Directory {
+                expanded: is_expanded,
+                count: listing.and_then(|listing| listing.supported_archive_count()),
+            },
+        });
+        if !is_expanded {
+            return;
+        }
+        let notice = |label: String| FavoritesRow {
+            path: path.to_path_buf(),
+            label,
+            depth: depth + 1,
+            kind: FavoritesRowKind::Notice,
+        };
+        if browser.pending(path) {
+            rows.push(notice("Loading…".into()));
+            return;
+        }
+        let Some(listing) = listing else {
+            rows.push(notice("Refresh to load this folder".into()));
+            return;
+        };
+        let mut visible = false;
+        for entry in &listing.entries {
+            if rows.len() >= MAX_ROWS {
+                break;
+            }
+            if entry.is_directory {
+                visible = true;
+                append_directory(
+                    rows,
+                    browser,
+                    expanded,
+                    &entry.path,
+                    &entry.label,
+                    depth + 1,
+                );
+            } else if entry.is_supported_archive {
+                visible = true;
+                rows.push(FavoritesRow {
+                    path: entry.path.clone(),
+                    label: entry.label.clone(),
+                    depth: depth + 1,
+                    kind: FavoritesRowKind::Archive,
+                });
+            }
+        }
+        if let Some(error) = &listing.error {
+            rows.push(notice(error.clone()));
+        } else if !visible && !listing.truncated {
+            rows.push(notice("No ZIP archives".into()));
+        }
+        if listing.truncated {
+            rows.push(notice("More items are not shown".into()));
+        }
+    }
+
+    let mut rows = Vec::new();
+    for place in browser.roots() {
+        append_directory(&mut rows, browser, expanded, &place.path, &place.label, 0);
+    }
+    if !query.is_empty() {
+        let query = query.to_lowercase();
+        let mut matching_paths = BTreeSet::new();
+        for row in &rows {
+            if row.label.to_lowercase().contains(&query) {
+                for path in row.path.ancestors().take(34) {
+                    matching_paths.insert(path.to_path_buf());
+                }
+            }
+        }
+        rows.retain(|row| {
+            row.depth == 0
+                || matches!(row.kind, FavoritesRowKind::Notice)
+                || matching_paths.contains(&row.path)
+        });
+    }
+    rows
 }
 
 fn configure_style(context: &egui::Context) {
@@ -2183,14 +3048,17 @@ fn sidebar_selection_color(ui: &egui::Ui) -> egui::Color32 {
 enum LineIcon {
     Sidebar,
     SidebarRight,
-    Open,
+    Move,
     Save,
     Delete,
-    Outline,
     Check,
     Extract,
     Preview,
     Add,
+    NewFolder,
+    Collect,
+    DirectMode,
+    Share,
     More,
     Search,
     Copy,
@@ -2376,7 +3244,7 @@ fn paint_icon(painter: &egui::Painter, rect: egui::Rect, icon: LineIcon, color: 
             line(&[(15.0, 6.0), (17.0, 6.0)]);
             line(&[(15.0, 9.0), (17.0, 9.0)]);
         }
-        LineIcon::Open | LineIcon::Folder => {
+        LineIcon::Move | LineIcon::Folder => {
             line(&[
                 (2.0, 17.0),
                 (2.0, 5.0),
@@ -2387,9 +3255,9 @@ fn paint_icon(painter: &egui::Painter, rect: egui::Rect, icon: LineIcon, color: 
                 (2.0, 17.0),
             ]);
             line(&[(2.0, 9.0), (18.0, 9.0)]);
-            if matches!(icon, LineIcon::Open) {
-                line(&[(10.0, 15.0), (10.0, 11.0)]);
-                line(&[(8.0, 13.0), (10.0, 11.0), (12.0, 13.0)]);
+            if matches!(icon, LineIcon::Move) {
+                line(&[(6.0, 13.0), (14.0, 13.0)]);
+                line(&[(11.0, 10.0), (14.0, 13.0), (11.0, 16.0)]);
             }
         }
         LineIcon::Save => {
@@ -2401,8 +3269,17 @@ fn paint_icon(painter: &egui::Painter, rect: egui::Rect, icon: LineIcon, color: 
                 (3.0, 18.0),
                 (3.0, 2.0),
             ]);
-            line(&[(6.0, 2.0), (6.0, 8.0), (14.0, 8.0), (14.0, 2.0)]);
-            line(&[(6.0, 18.0), (6.0, 12.0), (15.0, 12.0), (15.0, 18.0)]);
+            line(&[(10.0, 3.0), (10.0, 13.0)]);
+            for y in [5.0, 8.0, 11.0] {
+                line(&[(8.0, y), (12.0, y)]);
+            }
+            line(&[
+                (8.0, 14.0),
+                (12.0, 14.0),
+                (12.0, 17.0),
+                (8.0, 17.0),
+                (8.0, 14.0),
+            ]);
         }
         LineIcon::Delete => {
             line(&[(3.0, 5.0), (17.0, 5.0)]);
@@ -2410,13 +3287,6 @@ fn paint_icon(painter: &egui::Painter, rect: egui::Rect, icon: LineIcon, color: 
             line(&[(5.0, 5.0), (6.0, 18.0), (14.0, 18.0), (15.0, 5.0)]);
             line(&[(8.0, 8.0), (8.0, 15.0)]);
             line(&[(12.0, 8.0), (12.0, 15.0)]);
-        }
-        LineIcon::Outline => {
-            painter.rect_stroke(rect.shrink(2.0), 2, stroke, egui::StrokeKind::Inside);
-            for y in [6.0, 10.0, 14.0] {
-                painter.circle_filled(point(6.0, y), 0.9, color);
-                line(&[(9.0, y), (15.0, y)]);
-            }
         }
         LineIcon::Check => {
             line(&[
@@ -2428,7 +3298,7 @@ fn paint_icon(painter: &egui::Painter, rect: egui::Rect, icon: LineIcon, color: 
             ]);
             line(&[(7.0, 9.0), (10.0, 12.0), (18.0, 2.0)]);
         }
-        LineIcon::Extract => {
+        LineIcon::Extract | LineIcon::Add => {
             line(&[
                 (2.0, 8.0),
                 (18.0, 8.0),
@@ -2437,7 +3307,11 @@ fn paint_icon(painter: &egui::Painter, rect: egui::Rect, icon: LineIcon, color: 
                 (2.0, 8.0),
             ]);
             line(&[(10.0, 1.0), (10.0, 10.0)]);
-            line(&[(6.0, 6.0), (10.0, 10.0), (14.0, 6.0)]);
+            if matches!(icon, LineIcon::Extract) {
+                line(&[(6.0, 5.0), (10.0, 1.0), (14.0, 5.0)]);
+            } else {
+                line(&[(6.0, 6.0), (10.0, 10.0), (14.0, 6.0)]);
+            }
         }
         LineIcon::Preview => {
             line(&[
@@ -2450,7 +3324,7 @@ fn paint_icon(painter: &egui::Painter, rect: egui::Rect, icon: LineIcon, color: 
             painter.circle_stroke(point(11.0, 10.0), rect.width() * 0.22, stroke);
             line(&[(14.0, 13.0), (19.0, 18.0)]);
         }
-        LineIcon::Add => {
+        LineIcon::NewFolder => {
             line(&[
                 (2.0, 17.0),
                 (2.0, 5.0),
@@ -2462,6 +3336,52 @@ fn paint_icon(painter: &egui::Painter, rect: egui::Rect, icon: LineIcon, color: 
             ]);
             line(&[(7.0, 12.0), (13.0, 12.0)]);
             line(&[(10.0, 9.0), (10.0, 15.0)]);
+        }
+        LineIcon::Collect => {
+            line(&[
+                (3.0, 10.0),
+                (1.0, 14.0),
+                (1.0, 18.0),
+                (19.0, 18.0),
+                (19.0, 14.0),
+                (17.0, 10.0),
+            ]);
+            line(&[
+                (1.0, 14.0),
+                (6.0, 14.0),
+                (8.0, 16.0),
+                (12.0, 16.0),
+                (14.0, 14.0),
+                (19.0, 14.0),
+            ]);
+            line(&[(10.0, 1.0), (10.0, 11.0)]);
+            line(&[(6.0, 7.0), (10.0, 11.0), (14.0, 7.0)]);
+        }
+        LineIcon::DirectMode => {
+            line(&[
+                (5.0, 6.0),
+                (15.0, 6.0),
+                (15.0, 18.0),
+                (5.0, 18.0),
+                (5.0, 6.0),
+            ]);
+            line(&[(10.0, 7.0), (10.0, 15.0)]);
+            line(&[(8.0, 9.0), (12.0, 9.0)]);
+            line(&[(8.0, 12.0), (12.0, 12.0)]);
+            line(&[(3.0, 1.0), (3.0, 5.0), (1.0, 3.0)]);
+            line(&[(17.0, 5.0), (17.0, 1.0), (19.0, 3.0)]);
+        }
+        LineIcon::Share => {
+            line(&[
+                (6.0, 7.0),
+                (3.0, 7.0),
+                (3.0, 18.0),
+                (17.0, 18.0),
+                (17.0, 7.0),
+                (14.0, 7.0),
+            ]);
+            line(&[(10.0, 12.0), (10.0, 1.0)]);
+            line(&[(6.0, 5.0), (10.0, 1.0), (14.0, 5.0)]);
         }
         LineIcon::More => {
             for x in [4.0, 10.0, 16.0] {
@@ -2929,6 +3849,16 @@ fn theme_picker(ui: &mut egui::Ui) {
     if preference != current {
         ui.ctx().set_theme(preference);
     }
+}
+
+fn valid_new_folder_name(name: &str) -> bool {
+    let mut components = Path::new(name).components();
+    !name.is_empty()
+        && !name.contains(['/', '\\', '\0'])
+        && matches!(
+            (components.next(), components.next()),
+            (Some(std::path::Component::Normal(_)), None)
+        )
 }
 
 fn default_extraction_destination(source: &Path) -> PathBuf {

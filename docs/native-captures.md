@@ -1,8 +1,9 @@
 # Native GUI captures
 
 `cargo xtask gui-capture` starts the real ArcForge desktop on its native host,
-opens the original UI fixture through the ordinary archive worker, selects two
-entries, and records their finished previews. This is maintainer tooling behind
+opens the original UI fixture through the ordinary archive worker, records two
+finished previews, closes the archive, and captures empty startup. On macOS it
+also opens and captures the actual native Open panel. This is maintainer tooling behind
 the `native-capture` feature. Normal development release packages do not enable
 that feature and do not expose its launch argument.
 
@@ -26,6 +27,10 @@ does not capture the separately packaged release binary.
 The default directory is `target/native-gui/<target>`. On Linux, CI starts a real
 X11 window in Xvfb and requests Mesa software OpenGL:
 
+The X11 runtime also needs `libxkbcommon-x11-0` on Ubuntu. The general
+`libxkbcommon-dev` build dependency does not supply that dynamically loaded X11
+library; a successful headless build or `--version` check cannot detect its absence.
+
 ```sh
 LIBGL_ALWAYS_SOFTWARE=1 ARCFORGE_CAPTURE_DISPLAY='Xvfb X11; Mesa software OpenGL requested' \
   xvfb-run -a -s '-screen 0 1600x1000x24' \
@@ -37,12 +42,18 @@ It does not establish behavior on a physical monitor, a particular GPU, Wayland,
 or a desktop window manager. Windows and macOS CI launch directly in their hosted
 native sessions; the runtime log and the resulting pixels establish success.
 
-Every completed capture contains these two scenes:
+On Windows, CI explicitly prepares the pinned Mesa software OpenGL driver
+described below. The window and production Glow/WGL backend remain native;
+software OpenGL is recorded as part of the runtime evidence.
+
+Every completed capture contains these client scenes, plus the native Open panel on macOS:
 
 | Scene | Actual selected entry | Required worker result |
 | --- | --- | --- |
 | `client/01-text-preview.png` | `Documents/Guide.txt` | Complete UTF-8 text preview with verified CRC32 |
 | `client/02-image-preview.png` | `Photos/Color-study.png` | Complete verified preview and decoded 960 × 640 PNG texture |
+| `client/03-empty-window.png` | None | Closed document, cleared selection/preview, no pending picker |
+| `04-open-panel-native-window.png` (macOS) | None | Actual owned `NSOpenPanel`, active native picker and verified window identity |
 
 The fixture is generated with `scripts/generate_ui_fixture.py --images`. Its
 text and image are original repository content. The driver invokes normal
@@ -70,19 +81,31 @@ OS; it does not include native titlebar controls, rounded window clipping, deskt
 or shadows drawn by the window server. PNG encoding converts egui's premultiplied
 colors to PNG's straight-alpha representation without compositing a background.
 
-On macOS the driver additionally attempts a native window capture for each scene.
-It compiles the repository's small Swift helper, finds the single on-screen
-ordinary window belonging to the launched ArcForge PID through CoreGraphics, and
+On macOS the native AppKit shell must attach successfully. The driver additionally
+attempts a native window capture for each client scene. It compiles the
+repository's small Swift helper, verifies the actual AppKit window number against
+on-screen CoreGraphics windows belonging to the launched ArcForge PID, and
 calls `/usr/sbin/screencapture -x -o -l <actual-window-id>`. It does not treat an
 eframe or winit identifier as a CoreGraphics window number. The application holds
 the same scene until this bounded attempt finishes.
 
-Successful optional files are `01-text-preview-native-window.png` and
-`02-image-preview-native-window.png`, beside `capture-run.json`. Their metadata
+Successful workspace files are `01-text-preview-native-window.png`,
+`02-image-preview-native-window.png`, and `03-empty-window-native-window.png`,
+beside `capture-run.json`. Their metadata
 says `capture_kind: native-window`, includes native chrome, and records that the
 window shadow was excluded. A failed attempt is recorded as `unavailable` with
 its reason; it is never replaced with a drawn titlebar, a different OS frame, or
 a client-area image labelled as a full native window.
+
+The helper also accepts an explicit CoreGraphics window ID supplied by the
+application for a native dialog. It still requires the requested window to be
+on-screen and owned by the launched application's PID. Without an explicit ID,
+the ordinary workspace capture continues to require one unambiguous ordinary
+window. A native panel must be captured as an OS window; a client framebuffer
+cannot establish its appearance. The Open-panel scene therefore saves a readiness
+record without an egui PNG, waits for the actual panel capture, and cancels only
+that owned panel before exiting. A missing native panel image fails the macOS
+capture run. No native dialog image is inferred from a renderer frame.
 
 The helper checks existing screen-recording permission with
 [`CGPreflightScreenCaptureAccess`](https://developer.apple.com/documentation/coregraphics/cgpreflightscreencaptureaccess()).
@@ -94,15 +117,81 @@ remain authoritative. Missing permission, WindowServer visibility, or capture
 failure does not invalidate separately successful client-area pixels; the
 limitation stays explicit in the artifact.
 
+### macOS CI display size
+
+The first native run exposed a 1024 × 768 macOS runner desktop, which constrained
+the actual application window. The helper now queries the main display's
+supported modes through
+[`CGDisplayCopyAllDisplayModes`](https://developer.apple.com/documentation/coregraphics/quartz-display-services)
+and, **only inside GitHub Actions**, requests a larger desktop-usable mode through
+`CGDisplaySetDisplayMode`. It prefers at least 1600 × 1000, with a 1440 × 900
+minimum, leaving room for the 1280 × 800 application scene and real system UI.
+It selects only an advertised mode; it does not create a virtual display, enlarge
+a screenshot, or change screen-recording permissions. Local `gui-capture` leaves
+the desktop mode alone.
+
+`display_configuration` records the available modes, original mode/bounds,
+requested mode, CoreGraphics result, and observed final mode/bounds. The observed
+transition has a two-second bound. If the host exposes no suitable mode or declines
+the change, that outcome remains explicit and the actual smaller capture remains
+labelled with its true dimensions. The scene PNG and viewport metadata remain the
+evidence for the window size actually rendered.
+
+### Windows CI software OpenGL
+
+The first Windows x64 and ARM64 runs both failed native startup with
+`egui_glow requires opengl 2.0+`. The headless tests and package verification had
+passed because they do not create an OpenGL context. CI now prepares a software
+driver for this hosted-machine limitation, without replacing Glow or using an
+offscreen UI renderer.
+
+[`prepare_windows_capture_driver.ps1`](../scripts/prepare_windows_capture_driver.ps1)
+uses the producer's
+[`mmozeiko/build-mesa` source revision](https://github.com/mmozeiko/build-mesa/tree/73f7cfb6d2ec725d1c036c33eba62f420f87818e)
+and [Mesa 26.3.1 release](https://github.com/mmozeiko/build-mesa/releases/tag/26.3.1),
+which builds llvmpipe with LLVM 23.1.5. The producer documents static WGL DLLs for
+both native architectures. The driver archives are pinned by SHA-256:
+
+| Architecture | Release asset | SHA-256 |
+| --- | --- | --- |
+| x64 | `mesa-llvmpipe-x64-26.3.1.7z` | `08145a3717e0c1be0d97b74b53070f14eb39cb2f7de22f84fe20d1a581299c12` |
+| ARM64 | `mesa-llvmpipe-arm64-26.3.1.7z` | `c74c960c0416f3fa7f55dd877c34bbb1408f097cdf20a5638cd10ac1c90ae3c5` |
+
+The script verifies the package digest and the DLL's PE architecture, then places
+only `opengl32.dll` beside the debug capture executable. This follows Mesa's
+[documented per-application WGL deployment](https://docs.mesa3d.org/drivers/llvmpipe.html#windows).
+It changes no system library, driver registration, or permission. Package
+verification and upload happen first. Downloaded archives stay in `RUNNER_TEMP`,
+the deployed DLL is removed before the Rust cache is saved, and no Mesa binary is
+included in `dist/`, release bundles, or screenshot artifacts.
+
+Runtime metadata explicitly records the software driver, upstream source commit,
+archive SHA-256, and deployed library path/SHA-256. The recorded library identity
+describes the prepared runtime; successful native pixels still require the actual
+window/context to start. This evidence does not establish hardware GPU behavior.
+
+The external runtime has its own licenses. Mesa's
+[license overview](https://docs.mesa3d.org/license.html) identifies its core as MIT
+and directs readers to component SPDX identifiers and the source `licenses/`
+directory; it does not describe every component as identically licensed. LLVM's
+[23.1.5 license](https://github.com/llvm/llvm-project/blob/llvmorg-23.1.5/llvm/LICENSE.TXT)
+is Apache 2.0 with LLVM exceptions and retains its additional component notices.
+These terms apply to the CI toolchain runtime, independently of ArcForge's MIT
+license. A future decision to distribute that runtime with the product requires
+its own complete source/notice inventory.
+
 ## Provenance and validation
 
 `capture-run.json` records the native target, source commit and dirty state,
 build command/profile/feature, executable hash before and after capture, fixture
 and generator hashes, actual OS version, selected runner environment fields,
-scene hashes, and optional native-window outcomes. Each scene's JSON records the
-process ID, observed entry and snapshot identity, metadata revision, CRC status,
-decoded image dimensions, actual pixel dimensions, scale, theme, viewport state,
-and the chosen font paths/names/weights/variation coordinates.
+scene hashes, and native-window outcomes. Scene JSON uses schema version 2.
+Preview records include process ID, observed entry and snapshot identity, metadata
+revision, CRC status and decoded image dimensions. Empty records explicitly have
+no document, selection or pending picker. Native Open readiness identifies the
+actual panel and parent window, without invented renderer pixels or archive state.
+Client records include actual pixel dimensions, scale, theme, viewport state and
+font paths/names/weights/variation coordinates.
 
 Source archives are hashed again after capture. The driver rejects changed
 fixtures or executables, wrong process/OS/architecture metadata, missing scene
@@ -132,12 +221,11 @@ the `arcforge-*` artifact pattern used to assemble release bundles. CI uploads
 available diagnostics on failure, but a missing mandatory scene fails its job.
 Unit tests and `--version` do not establish a native GUI capture.
 
-The initial workflow deliberately uses the production Glow context on Windows.
-A hosted desktop may lack a suitable OpenGL driver; the workflow must surface
-that startup failure instead of silently substituting an offscreen renderer or
-another backend. A runner label, installed SDK, or successful build alone does
-not establish this capability. Do not describe a platform as visually verified
-until its actual artifacts have been downloaded and inspected.
+The workflow deliberately retains the production Glow context on every OS.
+Runtime failures remain visible; a runner label, installed SDK, successful build,
+or prepared driver alone does not establish window rendering. Do not describe a
+platform as visually verified until its actual artifacts have been downloaded
+and inspected.
 
 After review, keep selected original images and their provenance under the
 [repository screenshot convention](../screenshots/README.md). Capture metadata

@@ -29,7 +29,7 @@ struct Graph {
 fn layer(name: &str) -> Option<u8> {
     match name {
         "arcforge-core" => Some(0),
-        "arcforge-ui-egui" | "arcforge-cli" => Some(1),
+        "arcforge-ui-egui" | "arcforge-platform-macos" | "arcforge-cli" => Some(1),
         "arcforge" => Some(2),
         "xtask" => Some(3),
         _ => None,
@@ -43,7 +43,10 @@ fn headless(name: &str) -> bool {
 fn is_ui(name: &str) -> bool {
     matches!(name, "egui" | "eframe" | "winit" | "rfd")
         || name.starts_with("egui_")
-        || name == "arcforge-ui-egui"
+        || matches!(
+            name,
+            "arcforge-ui-egui" | "arcforge-platform-macos" | "objc2-app-kit"
+        )
 }
 
 fn parse(metadata: &Value) -> Result<Graph> {

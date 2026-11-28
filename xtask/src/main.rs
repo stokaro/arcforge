@@ -31,7 +31,7 @@ Usage: cargo xtask <command> [options]
   ci-matrix  Print native target/runner matrix from release/targets.json
   verify-package  Inspect and smoke-test an unpacked native development bundle
   verify-release  Check the exact complete release assets and native evidence
-  gui-capture  Capture two real native GUI scenes with provenance (developer feature)
+  gui-capture  Capture real workspace and first-use scenes with provenance (developer feature)
 
 check/build/test: [--target TARGET] [--release]
 package: [--target TARGET] [--release] (always uses release profile)

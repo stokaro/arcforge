@@ -6,10 +6,11 @@ ArcForge currently provides ZIP/ZIP64 browsing, small-entry previews, and bounde
 
 - Keep models, capabilities, commands, and validation in `crates/core`, independent of UI/windowing libraries. Keep presentation in `crates/ui-egui`; it calls shared operations.
 - Keep `apps/arcforge` and `apps/arcforge-cli` thin. The CLI must work without a display server or GUI dependencies.
+- Keep the macOS AppKit shell in `crates/platform-macos`, independent of the archive core and egui. The desktop entry point translates its typed commands and capability state. Confine audited Objective-C interoperation to that crate's private macOS module; do not weaken the workspace-wide unsafe-code prohibition.
 - Keep portable build orchestration in `xtask`. Register workspace crates/dependencies in its boundary checker; correct an accidental dependency direction instead of disabling the check.
 - Keep capabilities truthful: planned, unsupported, and implemented operations are distinct. Preserve the source archive on failed/cancelled updates. Keep blocking I/O and archive processing off the UI thread.
 - Use the pinned toolchain and `Cargo.lock`. Document native prerequisites. Record source adaptations with pinned paths, revisions, modifications, and full license notices in the relevant reuse inventory linked from `THIRD_PARTY_NOTICES.md`.
-- Require **BetterZip 6 look and feel**, with **macOS as the primary visual target**. Use OpenZip only to resolve details that BetterZip evidence leaves unclear; retain attribution and full notices for any MIT-covered source/asset adaptation. The [reference inventory](docs/reference/betterzip-6.md) records evidence, decisions, and remaining differences.
+- Require **BetterZip 6 look and feel**, with **macOS as the primary visual target**: a familiar user should recognize the original application's appearance and interaction on first use. Use native platform file/destination panels and actual macOS toolbar/window behavior. Use OpenZip only to resolve details that BetterZip evidence leaves unclear; retain attribution and full notices for any MIT-covered source/asset adaptation. The [reference inventory](docs/reference/betterzip-6.md) records evidence, decisions, and remaining differences.
 
 ## Load only the relevant skills
 
