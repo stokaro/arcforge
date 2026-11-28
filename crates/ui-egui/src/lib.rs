@@ -145,7 +145,10 @@ impl ArchiveWorkspace {
                 if self.selected.is_some_and(|id| document.entry(id).is_none()) {
                     self.selected = None;
                 }
-                self.status = format!("{} entries · Read-only ZIP", document.snapshot.entries.len());
+                self.status = format!(
+                    "{} entries · Read-only ZIP",
+                    document.snapshot.entries.len()
+                );
                 self.document = Some(document);
                 self.rows = rows;
                 self.applied_query = query.clone();
@@ -408,7 +411,9 @@ impl ArchiveWorkspace {
                 }
                 if ui
                     .add_enabled(self.document.is_some(), egui::Button::new("Reopen"))
-                    .on_hover_text("Read the source again; filename choices reset for the new snapshot")
+                    .on_hover_text(
+                        "Read the source again; filename choices reset for the new snapshot",
+                    )
                     .clicked()
                     && let Some(document) = &self.document
                 {
@@ -445,7 +450,7 @@ impl ArchiveWorkspace {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.toggle_value(&mut self.show_inspector, "Info");
                     ui.toggle_value(&mut self.show_commands, "Commands");
-                    egui::widgets::global_theme_preference_buttons(ui);
+                    theme_picker(ui);
                 });
             });
             let enabled = self.document.is_some() && !self.source_changed;
@@ -453,7 +458,10 @@ impl ArchiveWorkspace {
                 ui.horizontal_wrapped(|ui| {
                     ui.label("Find:");
                     if ui
-                        .add(egui::TextEdit::singleline(&mut self.query).hint_text("Search full names"))
+                        .add(
+                            egui::TextEdit::singleline(&mut self.query)
+                                .hint_text("Search full names"),
+                        )
                         .changed()
                     {
                         self.filter(ui.ctx());
@@ -503,7 +511,10 @@ impl ArchiveWorkspace {
                     return;
                 };
                 ui.add_enabled_ui(!self.source_changed, |ui| {
-                    if ui.selectable_label(self.folder.is_none(), "All entries").clicked() {
+                    if ui
+                        .selectable_label(self.folder.is_none(), "All entries")
+                        .clicked()
+                    {
                         self.folder = None;
                         self.filter(ui.ctx());
                     }
@@ -511,9 +522,11 @@ impl ArchiveWorkspace {
                     if document.folders_limited {
                         ui.small("Folder list capped; all entries remain searchable.");
                     }
-                    egui::ScrollArea::both()
-                        .id_salt("folder_rows")
-                        .show_rows(ui, 22.0, document.folders.len(), |ui, range| {
+                    egui::ScrollArea::both().id_salt("folder_rows").show_rows(
+                        ui,
+                        22.0,
+                        document.folders.len(),
+                        |ui, range| {
                             for index in range {
                                 let folder = &document.folders[index];
                                 let label = bounded_display(folder);
@@ -525,7 +538,8 @@ impl ArchiveWorkspace {
                                     self.filter(ui.ctx());
                                 }
                             }
-                        });
+                        },
+                    );
                 });
             });
     }
@@ -699,7 +713,10 @@ impl ArchiveWorkspace {
         let Some(preview) = &self.preview else {
             return;
         };
-        ui.label(format!("{} bytes · CRC32 verified", preview.preview.bytes.len()));
+        ui.label(format!(
+            "{} bytes · CRC32 verified",
+            preview.preview.bytes.len()
+        ));
         ui.horizontal(|ui| {
             ui.add_enabled_ui(preview.text_rows.is_some(), |ui| {
                 ui.selectable_value(&mut self.preview_hex, false, "Text (UTF-8)");
@@ -717,11 +734,19 @@ impl ArchiveWorkspace {
         egui::ScrollArea::both()
             .id_salt(("preview", preview.preview.entry_id, self.preview_hex))
             .max_height(240.0)
-            .show_rows(ui, ui.text_style_height(&egui::TextStyle::Monospace), rows.len(), |ui, range| {
-                for index in range {
-                    ui.monospace(&rows[index]);
-                }
-            });
+            .show_rows(
+                ui,
+                ui.text_style_height(&egui::TextStyle::Monospace),
+                rows.len(),
+                |ui, range| {
+                    for index in range {
+                        ui.add(
+                            egui::Label::new(egui::RichText::new(&rows[index]).monospace())
+                                .wrap_mode(egui::TextWrapMode::Extend),
+                        );
+                    }
+                },
+            );
     }
 
     fn open_window(&mut self, context: &egui::Context) {
@@ -736,10 +761,18 @@ impl ArchiveWorkspace {
             .default_width(480.0)
             .show(context, |ui| {
                 ui.label("Archive path:");
-                let field = ui.add(egui::TextEdit::singleline(&mut self.path_input).desired_width(f32::INFINITY));
-                ui.small("You can also drop one file into the workspace or pass its path at launch.");
-                open = ui.add_enabled(!self.path_input.is_empty(), egui::Button::new("Open")).clicked()
-                    || (field.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) && !self.path_input.is_empty());
+                let field = ui.add(
+                    egui::TextEdit::singleline(&mut self.path_input).desired_width(f32::INFINITY),
+                );
+                ui.small(
+                    "You can also drop one file into the workspace or pass its path at launch.",
+                );
+                open = ui
+                    .add_enabled(!self.path_input.is_empty(), egui::Button::new("Open"))
+                    .clicked()
+                    || (field.lost_focus()
+                        && ui.input(|input| input.key_pressed(egui::Key::Enter))
+                        && !self.path_input.is_empty());
             });
         self.show_open = visible && !open;
         if open {
@@ -771,6 +804,27 @@ impl ArchiveWorkspace {
     }
 }
 
+fn theme_picker(ui: &mut egui::Ui) {
+    let current = ui.ctx().options(|options| options.theme_preference);
+    let mut preference = current;
+    let label = match current {
+        egui::ThemePreference::Light => "Light",
+        egui::ThemePreference::Dark => "Dark",
+        egui::ThemePreference::System => "System",
+    };
+    egui::ComboBox::from_id_salt("theme_preference")
+        .selected_text(format!("Theme: {label}"))
+        .width(100.0)
+        .show_ui(ui, |ui| {
+            ui.selectable_value(&mut preference, egui::ThemePreference::Light, "Light");
+            ui.selectable_value(&mut preference, egui::ThemePreference::Dark, "Dark");
+            ui.selectable_value(&mut preference, egui::ThemePreference::System, "System");
+        });
+    if preference != current {
+        ui.ctx().set_theme(preference);
+    }
+}
+
 fn encoding_picker(
     ui: &mut egui::Ui,
     id: impl std::hash::Hash + std::fmt::Debug,
@@ -778,9 +832,18 @@ fn encoding_picker(
 ) -> bool {
     let previous = *choice;
     egui::ComboBox::from_id_salt(id)
-        .selected_text(choice.encoding.map(FilenameEncoding::label).unwrap_or("Automatic"))
+        .selected_text(
+            choice
+                .encoding
+                .map(FilenameEncoding::label)
+                .unwrap_or("Automatic"),
+        )
         .show_ui(ui, |ui| {
-            ui.selectable_value(&mut choice.encoding, None, "Automatic (use filename evidence)");
+            ui.selectable_value(
+                &mut choice.encoding,
+                None,
+                "Automatic (use filename evidence)",
+            );
             for encoding in FilenameEncoding::ALL {
                 ui.selectable_value(&mut choice.encoding, Some(*encoding), encoding.label());
             }
@@ -818,7 +881,7 @@ fn display_name(entry: &ArchiveEntry) -> String {
 fn bounded_display(value: &str) -> String {
     let mut display = escape_display(&value.chars().take(1024).collect::<String>());
     if value.chars().nth(1024).is_some() {
-        display.push_str("…");
+        display.push('…');
     }
     display
 }
@@ -836,7 +899,10 @@ fn show_diagnostics(ui: &mut egui::Ui, diagnostics: &[String]) {
         ui.small(escape_display(diagnostic));
     }
     if diagnostics.len() > 20 {
-        ui.small(format!("{} more diagnostics; use CLI JSON for the full list.", diagnostics.len() - 20));
+        ui.small(format!(
+            "{} more diagnostics; use CLI JSON for the full list.",
+            diagnostics.len() - 20
+        ));
     }
 }
 
@@ -849,12 +915,23 @@ fn show_hex(ui: &mut egui::Ui, id: impl std::hash::Hash + std::fmt::Debug, text:
     egui::ScrollArea::both()
         .id_salt(id)
         .max_height(110.0)
-        .show_rows(ui, ui.text_style_height(&egui::TextStyle::Monospace), count, |ui, range| {
-            for index in range {
-                let start = index * 64;
-                ui.monospace(&text[start..(start + 64).min(text.len())]);
-            }
-        });
+        .show_rows(
+            ui,
+            ui.text_style_height(&egui::TextStyle::Monospace),
+            count,
+            |ui, range| {
+                for index in range {
+                    let start = index * 64;
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(&text[start..(start + 64).min(text.len())])
+                                .monospace(),
+                        )
+                        .wrap_mode(egui::TextWrapMode::Extend),
+                    );
+                }
+            },
+        );
 }
 
 fn disabled_action(ui: &mut egui::Ui, label: &str) {

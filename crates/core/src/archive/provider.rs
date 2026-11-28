@@ -94,12 +94,15 @@ pub(super) enum OpenTestStage {
 }
 
 #[cfg(test)]
+type MetadataMutationHook<'a> = &'a dyn Fn(OpenTestStage, &Path);
+
+#[cfg(test)]
 pub(super) fn open_archive_with_metadata_hook(
     path: &Path,
     policy: &FilenamePolicy,
     limits: &ArchiveLimits,
     cancel: &CancellationToken,
-    hook: &dyn Fn(OpenTestStage, &Path),
+    hook: MetadataMutationHook<'_>,
 ) -> Result<ArchiveSnapshot, ArchiveError> {
     open_archive_impl(path, policy, limits, cancel, Some(hook))
 }
@@ -109,7 +112,7 @@ fn open_archive_impl(
     policy: &FilenamePolicy,
     limits: &ArchiveLimits,
     cancel: &CancellationToken,
-    #[cfg(test)] mutation_hook: Option<&dyn Fn(OpenTestStage, &Path)>,
+    #[cfg(test)] mutation_hook: Option<MetadataMutationHook<'_>>,
 ) -> Result<ArchiveSnapshot, ArchiveError> {
     cancel.check()?;
     validate_policy(policy, None)?;

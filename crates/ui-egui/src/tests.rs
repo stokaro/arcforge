@@ -368,3 +368,117 @@ fn empty_populated_and_error_workspaces_render_without_a_native_window() {
         "rendering existing state does not perform archive I/O"
     );
 }
+
+#[test]
+fn narrow_preview_keeps_prepared_rows_on_one_line_and_scrolls_horizontally() {
+    fn render(
+        context: &egui::Context,
+        workspace: &mut ArchiveWorkspace,
+        time: f64,
+        events: Vec<egui::Event>,
+    ) -> egui::FullOutput {
+        let mut output = context.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(240.0, 320.0),
+                )),
+                time: Some(time),
+                events,
+                ..Default::default()
+            },
+            |ui| {
+                workspace.preview_view(ui);
+            },
+        );
+        output.textures_delta.clear();
+        output
+    }
+
+    fn row_layout(shape: &egui::epaint::Shape, expected: &str) -> Option<(usize, f32, egui::Pos2)> {
+        match shape {
+            egui::epaint::Shape::Text(value) if value.galley.job.text == expected => Some((
+                value.galley.rows.len(),
+                value.galley.rect.width(),
+                value.pos,
+            )),
+            egui::epaint::Shape::Vec(shapes) => {
+                shapes.iter().find_map(|shape| row_layout(shape, expected))
+            }
+            _ => None,
+        }
+    }
+
+    for hex in [false, true] {
+        let context = egui::Context::default();
+        let prepared = PreparedPreview::new(
+            EntryPreview {
+                entry_id: 0,
+                bytes: vec![b'x'; 200],
+                data_hex: "78".repeat(200),
+                text: Some("x".repeat(200)),
+                crc32_verified: true,
+            },
+            &CancellationToken::new(),
+        )
+        .expect("long preview fixture");
+        let expected = if hex {
+            prepared.hex_rows[0].clone()
+        } else {
+            prepared.text_rows.as_ref().expect("UTF-8 preview")[0].clone()
+        };
+        let mut workspace = ArchiveWorkspace {
+            preview: Some(prepared),
+            preview_hex: hex,
+            ..Default::default()
+        };
+        let first = render(&context, &mut workspace, 0.0, vec![]);
+        let (rows, width, origin) = first
+            .shapes
+            .iter()
+            .find_map(|shape| row_layout(&shape.shape, &expected))
+            .expect("preview row is painted");
+        assert_eq!(
+            rows, 1,
+            "prepared rows must keep the virtualized row height"
+        );
+        assert!(
+            width > 240.0,
+            "long content extends past the narrow viewport"
+        );
+        let _wheel_frame = render(
+            &context,
+            &mut workspace,
+            1.0 / 60.0,
+            vec![
+                egui::Event::PointerMoved(origin + egui::vec2(10.0, 5.0)),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::Vec2::ZERO,
+                    phase: egui::TouchPhase::Start,
+                    source: egui::MouseWheelSource::Trackpad,
+                    modifiers: egui::Modifiers::NONE,
+                },
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(-90.0, 0.0),
+                    phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Trackpad,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        // ScrollArea consumes wheel input after laying out its content; inspect the next frame.
+        let scrolled = render(&context, &mut workspace, 2.0 / 60.0, vec![]);
+        let (scrolled_rows, _, scrolled_origin) = scrolled
+            .shapes
+            .iter()
+            .find_map(|shape| row_layout(&shape.shape, &expected))
+            .expect("preview row remains painted after scrolling");
+        assert_eq!(scrolled_rows, 1);
+        assert!(
+            scrolled_origin.x < origin.x,
+            "wide preview can scroll horizontally: hex={hex}, width={width}, before={origin:?}, after={scrolled_origin:?}"
+        );
+    }
+}
