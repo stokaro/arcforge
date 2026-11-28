@@ -17,8 +17,8 @@ use arcforge_core::archive::{
 };
 use arcforge_core::{Availability, COMMANDS, VERSION};
 use jobs::{
-    Completed, PreparedDocument, PreparedPreview, ProgressReply, Reply, Request, Task, Ticket,
-    ViewMode, ViewRow, Worker,
+    Completed, FolderTotals, PreparedDocument, PreparedPreview, ProgressReply, Reply, Request,
+    Task, Ticket, ViewMode, ViewRow, Worker,
 };
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -280,9 +280,10 @@ impl ArchiveWorkspace {
                 self.recent_archives.retain(|recent| recent != &path);
                 self.recent_archives.insert(0, path);
                 self.recent_archives.truncate(12);
-                self.status = format!(
-                    "{} entries · Source archive unchanged",
-                    document.snapshot.entries.len()
+                self.status = view_status(
+                    rows.len(),
+                    document.snapshot.entries.len(),
+                    !query.is_empty(),
                 );
                 self.document = Some(document);
                 self.rows = rows;
@@ -306,7 +307,13 @@ impl ArchiveWorkspace {
                 mode,
                 expanded,
             }) => {
-                self.status = format!("{} matching entries", rows.len());
+                self.status = view_status(
+                    rows.len(),
+                    self.document
+                        .as_ref()
+                        .map_or(0, |document| document.snapshot.entries.len()),
+                    !query.is_empty(),
+                );
                 self.rows = rows;
                 self.applied_query = query.clone();
                 self.query = query;
@@ -333,8 +340,8 @@ impl ArchiveWorkspace {
                 }
                 self.status = match &report.status {
                     ExtractionStatus::Completed => format!(
-                        "Extracted {} files · {} bytes · Source archive unchanged",
-                        report.files_written, report.bytes_written
+                        "Extracted {} · {} · Source archive unchanged",
+                        counted(report.files_written, "file", "files"), format_bytes(report.bytes_written)
                     ),
                     ExtractionStatus::Cancelled => "Extraction cancelled; the new directory retains completed and partial output.".into(),
                     ExtractionStatus::Failed => "Extraction failed; inspect the retained output in the new directory.".into(),
@@ -1242,7 +1249,7 @@ impl ArchiveWorkspace {
                 let mut x = header.left();
                 for (label, cell_width) in columns {
                     let rect = egui::Rect::from_min_size(egui::pos2(x, header.top()), egui::vec2(cell_width, header.height()));
-                    paint_cell(ui, rect, label, ui.visuals().weak_text_color(), false);
+                    paint_header_cell(ui, rect, label);
                     x += cell_width;
                 }
                 if self.rows.is_empty() {
@@ -1282,11 +1289,12 @@ impl ArchiveWorkspace {
                                 let name_rect = egui::Rect::from_min_max(egui::pos2(rect.left() + 45.0 + indent, rect.top()), egui::pos2(rect.left() + columns[0].1, rect.bottom()));
                                 paint_cell(ui, name_rect, &name, color, false);
                                 let entry = row.entry.map(|entry| &document.snapshot.entries[entry]);
+                                let totals = row.folder.map(|folder| document.folder_totals[folder]);
                                 let values = [
                                     entry.and_then(|entry| entry.modified.as_deref()).unwrap_or("—").to_owned(),
-                                    entry.map(|entry| format_bytes(entry.size)).unwrap_or_else(|| "—".into()),
+                                    totals.map(|totals| format_bytes(totals.size)).or_else(|| entry.map(|entry| format_bytes(entry.size))).unwrap_or_else(|| "—".into()),
                                     entry.map(entry_kind).unwrap_or_else(|| "Folder".into()),
-                                    entry.map(compression_ratio).unwrap_or_else(|| "—".into()),
+                                    totals.map(|totals| size_ratio(totals.size, totals.compressed_size)).or_else(|| entry.map(compression_ratio)).unwrap_or_else(|| "—".into()),
                                 ];
                                 let mut x = rect.left() + columns[0].1;
                                 for (column, value) in values.iter().enumerate() {
@@ -1334,25 +1342,37 @@ impl ArchiveWorkspace {
                 };
                 egui::ScrollArea::vertical().id_salt("information_scroll").show(ui, |ui| {
                     if let Some(entry) = self.selected.and_then(|id| document.entry(id)) {
+                        let totals = self.selected_folder.as_ref()
+                            .and_then(|folder| document.folders.binary_search(folder).ok())
+                            .map(|folder| document.folder_totals[folder]);
                         ui.add_space(5.0);
                         ui.add(egui::Label::new(egui::RichText::new(display_name(entry)).strong().size(15.0)));
                         ui.add_space(8.0);
                         ui.strong("Info");
                         egui::Grid::new("entry_properties").num_columns(2).spacing([12.0, 5.0]).show(ui, |ui| {
                             property(ui, "Kind", &entry_kind(entry));
-                            property(ui, "Size", &format!("{} bytes", entry.size));
-                            property(ui, "Packed", &format!("{} bytes", entry.compressed_size));
+                            property(ui, "Size", &format!("{} bytes", totals.map_or(entry.size, |totals| totals.size)));
+                            property(ui, "Packed", &format!("{} bytes", totals.map_or(entry.compressed_size, |totals| totals.compressed_size)));
                             property(ui, "Modified", entry.modified.as_deref().unwrap_or("Unknown"));
-                            property(ui, "Method", &method_name(entry.compression_method));
-                            property(ui, "Encrypted", if entry.encrypted { "Yes" } else { "No" });
-                            property(ui, "Ratio", &compression_ratio(entry));
+                            if let Some(totals) = totals {
+                                property(ui, "Items", &totals.entries.to_string());
+                                property(ui, "Ratio", &size_ratio(totals.size, totals.compressed_size));
+                            } else {
+                                property(ui, "Method", &method_name(entry.compression_method));
+                                property(ui, "Encrypted", if entry.encrypted { "Yes" } else { "No" });
+                                property(ui, "Ratio", &compression_ratio(entry));
+                            }
                         });
                         ui.add_space(6.0);
                         ui.separator();
-                        ui.horizontal(|ui| {
-                            ui.weak("CRC32");
-                            ui.monospace(format!("{:08x}", entry.crc32));
-                        }).response.on_hover_text("Checksum declared by the archive. A loaded preview verifies its complete payload.");
+                        if totals.is_some() {
+                            ui.small("Folder totals include descendant items.");
+                        } else {
+                            ui.horizontal(|ui| {
+                                ui.weak("CRC32");
+                                ui.monospace(format!("{:08x}", entry.crc32));
+                            }).response.on_hover_text("Checksum declared by the archive. A loaded preview verifies its complete payload.");
+                        }
                         ui.separator();
                         ui.strong("Preview");
                         if entry.is_directory {
@@ -1409,6 +1429,9 @@ impl ArchiveWorkspace {
                         ui.add_space(8.0);
                         ui.strong("Info");
                         ui.label("Folder inferred from entry paths");
+                        if let Ok(index) = document.folders.binary_search(folder) {
+                            folder_properties(ui, document.folder_totals[index]);
+                        }
                         ui.small("Selecting this folder includes its descendants when extracting.");
                         ui.separator();
                         ui.strong("Preview");
@@ -1524,17 +1547,19 @@ impl ArchiveWorkspace {
         let mut window = egui::Window::new("Extract")
             .id(egui::Id::unique("extraction_sheet"))
             .anchor(egui::Align2::CENTER_TOP, [0.0, 100.0])
-            .default_width(520.0)
-            .collapsible(false)
-            .resizable(false);
+            .auto_sized()
+            .collapsible(false);
         if !running {
             window = window.open(&mut visible);
         }
         window.show(context, |ui| {
+            // Fix the width for readable wrapping, while the height follows
+            // the current form/progress/result rather than Window's 420px default.
+            ui.set_width(500.0);
             match &self.extraction.state {
                 ExtractionState::Editing => {
                     ui.heading(match self.extraction.scope {
-                        ExtractionScope::Selected => format!("Extract {selected} selected items"),
+                        ExtractionScope::Selected => format!("Extract {}", counted(selected as u64, "selected item", "selected items")),
                         ExtractionScope::All => "Extract archive".into(),
                     });
                     ui.add_space(10.0);
@@ -1626,7 +1651,7 @@ impl ArchiveWorkspace {
                     });
                     ui.add_space(8.0);
                     ui.label(escape_display(&report.destination));
-                    ui.label(format!("{} files · {} directories · {}", report.files_written, report.directories_created, format_bytes(report.bytes_written)));
+                    ui.label(format!("{} · {} · {}", counted(report.files_written, "file", "files"), counted(report.directories_created, "directory", "directories"), format_bytes(report.bytes_written)));
                     ui.label(format!("{} of {} planned entries completed", report.completed_entries.len(), report.entries_planned));
                     if report.status == ExtractionStatus::Completed {
                         ui.small("The source archive is unchanged.");
@@ -1747,13 +1772,13 @@ fn configure_style(context: &egui::Context) {
         style.spacing.button_padding = egui::vec2(8.0, 4.0);
         style
             .text_styles
-            .insert(egui::TextStyle::Body, egui::FontId::proportional(13.0));
+            .insert(egui::TextStyle::Body, egui::FontId::proportional(14.0));
         style
             .text_styles
-            .insert(egui::TextStyle::Button, egui::FontId::proportional(13.0));
+            .insert(egui::TextStyle::Button, egui::FontId::proportional(14.0));
         style
             .text_styles
-            .insert(egui::TextStyle::Small, egui::FontId::proportional(11.0));
+            .insert(egui::TextStyle::Small, egui::FontId::proportional(12.0));
         style
             .text_styles
             .insert(egui::TextStyle::Heading, egui::FontId::proportional(18.0));
@@ -1764,6 +1789,10 @@ fn configure_style(context: &egui::Context) {
         style.visuals.widgets.active.corner_radius = egui::CornerRadius::same(5);
         style.visuals.window_corner_radius = egui::CornerRadius::same(9);
         if !style.visuals.dark_mode {
+            style.visuals.widgets.noninteractive.fg_stroke.color =
+                egui::Color32::from_rgb(31, 34, 38);
+            style.visuals.widgets.inactive.fg_stroke.color = egui::Color32::from_rgb(40, 43, 47);
+            style.visuals.weak_text_alpha = 0.74;
             style.visuals.panel_fill = egui::Color32::from_rgb(249, 249, 250);
             style.visuals.window_fill = egui::Color32::from_rgb(250, 250, 251);
             style.visuals.widgets.inactive.weak_bg_fill = egui::Color32::from_rgb(241, 242, 244);
@@ -2008,7 +2037,7 @@ fn paint_cell(ui: &egui::Ui, rect: egui::Rect, text: &str, color: egui::Color32,
                 egui::Align2::LEFT_CENTER
             },
             text,
-            egui::FontId::proportional(13.0),
+            egui::FontId::proportional(14.0),
             color,
         );
 }
@@ -2017,6 +2046,39 @@ fn property(ui: &mut egui::Ui, name: &str, value: &str) {
     ui.weak(name);
     ui.label(value);
     ui.end_row();
+}
+
+fn paint_header_cell(ui: &egui::Ui, rect: egui::Rect, text: &str) {
+    paint_cell(ui, rect, text, ui.visuals().strong_text_color(), false);
+}
+
+fn folder_properties(ui: &mut egui::Ui, totals: FolderTotals) {
+    egui::Grid::new("folder_properties")
+        .num_columns(2)
+        .spacing([12.0, 5.0])
+        .show(ui, |ui| {
+            property(ui, "Size", &format_bytes(totals.size));
+            property(ui, "Packed", &format_bytes(totals.compressed_size));
+            property(ui, "Items", &totals.entries.to_string());
+            property(
+                ui,
+                "Ratio",
+                &size_ratio(totals.size, totals.compressed_size),
+            );
+        });
+}
+
+fn counted(count: u64, singular: &str, plural: &str) -> String {
+    format!("{count} {}", if count == 1 { singular } else { plural })
+}
+
+fn view_status(rows: usize, entries: usize, searching: bool) -> String {
+    format!(
+        "{} · {}{}",
+        counted(rows as u64, "visible row", "visible rows"),
+        counted(entries as u64, "archive entry", "archive entries"),
+        if searching { " · Search active" } else { "" }
+    )
 }
 
 fn row_key(document: &PreparedDocument, row: ViewRow) -> RowKey {
@@ -2081,14 +2143,19 @@ fn entry_kind(entry: &ArchiveEntry) -> String {
 }
 
 fn compression_ratio(entry: &ArchiveEntry) -> String {
-    if entry.size == 0 || entry.is_directory {
+    if entry.is_directory {
+        "—".into()
+    } else {
+        size_ratio(entry.size, entry.compressed_size)
+    }
+}
+
+fn size_ratio(size: u64, compressed_size: u64) -> String {
+    if size == 0 {
         "—".into()
     } else {
         // BetterZip's Ratio column is packed/original, truncated to an integer.
-        format!(
-            "{}%",
-            u128::from(entry.compressed_size) * 100 / u128::from(entry.size)
-        )
+        format!("{}%", u128::from(compressed_size) * 100 / u128::from(size))
     }
 }
 

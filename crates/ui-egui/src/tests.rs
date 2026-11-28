@@ -46,51 +46,61 @@ impl Drop for Fixture {
 }
 
 fn stored_zip(name: &[u8], contents: &[u8]) -> Vec<u8> {
+    stored_zip_entries(&[(name, contents)])
+}
+
+fn stored_zip_entries(entries: &[(&[u8], &[u8])]) -> Vec<u8> {
     fn u16le(output: &mut Vec<u8>, value: u16) {
         output.extend(value.to_le_bytes());
     }
     fn u32le(output: &mut Vec<u8>, value: u32) {
         output.extend(value.to_le_bytes());
     }
-    let size = u32::try_from(contents.len()).expect("small fixture");
-    let name_size = u16::try_from(name.len()).expect("small fixture name");
-    let mut crc = !0u32;
-    for byte in contents {
-        crc ^= u32::from(*byte);
-        for _ in 0..8 {
-            crc = (crc >> 1) ^ (0xedb8_8320 & (0u32.wrapping_sub(crc & 1)));
-        }
-    }
-    crc = !crc;
     let mut bytes = Vec::new();
-    u32le(&mut bytes, 0x0403_4b50);
-    for value in [20, 0, 0, 0, 0] {
-        u16le(&mut bytes, value);
+    let mut directory = Vec::new();
+    for (name, contents) in entries {
+        let size = u32::try_from(contents.len()).expect("small fixture");
+        let name_size = u16::try_from(name.len()).expect("small fixture name");
+        let mut crc = !0u32;
+        for byte in *contents {
+            crc ^= u32::from(*byte);
+            for _ in 0..8 {
+                crc = (crc >> 1) ^ (0xedb8_8320 & (0u32.wrapping_sub(crc & 1)));
+            }
+        }
+        crc = !crc;
+        let offset = u32::try_from(bytes.len()).expect("small entry offset");
+        u32le(&mut bytes, 0x0403_4b50);
+        for value in [20, 0, 0, 0, 0] {
+            u16le(&mut bytes, value);
+        }
+        for value in [crc, size, size] {
+            u32le(&mut bytes, value);
+        }
+        u16le(&mut bytes, name_size);
+        u16le(&mut bytes, 0);
+        bytes.extend_from_slice(name);
+        bytes.extend_from_slice(contents);
+        u32le(&mut directory, 0x0201_4b50);
+        for value in [20, 20, 0, 0, 0, 0] {
+            u16le(&mut directory, value);
+        }
+        for value in [crc, size, size] {
+            u32le(&mut directory, value);
+        }
+        for value in [name_size, 0, 0, 0, 0] {
+            u16le(&mut directory, value);
+        }
+        u32le(&mut directory, 0);
+        u32le(&mut directory, offset);
+        directory.extend_from_slice(name);
     }
-    for value in [crc, size, size] {
-        u32le(&mut bytes, value);
-    }
-    u16le(&mut bytes, name_size);
-    u16le(&mut bytes, 0);
-    bytes.extend(name);
-    bytes.extend(contents);
     let central_offset = u32::try_from(bytes.len()).expect("small central offset");
-    u32le(&mut bytes, 0x0201_4b50);
-    for value in [20, 20, 0, 0, 0, 0] {
-        u16le(&mut bytes, value);
-    }
-    for value in [crc, size, size] {
-        u32le(&mut bytes, value);
-    }
-    for value in [name_size, 0, 0, 0, 0] {
-        u16le(&mut bytes, value);
-    }
-    u32le(&mut bytes, 0);
-    u32le(&mut bytes, 0);
-    bytes.extend(name);
-    let central_size = u32::try_from(bytes.len()).expect("small central size") - central_offset;
+    let central_size = u32::try_from(directory.len()).expect("small central size");
+    bytes.extend(directory);
+    let count = u16::try_from(entries.len()).expect("small fixture entry count");
     u32le(&mut bytes, 0x0605_4b50);
-    for value in [0, 0, 1, 1] {
+    for value in [0, 0, count, count] {
         u16le(&mut bytes, value);
     }
     u32le(&mut bytes, central_size);
@@ -614,6 +624,106 @@ fn outline_disclosures_search_and_flat_view_preserve_archive_identity() {
 }
 
 #[test]
+fn folder_totals_include_each_nested_payload_once_for_explicit_and_implicit_folders() {
+    let fixture = Fixture::new(b"placeholder.txt");
+    fs::write(
+        &fixture.path,
+        stored_zip_entries(&[
+            (b"Root/", b""),
+            (b"Root/first.txt", b"first"),
+            (b"Root/Nested/data.bin", b"1234567"),
+            (b"Root/Nested/second.txt", b"abc"),
+            (b"Root/Sub/", b""),
+            (b"Root/Sub/item.txt", b"four"),
+            (b"Root/Sub/Deeper/item.bin", b"xy"),
+            (b"Empty/", b""),
+            (b"outside.txt", b"outside"),
+        ]),
+    )
+    .expect("nested stored fixture");
+    let document = fixture.document();
+    assert_eq!(
+        document.snapshot.entries[0].size, 0,
+        "directory payload is not its contents size"
+    );
+    for (path, size, entries) in [
+        ("Root/", 21, 5),
+        ("Root/Nested/", 10, 2),
+        ("Root/Sub/", 6, 2),
+        ("Root/Sub/Deeper/", 2, 1),
+        ("Empty/", 0, 0),
+    ] {
+        let folder = document
+            .folders
+            .binary_search(&path.to_owned())
+            .expect("prepared folder");
+        assert_eq!(
+            document.folder_totals[folder],
+            FolderTotals {
+                size,
+                compressed_size: size,
+                entries
+            },
+            "totals for {path}"
+        );
+    }
+    let filtered = document
+        .view_rows(
+            "first",
+            None,
+            ViewMode::Outline,
+            &BTreeSet::new(),
+            &CancellationToken::new(),
+        )
+        .expect("search rows");
+    assert_eq!(filtered.len(), 2);
+    let root = filtered[0].folder.expect("ancestor folder row");
+    assert_eq!(
+        document.folder_totals[root].size, 21,
+        "search does not relabel a full folder total as just the matching file"
+    );
+}
+
+#[test]
+fn status_distinguishes_visible_outline_rows_from_archive_records() {
+    let fixture = Fixture::new(b"outer/inner/Report.txt");
+    let document = fixture.document();
+    let expanded = BTreeSet::from(["outer/".into(), "outer/inner/".into()]);
+    let rows = document
+        .view_rows(
+            "",
+            None,
+            ViewMode::Outline,
+            &expanded,
+            &CancellationToken::new(),
+        )
+        .expect("outline rows");
+    let ticket = Ticket {
+        generation: 1,
+        request: 1,
+    };
+    let mut workspace = ArchiveWorkspace {
+        document: Some(document),
+        current: Some(ticket),
+        ..Default::default()
+    };
+    workspace.apply(Reply {
+        ticket,
+        result: Ok(Completed::Filter {
+            rows,
+            query: String::new(),
+            folder: None,
+            mode: ViewMode::Outline,
+            expanded,
+        }),
+    });
+    assert!(workspace.status.contains("3 visible rows"));
+    assert!(workspace.status.contains("1 archive entry"));
+    assert!(!workspace.status.contains("matching"));
+    assert!(!workspace.status.contains("Search active"));
+}
+
+#[test]
 fn ratio_column_reports_packed_size_instead_of_space_saved() {
     let fixture = Fixture::new(b"entry.txt");
     let mut entry = fixture.document().snapshot.entries[0].clone();
@@ -762,6 +872,8 @@ fn extraction_form_and_retained_output_report_render_without_filesystem_work() {
     workspace.open_extraction(ExtractionScope::Selected);
     let text = frame(&mut workspace);
     assert!(text.contains("Selected (1)"));
+    assert!(text.contains("Extract 1 selected item"));
+    assert!(!text.contains("1 selected items"));
     assert!(text.contains("destination must not exist"));
     assert!(text.contains("Extract Here"));
     workspace.extraction.state = ExtractionState::Running {
@@ -776,6 +888,7 @@ fn extraction_form_and_retained_output_report_render_without_filesystem_work() {
         "checking with unknown totals must stay indeterminate"
     );
     let mut report = extraction_report(ExtractionStatus::Failed);
+    report.directories_created = 1;
     report.error = Some(ArchiveError::InvalidArchive("CRC32 mismatch".into()));
     report.incomplete = Some(arcforge_core::archive::IncompleteExtractionEntry {
         entry_id: 0,
@@ -785,6 +898,7 @@ fn extraction_form_and_retained_output_report_render_without_filesystem_work() {
     workspace.extraction.state = ExtractionState::Finished(Ok(report));
     let text = frame(&mut workspace);
     assert!(text.contains("Extraction failed"));
+    assert!(text.contains("1 file · 1 directory"));
     assert!(text.contains("new directory is retained"));
     assert!(text.contains("Incomplete file: entry.txt"));
     assert!(text.contains("CRC32 mismatch"));

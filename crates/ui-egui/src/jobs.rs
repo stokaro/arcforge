@@ -36,9 +36,33 @@ pub(super) struct ViewRow {
     pub depth: usize,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct FolderTotals {
+    pub size: u64,
+    pub compressed_size: u64,
+    pub entries: u64,
+}
+
+impl FolderTotals {
+    fn add(&mut self, other: Self) -> Result<(), ArchiveError> {
+        let overflow = || ArchiveError::LimitExceeded("prepared folder totals overflow".into());
+        self.size = self.size.checked_add(other.size).ok_or_else(overflow)?;
+        self.compressed_size = self
+            .compressed_size
+            .checked_add(other.compressed_size)
+            .ok_or_else(overflow)?;
+        self.entries = self
+            .entries
+            .checked_add(other.entries)
+            .ok_or_else(overflow)?;
+        Ok(())
+    }
+}
+
 pub(super) struct PreparedDocument {
     pub snapshot: Arc<ArchiveSnapshot>,
     pub folders: Vec<String>,
+    pub folder_totals: Vec<FolderTotals>,
     pub folders_limited: bool,
     search_keys: Vec<String>,
     outline: Vec<ViewRow>,
@@ -80,6 +104,34 @@ impl PreparedDocument {
             }
         }
         let folders: Vec<_> = folders.into_iter().collect();
+        // One accumulator per cached folder (at most MAX_FOLDERS), rather
+        // than storing a descendant list or walking every ancestor per file.
+        let mut folder_totals = vec![FolderTotals::default(); folders.len()];
+        for entry in &snapshot.entries {
+            check_cancel(cancel)?;
+            if !entry.is_directory
+                && let Some(folder) = nearest_folder(&folders, &entry.name.display, cancel)?
+            {
+                folder_totals[folder].add(FolderTotals {
+                    size: entry.size,
+                    compressed_size: entry.compressed_size,
+                    entries: 1,
+                })?;
+            }
+        }
+        // Lexically sorted parents precede their children. Propagate each
+        // accumulated subtree once, including implicitly represented folders.
+        for index in (0..folders.len()).rev() {
+            check_cancel(cancel)?;
+            if let Some(parent) = nearest_folder(
+                &folders,
+                &folders[index][..folders[index].len() - 1],
+                cancel,
+            )? {
+                let subtree = folder_totals[index];
+                folder_totals[parent].add(subtree)?;
+            }
+        }
         let mut outline: Vec<_> = folders
             .iter()
             .enumerate()
@@ -129,6 +181,7 @@ impl PreparedDocument {
         Ok(Self {
             snapshot: Arc::new(snapshot),
             folders,
+            folder_totals,
             folders_limited,
             search_keys,
             outline,
@@ -236,6 +289,21 @@ impl PreparedDocument {
         }
         Ok(visible)
     }
+}
+
+fn nearest_folder(
+    folders: &[String],
+    name: &str,
+    cancel: &CancellationToken,
+) -> Result<Option<usize>, ArchiveError> {
+    for (offset, _) in name.rmatch_indices('/') {
+        check_cancel(cancel)?;
+        if let Ok(index) = folders.binary_search_by(|folder| folder.as_str().cmp(&name[..=offset]))
+        {
+            return Ok(Some(index));
+        }
+    }
+    Ok(None)
 }
 
 fn view_limit() -> ArchiveError {
