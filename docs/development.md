@@ -35,16 +35,20 @@ A target triple alone does not install a linker, SDK, emulator, or runner. Use a
 
 For focused iteration, run the affected Rust package directly with Cargo's `--locked` option. Use the shared checks before opening a PR so dependency-boundary and formatting regressions are caught as well.
 
-## Run the scaffold
+## Run the application
 
 ```sh
 cargo run --locked -p arcforge
+cargo run --locked -p arcforge -- example.zip
 cargo run --locked -p arcforge-cli -- --help
 cargo run --locked -p arcforge-cli -- commands --json
 cargo run --locked -p arcforge-cli -- doctor --json
+cargo run --locked -p arcforge-cli -- list example.zip --json
+cargo run --locked -p arcforge-cli -- info example.zip --json
+cargo run --locked -p arcforge-cli -- preview example.zip --entry 0 --json
 ```
 
-The desktop opens a bootstrap workspace. The CLI currently implements `version`, `commands`, and `doctor`. `doctor` reports compiled capabilities; it does not probe the machine, and a successful exit means the report was produced, not that archive operations are available. Planned archive commands return an explicit not-implemented error without opening or changing input files.
+The desktop opens a read-only ZIP/ZIP64 browser. It accepts one native path at startup, a path in the Open window, or a file drop; use `-- PATH` for a startup path beginning with a dash. Search, filename interpretation, archive reads, and preview preparation run on a bounded worker outside the UI thread. The CLI implements `version`, `commands`, `doctor`, `list`, `info`, and bounded `preview` through the shared core. `doctor` reports compiled capabilities without probing the machine or opening an archive. Planned commands still return explicit not-implemented errors. See [the ZIP contract](zip-browser.md) for limits, filename options, metadata revisions, and unsupported cases.
 
 ## Primary target matrix
 
@@ -58,13 +62,13 @@ The desktop opens a bootstrap workspace. The CLI currently implements `version`,
 
 ## Development packages
 
-The bootstrap packages **unsigned portable development bundles** containing the desktop application and CLI, with applicable license notices:
+The packager creates **unsigned portable development bundles** containing the desktop application and CLI, with applicable license notices:
 
 - macOS: a ZIP containing `ArcForge.app` and the headless CLI.
 - Windows: a ZIP containing the executables.
 - Linux: a `.tar.gz` containing the executables.
 
-Each bundle includes the repository documentation and applicable source-reuse notices, with a SHA-256 sidecar for the artifact. These bundles are for testing the scaffold. DMG, MSI/NSIS, AppImage, DEB/RPM, signing/notarization, automatic updates, and production installation/upgrade tests remain work in the epic. Development packaging must not require signing credentials.
+Each bundle includes the repository documentation and applicable source-reuse notices, with a SHA-256 sidecar for the artifact. These bundles are for development testing. DMG, MSI/NSIS, AppImage, DEB/RPM, signing/notarization, automatic updates, and production installation/upgrade tests remain work in the epic. Development packaging must not require signing credentials.
 
 CI runs commands from the unpacked bundle and writes native evidence for its archive hash and source revision. A final job requires the complete six-target set of archives, checksums, and evidence. Tag builds verify that set before creating a draft release and compare the downloaded uploaded assets with the prepared files. See [release verification](release.md) for the commands, exact asset inventory, and limits of the evidence.
 
@@ -74,6 +78,6 @@ After dependencies or features change, follow [license bundle regeneration](../l
 
 ## Verification
 
-Tests should use synthetic archives and isolated temporary directories as archive behavior is implemented. Test the same shared operation through core and CLI contracts, and add UI/native integration tests for behavior that the core cannot prove. Include independent archive-reader/writer interoperability tests when a provider is introduced.
+Tests use synthetic archives and isolated temporary directories for archive behavior. Test the same shared operation through core and CLI contracts, and add UI/native integration tests for behavior that the core cannot prove. The committed [Python zipfile fixture](../tests/fixtures/python-zipfile.hex) supplies independent Stored/Deflate ZIP input to tests and package smoke verification; the optional [generator](../scripts/generate_zip_fixture.py) regenerates it. Normal tests, builds, and package verification consume the committed bytes and do not require Python. Add interoperability fixtures as provider coverage grows.
 
 For visual work, record the fixture, window size, scale, theme, OS, and reference version. Compare repeatable states rather than unrelated screenshots. Report the commands and platforms actually verified in the PR, along with any pending checks.

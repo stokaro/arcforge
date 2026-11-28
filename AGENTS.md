@@ -1,6 +1,6 @@
 # Working on ArcForge
 
-ArcForge is a Rust archive-manager bootstrap, not a working archive editor. [Issue #1](https://github.com/stokaro/arcforge/issues/1) defines the planned behavior and acceptance criteria.
+ArcForge currently provides read-only ZIP/ZIP64 browsing and small-entry previews in Rust. Extraction, creation, editing, and saving remain planned; see [current ZIP contracts](docs/zip-browser.md). [Issue #1](https://github.com/stokaro/arcforge/issues/1) defines the planned behavior and acceptance criteria.
 
 ## Boundaries
 

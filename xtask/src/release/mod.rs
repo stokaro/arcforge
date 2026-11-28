@@ -346,14 +346,20 @@ fn smoke_commands(target: &Target) -> Vec<(&str, Vec<&'static str>)> {
         (&target.cli, vec!["doctor", "--json"]),
         (&target.gui, vec!["--version"]),
         (&target.cli, vec!["list", "arcforge-smoke.zip", "--json"]),
-        (&target.cli, vec!["preview", "arcforge-smoke.zip", "--entry", "1", "--json"]),
+        (
+            &target.cli,
+            vec!["preview", "arcforge-smoke.zip", "--entry", "1", "--json"],
+        ),
     ]
 }
 
 fn smoke(directory: &Path, target: &Target) -> Result<Vec<Value>> {
     // Independent Python writer fixture, installed only after inventory validation.
-    let hex: String = include_str!("../../../tests/fixtures/python-zipfile.hex").split_whitespace().collect();
-    let fixture: Vec<_> = (0..hex.len()).step_by(2)
+    let hex: String = include_str!("../../../tests/fixtures/python-zipfile.hex")
+        .split_whitespace()
+        .collect();
+    let fixture: Vec<_> = (0..hex.len())
+        .step_by(2)
         .map(|index| u8::from_str_radix(&hex[index..index + 2], 16))
         .collect::<std::result::Result<_, _>>()?;
     fs::write(directory.join("arcforge-smoke.zip"), fixture)?;
@@ -418,9 +424,7 @@ fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
                 .as_array()
                 .ok_or("commands response has no array")?;
             let implemented = ["version", "commands", "doctor", "list", "info", "preview"];
-            let planned = [
-                "create", "extract", "test", "update", "convert", "hash",
-            ];
+            let planned = ["create", "extract", "test", "update", "convert", "hash"];
             let mut names = BTreeSet::new();
             if value["kind"] != "commands"
                 || commands.len() != implemented.len() + planned.len()
@@ -447,16 +451,18 @@ fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
             {
                 return Err("unpacked CLI violated command discovery contract".into());
             }
-        } else if index == 2 && (value["kind"] != "doctor"
-            || value["data"]["application"]["name"] != "ArcForge"
-            || value["data"]["application"]["version"] != VERSION
-            || value["data"]["application"]["stage"] != "zip-browser"
-            || value["data"]["ready_for_archive_operations"] != true
-            || value["data"]["archive_provider_count"] != 1
-            || value["data"]["supported_archive_formats"] != json!(["zip", "zip64"])
-            || value["data"]["providers"][0]["operations"] != json!(["list", "info", "preview"])
-            || value["data"]["providers"][0]["write"] != false
-            || value["data"]["providers"][0]["encrypted_content"] != false)
+        } else if index == 2
+            && (value["kind"] != "doctor"
+                || value["data"]["application"]["name"] != "ArcForge"
+                || value["data"]["application"]["version"] != VERSION
+                || value["data"]["application"]["stage"] != "zip-browser"
+                || value["data"]["ready_for_archive_operations"] != true
+                || value["data"]["archive_provider_count"] != 1
+                || value["data"]["supported_archive_formats"] != json!(["zip", "zip64"])
+                || value["data"]["providers"][0]["operations"]
+                    != json!(["list", "info", "preview"])
+                || value["data"]["providers"][0]["write"] != false
+                || value["data"]["providers"][0]["encrypted_content"] != false)
         {
             return Err("unpacked CLI violated read-only capability contract".into());
         } else if index == 4 {
@@ -464,17 +470,22 @@ fn validate_smoke_output(index: usize, stdout: &[u8]) -> Result<()> {
             let revision = value["data"]["metadata_revision"].as_str().unwrap_or("");
             if value["kind"] != "list"
                 || entries.as_array().map(Vec::len) != Some(2)
-                || entries[0]["id"] != 0 || entries[1]["id"] != 1
+                || entries[0]["id"] != 0
+                || entries[1]["id"] != 1
                 || entries[0]["name"]["display"] != "hello.txt"
                 || entries[1]["name"]["display"] != "folder/Привет.txt"
                 || entries[0]["raw_name_hex"] != "68656c6c6f2e747874"
                 || entries[1]["compression_method"] != 8
-                || revision.len() != 64 || !revision.bytes().all(|byte| byte.is_ascii_hexdigit())
-            { return Err("unpacked CLI could not list the independent ZIP fixture".into()); }
-        } else if index == 5 && (value["kind"] != "preview"
-            || value["data"]["preview"]["entry_id"] != 1
-            || value["data"]["preview"]["text"] != "Привет из ZIP.\n"
-            || value["data"]["preview"]["crc32_verified"] != true)
+                || revision.len() != 64
+                || !revision.bytes().all(|byte| byte.is_ascii_hexdigit())
+            {
+                return Err("unpacked CLI could not list the independent ZIP fixture".into());
+            }
+        } else if index == 5
+            && (value["kind"] != "preview"
+                || value["data"]["preview"]["entry_id"] != 1
+                || value["data"]["preview"]["text"] != "Привет из ZIP.\n"
+                || value["data"]["preview"]["crc32_verified"] != true)
         {
             return Err("unpacked CLI could not verify the independent Deflate fixture".into());
         }

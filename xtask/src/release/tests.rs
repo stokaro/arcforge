@@ -288,8 +288,8 @@ fn evidence_requires_the_actual_native_command_contract() -> Result<()> {
     validate_smoke_output(0, format!("ArcForge {VERSION} (zip-browser)\n").as_bytes())?;
     assert!(validate_smoke_output(1, br#"{"kind":"commands","data":[]}"#).is_err());
     let command_rows: Vec<_> = [
-        "version", "commands", "doctor", "list", "info", "preview", "create", "extract", "test", "update",
-        "convert", "hash",
+        "version", "commands", "doctor", "list", "info", "preview", "create", "extract", "test",
+        "update", "convert", "hash",
     ]
     .iter()
     .enumerate()

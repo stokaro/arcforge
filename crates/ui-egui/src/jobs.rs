@@ -29,7 +29,10 @@ pub(super) struct PreparedDocument {
 }
 
 impl PreparedDocument {
-    pub fn new(snapshot: ArchiveSnapshot, cancel: &CancellationToken) -> Result<Self, ArchiveError> {
+    pub fn new(
+        snapshot: ArchiveSnapshot,
+        cancel: &CancellationToken,
+    ) -> Result<Self, ArchiveError> {
         let mut folders = BTreeSet::new();
         let mut folder_bytes = 0;
         let mut key_bytes = 0usize;
@@ -417,7 +420,14 @@ mod tests {
         worker.submit(request(3)).expect("replace pending request");
         assert!(first_cancel.is_cancelled());
         assert!(second_cancel.is_cancelled());
-        assert_eq!(incoming.try_recv().expect("one queued request").ticket.request, 1);
+        assert_eq!(
+            incoming
+                .try_recv()
+                .expect("one queued request")
+                .ticket
+                .request,
+            1
+        );
         assert!(incoming.try_recv().is_err());
         worker.poll().expect("flush latest pending");
         let newest = incoming.try_recv().expect("latest request");
@@ -441,10 +451,16 @@ mod tests {
         let cancel = CancellationToken::new();
         let prepared = PreparedPreview::new(preview.clone(), &cancel).expect("prepared preview");
         assert!(prepared.text_limited);
-        assert_eq!(prepared.text_rows.as_ref().expect("text rows").len(), MAX_TEXT_ROWS);
+        assert_eq!(
+            prepared.text_rows.as_ref().expect("text rows").len(),
+            MAX_TEXT_ROWS
+        );
         assert_eq!(prepared.hex_rows.len(), preview.bytes.len().div_ceil(16));
         assert_eq!(prepared.preview.bytes, preview.bytes);
         cancel.cancel();
-        assert!(matches!(PreparedPreview::new(preview, &cancel), Err(ArchiveError::Cancelled)));
+        assert!(matches!(
+            PreparedPreview::new(preview, &cancel),
+            Err(ArchiveError::Cancelled)
+        ));
     }
 }

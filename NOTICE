@@ -27,5 +27,9 @@ hiewbie's original repository/specification material is MIT:
 Copyright (c) 2026 Stokaro. Its notice is identical to the root LICENSE.
 See docs/hiewbie-reuse.md for pinned paths and ArcForge modifications.
 
+The CP437 mapping in crates/core/src/archive/names.rs is adapted from zip-rs/zip2:
+Copyright (c) 2014 Mathijs van de Nes. MIT License.
+See licenses/zip-rs-MIT.txt and docs/zip-browser.md for the exact source and changes.
+
 Third-party Rust dependencies and embedded assets retain their own licenses.
 Development packages include dependency notices and the relevant font notices.

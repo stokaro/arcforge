@@ -173,10 +173,14 @@ pub struct ProviderCapabilities {
 }
 
 pub const PROVIDERS: &[ProviderCapabilities] = &[ProviderCapabilities {
-    name: "zip-rs", version: "9.8.2", formats: &["zip", "zip64"],
+    name: "zip-rs",
+    version: "9.8.2",
+    formats: &["zip", "zip64"],
     operations: &["list", "info", "preview"],
     preview_compression: &["stored", "deflate"],
-    encrypted_content: false, multi_disk: false, write: false,
+    encrypted_content: false,
+    multi_disk: false,
+    write: false,
 }];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -223,7 +227,9 @@ impl fmt::Display for CommandError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnknownCommand(name) => write!(formatter, "unknown command '{name}'"),
-            Self::ArgumentsRequired(name) => write!(formatter, "'{name}' requires archive arguments"),
+            Self::ArgumentsRequired(name) => {
+                write!(formatter, "'{name}' requires archive arguments")
+            }
             Self::NotImplemented(name) => write!(
                 formatter,
                 "'{name}' is planned but not implemented; no archive operation was performed"
@@ -240,7 +246,11 @@ pub fn execute(command: Command) -> Result<CommandResult, CommandError> {
         Command::Version => Ok(CommandResult::Version(application_info())),
         Command::Commands => Ok(CommandResult::Commands(COMMANDS)),
         Command::Doctor => Ok(CommandResult::Doctor(diagnostics())),
-        Command::Archive(operation @ (ArchiveOperation::List | ArchiveOperation::Info | ArchiveOperation::Preview)) => Err(CommandError::ArgumentsRequired(operation.name())),
+        Command::Archive(
+            operation @ (ArchiveOperation::List
+            | ArchiveOperation::Info
+            | ArchiveOperation::Preview),
+        ) => Err(CommandError::ArgumentsRequired(operation.name())),
         Command::Archive(operation) => Err(CommandError::NotImplemented(operation.name())),
     }
 }
@@ -256,7 +266,10 @@ mod tests {
             assert!(names.insert(descriptor.name), "duplicate command");
             let result = execute(Command::parse(descriptor.name).expect("known command"));
             match descriptor.availability {
-                Availability::Implemented => assert!(result.is_ok() || result == Err(CommandError::ArgumentsRequired(descriptor.name))),
+                Availability::Implemented => assert!(
+                    result.is_ok()
+                        || result == Err(CommandError::ArgumentsRequired(descriptor.name))
+                ),
                 Availability::Planned => {
                     assert_eq!(result, Err(CommandError::NotImplemented(descriptor.name)))
                 }

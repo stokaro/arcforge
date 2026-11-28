@@ -14,14 +14,29 @@ fn version_exits_before_desktop_initialization() {
 }
 
 #[test]
-fn unsupported_file_arguments_fail_before_desktop_initialization() {
+fn multiple_file_arguments_fail_before_desktop_initialization() {
     let output = Command::new(env!("CARGO_BIN_EXE_arcforge"))
-        .arg("does-not-exist.zip")
+        .args(["first.zip", "second.zip"])
         .env_remove("DISPLAY")
         .env_remove("WAYLAND_DISPLAY")
         .output()
-        .expect("launch desktop binary with unsupported argument");
+        .expect("launch desktop binary with invalid arguments");
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("not implemented"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("one archive path"));
+}
+
+#[test]
+fn help_explains_archive_opening_without_a_display() {
+    let output = Command::new(env!("CARGO_BIN_EXE_arcforge"))
+        .arg("--help")
+        .env_remove("DISPLAY")
+        .env_remove("WAYLAND_DISPLAY")
+        .output()
+        .expect("launch desktop binary in help mode");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("[ARCHIVE]"));
+    assert!(stdout.contains("Editing and extraction are planned"));
+    assert!(output.stderr.is_empty());
 }
