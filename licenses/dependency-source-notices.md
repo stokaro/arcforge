@@ -1512,6 +1512,20 @@ Source: <https://github.com/rust-windowing/winit/blob/587ade844dfb0eada3696ba1cb
 
 [Full notice](#notice-a8ad31b1c3f40dca5a84119351b8fa8ddc868edd77fad8a8ebf6d8f2d16fa4ae).
 
+## dunce@1.0.5
+
+Declared license: `CC0-1.0 OR MIT-0 OR Apache-2.0`.
+
+Upstream: <https://gitlab.com/kornelski/dunce>.
+
+Manifest authors (not a substituted copyright notice): Kornel <kornel@geekhood.net>.
+
+### Packaged source: LICENSE
+
+SHA-256: `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`.
+
+[Full notice](#notice-a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499).
+
 ## ecolor@0.37.0
 
 Declared license: `MIT OR Apache-2.0`.
@@ -2608,6 +2622,34 @@ SHA-256: `47dc9ff29128ddfb4d6a0435383c9f89120bc374dbcc1dd00b933a0b28aa7865`.
 
 [Full notice](#notice-47dc9ff29128ddfb4d6a0435383c9f89120bc374dbcc1dd00b933a0b28aa7865).
 
+## is-docker@0.2.0
+
+Declared license: `MIT`.
+
+Upstream: <https://github.com/TheLarkInn/is-docker>.
+
+Manifest authors (not a substituted copyright notice): Sean Larkin <TheLarkInn@users.noreply.github.com>.
+
+### Packaged source: LICENSE
+
+SHA-256: `7377e48a67377f0baa9ccee6425e125eb7b96d5b8e706f4c99479ca4ffa21b77`.
+
+[Full notice](#notice-7377e48a67377f0baa9ccee6425e125eb7b96d5b8e706f4c99479ca4ffa21b77).
+
+## is-wsl@0.4.0
+
+Declared license: `MIT`.
+
+Upstream: <https://github.com/TheLarkInn/is-wsl>.
+
+Manifest authors (not a substituted copyright notice): Sean Larkin <TheLarkInn@users.noreply.github.com>.
+
+### Packaged source: LICENSE
+
+SHA-256: `7377e48a67377f0baa9ccee6425e125eb7b96d5b8e706f4c99479ca4ffa21b77`.
+
+[Full notice](#notice-7377e48a67377f0baa9ccee6425e125eb7b96d5b8e706f4c99479ca4ffa21b77).
+
 ## itertools@0.15.0
 
 Declared license: `MIT OR Apache-2.0`.
@@ -3559,6 +3601,20 @@ SHA-256: `a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2`.
 SHA-256: `23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3`.
 
 [Full notice](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3).
+
+## open@5.4.5
+
+Declared license: `MIT`.
+
+Upstream: <https://github.com/Byron/open-rs>.
+
+Manifest authors (not a substituted copyright notice): Sebastian Thiel <byronimo@gmail.com>.
+
+### Packaged source: LICENSE.md
+
+SHA-256: `e63690624d604aa626c3c62b6ead1a9f4a916d2260ac8132022acbafe2556045`.
+
+[Full notice](#notice-e63690624d604aa626c3c62b6ead1a9f4a916d2260ac8132022acbafe2556045).
 
 ## option-ext@0.2.0
 
@@ -13850,6 +13906,32 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ````
 
+## Notice 7377e48a67377f0baa9ccee6425e125eb7b96d5b8e706f4c99479ca4ffa21b77
+
+````text
+MIT License
+
+Copyright (c) 2023 Sean Larkin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+````
+
 ## Notice 74d4077c9cde7e4f91ea37bf20d728517fc698016ce63b75df8bf946aa234e0d
 
 ````text
@@ -22632,6 +22714,36 @@ limitations under the License.
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+````
+
+## Notice e63690624d604aa626c3c62b6ead1a9f4a916d2260ac8132022acbafe2556045
+
+````text
+The MIT License (MIT)
+=====================
+
+Copyright © `2015` `Sebastian Thiel`
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the “Software”), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
 ````
 
 ## Notice e64891b51361725890d69bafa508ad013bc92aeef99054caecb6f5ce5f7dfd51

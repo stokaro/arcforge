@@ -12,6 +12,14 @@ The workspace is being developed against the [BetterZip 6 design contract](refer
 
 The archive encoding selector applies a fallback only where metadata does not already declare a name. The inspector offers an entry override and explicit recovery. Reinterpretation uses retained original bytes, keeps entry ordinals, and rebuilds folders/search state without writing the archive. Overrides last for the open document; persistent per-archive preferences are not implemented.
 
+### Open a file in the default app
+
+A single click selects a row and loads the built-in preview. Double-click an archive file to open it in the app associated with its file type. Double-click an Outline folder to enter it.
+
+ArcForge extracts just the clicked entry into a fresh temporary directory, preserving its name and extension. It checks paths, source identity, size limits and CRC32 before sending the file to the desktop. This uses the streaming extraction limits, including 1 GiB per file, so larger files can open even when they exceed the built-in preview limit. The action supports regular, unencrypted Stored or Deflate entries with resolved names. Common executable, script and shortcut formats require explicit extraction for external use.
+
+Each open gets its own copy. Edits made in the external app are local to that copy. Copies stay available when you close or switch archives, and ArcForge attempts to remove them when the application exits. Use the external app's Save As to keep a permanent copy. **Stop** cancels preparation before the system handoff. A successful handoff leaves the copy available even if cancellation arrives during dispatch. On Linux the feature uses `gio open` and the desktop's registered file association.
+
 Open, indexing, search, reinterpretation, and preview use one worker with bounded request/result channels and at most one latest pending request. Each result carries a document generation and request identity; the UI applies it only if both are current. Superseded/cancelled work cannot replace a newer view or preview. Preview and filename/search preparation run off the UI thread. Extract All/Selected uses the same worker, progress, and core validation as the CLI. Extraction and Save As keep their operation ticket through the terminal result.
 
 ## CLI use

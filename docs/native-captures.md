@@ -56,6 +56,7 @@ Every completed capture contains these client scenes, plus two native file panel
 | Scene | Actual selected entry | Required worker result |
 | --- | --- | --- |
 | `client/01-text-preview.png` | `Documents/Guide.txt` | Complete UTF-8 text preview with verified CRC32 |
+| `client/10-open-in-default-app.png` | `Documents/Guide.txt` | Normal file-open command succeeded; the temporary copy matches the CRC-verified preview |
 | `client/02-image-preview.png` | `Photos/Color-study.png` | Complete verified preview and decoded 960 × 640 PNG texture |
 | `client/03-empty-window.png` | None | Closed document, cleared selection/preview, no pending picker |
 | `04-open-panel-native-window.png` (macOS) | None | Actual owned `NSOpenPanel`, active native picker and verified window identity |
@@ -64,6 +65,8 @@ Every completed capture contains these client scenes, plus two native file panel
 | `07-save-panel-native-window.png` (macOS) | None | Actual owned `NSSavePanel` opened for the edited ZIP |
 | `client/08-save-collision.png` | None | Save to the original path rejected with the deletion still staged |
 | `client/09-saved-copy.png` | None | Clean copy open, only the selected image missing |
+
+The file-open scene uses the same controller action as a double-click. On macOS and Windows the developer harness uses the machine's current text-file association. On Linux it supplies a process-local XDG text handler that copies the file it receives into the evidence directory. The gate compares that copy independently against the fixture with Python's `zipfile`. The capture records the ArcForge workspace after the handoff.
 
 The harness cancels the inspected Save As panel and submits the collision and
 success destinations through the workspace's save controller. It verifies the

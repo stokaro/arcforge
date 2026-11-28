@@ -3,6 +3,7 @@
 mod edits;
 mod filesystem;
 mod jobs;
+mod open_file;
 mod preview_image;
 pub mod typography;
 
@@ -207,6 +208,8 @@ pub struct ArchiveWorkspace {
     style_initialized: bool,
     extraction: ExtractionDialog,
     saving: Option<bool>,
+    opening_file: Option<bool>,
+    opened_files: Vec<open_file::OpenCopy>,
     edit_pending: bool,
     discard: Option<DiscardAction>,
     preview: Option<PreparedPreview>,
@@ -275,6 +278,8 @@ impl ArchiveWorkspace {
             style_initialized: false,
             extraction: ExtractionDialog::default(),
             saving: None,
+            opening_file: None,
+            opened_files: Vec::new(),
             edit_pending: false,
             discard: None,
             preview: None,
@@ -345,6 +350,7 @@ impl ArchiveWorkspace {
             can_cancel: self.current.is_some()
                 && !self.native_picker_pending()
                 && self.saving != Some(true)
+                && self.opening_file != Some(true)
                 && !matches!(
                     self.extraction.state,
                     ExtractionState::Running {
@@ -825,6 +831,9 @@ impl ArchiveWorkspace {
                 if self.saving.take().is_some() {
                     self.status = "Save worker stopped. Check the requested filename; your changes are still staged.".into();
                 }
+                if self.opening_file.take().is_some() {
+                    self.status = "The worker stopped before reporting the file open.".into();
+                }
                 self.edit_pending = false;
                 self.current = None;
                 self.blocks_selection = false;
@@ -849,6 +858,7 @@ impl ArchiveWorkspace {
         }
         let extracting = self.extraction_active();
         let saving = self.saving.take().is_some();
+        let opening_file = self.opening_file.take().is_some();
         self.edit_pending = false;
         self.current = None;
         self.blocks_selection = false;
@@ -901,6 +911,12 @@ impl ArchiveWorkspace {
                     self.preview = Some(preview);
                 }
             }
+            Ok(Completed::OpenedFile(copy)) => {
+                let label = archive_label(&copy.path);
+                self.status = format!("Opened {label} in default app · Temporary copy");
+                self.error = None;
+                self.opened_files.push(copy);
+            }
             Ok(Completed::Extraction(report)) => {
                 if matches!(report.error, Some(ArchiveError::SourceChanged)) {
                     self.source_changed = true;
@@ -945,6 +961,16 @@ impl ArchiveWorkspace {
                     ),
                     error => Some(error.to_string()),
                 };
+            }
+            Err(error) if opening_file => {
+                self.source_changed |= error == ArchiveError::SourceChanged;
+                if error == ArchiveError::Cancelled {
+                    self.status = "File open cancelled.".into();
+                    self.error = None;
+                } else {
+                    self.status = "File could not be opened in the default app.".into();
+                    self.error = Some(error.to_string());
+                }
             }
             Err(error) => {
                 if matches!(error, ArchiveError::SourceChanged) {
@@ -1175,6 +1201,14 @@ impl ArchiveWorkspace {
     }
 
     fn cancel(&mut self) {
+        if let Some(requested) = &mut self.opening_file {
+            if let Some(worker) = &mut self.worker {
+                worker.cancel();
+            }
+            *requested = true;
+            self.status = "Cancellation requested; waiting for the file open result…".into();
+            return;
+        }
         if let Some(requested) = &mut self.saving {
             if let Some(worker) = &mut self.worker {
                 worker.cancel();
@@ -1306,12 +1340,36 @@ impl ArchiveWorkspace {
         );
     }
 
+    fn open_file(&mut self, entry: EntryId, context: &egui::Context) {
+        if self.source_changed || self.blocks_selection || !self.workspace_idle() {
+            return;
+        }
+        let Some(document) = self.document.clone() else {
+            return;
+        };
+        if !document
+            .entry(entry)
+            .is_some_and(|entry| !entry.is_directory)
+        {
+            return;
+        }
+        self.submit(
+            Task::OpenFile { document, entry },
+            true,
+            "Preparing a temporary copy for the default app…",
+            context,
+        );
+        if self.current.is_some() {
+            self.opening_file = Some(false);
+        }
+    }
+
     fn extraction_active(&self) -> bool {
         matches!(self.extraction.state, ExtractionState::Running { .. })
     }
 
     fn file_job_active(&self) -> bool {
-        self.extraction_active() || self.saving.is_some()
+        self.extraction_active() || self.saving.is_some() || self.opening_file.is_some()
     }
 
     fn workspace_idle(&self) -> bool {
@@ -1327,6 +1385,9 @@ impl ArchiveWorkspace {
             true
         } else if self.saving.is_some() {
             self.error = Some("Wait for the save result, or request cancellation.".into());
+            true
+        } else if self.opening_file.is_some() {
+            self.error = Some("Wait for the file open result, or request cancellation.".into());
             true
         } else {
             false
@@ -2384,6 +2445,7 @@ impl ArchiveWorkspace {
             let mut clicked = None;
             let mut disclosed = None;
             let mut entered = None;
+            let mut opened = None;
             egui::ScrollArea::horizontal().id_salt("contents_horizontal").auto_shrink([false, false]).show(ui, |ui| {
                 let width = ui.available_width().max(600.0);
                 let columns = table_columns(width);
@@ -2458,11 +2520,14 @@ impl ArchiveWorkspace {
                                     x += cell_width;
                                 }
                                 let response = response.on_hover_text(row_full_path(&document, row));
-                                if response.clicked() && !disclosure_clicked {
+                                if response.double_clicked() && !disclosure_clicked {
+                                    if let Some(folder) = row.folder {
+                                        entered = Some(document.folders[folder].clone());
+                                    } else if let Some(entry) = entry.filter(|entry| !entry.is_directory) {
+                                        opened = Some((index, entry.id));
+                                    }
+                                } else if response.clicked() && !disclosure_clicked {
                                     clicked = Some((index, ui.input(|input| input.modifiers)));
-                                }
-                                if response.double_clicked() && let Some(folder) = row.folder {
-                                    entered = Some(document.folders[folder].clone());
                                 }
                             }
                         });
@@ -2473,6 +2538,11 @@ impl ArchiveWorkspace {
                 self.navigate(Some(folder), ui.ctx());
             } else if let Some(folder) = disclosed {
                 self.toggle_folder(folder, ui.ctx());
+            } else if let Some((index, entry)) = opened {
+                if self.selected != Some(entry) || self.selection_count() != 1 {
+                    self.select_row(index, egui::Modifiers::NONE);
+                }
+                self.open_file(entry, ui.ctx());
             } else if let Some((index, modifiers)) = clicked {
                 self.select_row(index, modifiers);
                 if self.selected.and_then(|id| document.entry(id)).is_some_and(|entry| !entry.is_directory) {

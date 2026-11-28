@@ -66,7 +66,7 @@ fn main() -> ExitCode {
         }
         Startup::Help => {
             println!(
-                "Usage: arcforge [ARCHIVE]\n       arcforge -- PATH\n       arcforge --help | --version\n\nLaunch the ArcForge desktop with an optional ZIP path.\nZIP browsing, small-entry previews, and extraction into a new directory are available.\nEditing and saving are planned. Use arcforge-cli for command discovery.\nPaths may also be entered in the window or dropped into the workspace."
+                "Usage: arcforge [ARCHIVE]\n       arcforge -- PATH\n       arcforge --help | --version\n\nLaunch the ArcForge desktop with an optional ZIP path.\nDouble-click a file to open it in the default app. ZIP browsing, previews, and extraction are available.\nClassic ZIP supports staged deletion and Save As. Use arcforge-cli for command discovery.\nPaths may also be entered in the window or dropped into the workspace."
             );
             return ExitCode::SUCCESS;
         }

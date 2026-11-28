@@ -17,6 +17,8 @@ Install/configure these through the distribution's desktop packages; the portabl
 
 The current picker API can return `None` both for user cancellation and for backend failure. ArcForge preserves the existing document in either case and currently has no separate picker-backend error message; with neither backend usable, Open can appear to do nothing. Do not classify that as a successful cancellation test. Verify an actual file/folder panel in the application's desktop session; a successful build or rendered eframe window alone does not verify this integration.
 
+Opening an archive member in the system's default application uses the `gio` executable, provided by `libglib2.0-bin` on Debian and Ubuntu. The desktop session needs an app registered for the file's type.
+
 ## Shared build interface
 
 Run commands from the repository root:

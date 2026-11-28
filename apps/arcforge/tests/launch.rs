@@ -37,7 +37,7 @@ fn help_explains_archive_opening_without_a_display() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("[ARCHIVE]"));
-    assert!(stdout.contains("extraction into a new directory are available"));
-    assert!(stdout.contains("Editing and saving are planned"));
+    assert!(stdout.contains("Double-click a file to open it in the default app"));
+    assert!(stdout.contains("staged deletion and Save As"));
     assert!(output.stderr.is_empty());
 }
