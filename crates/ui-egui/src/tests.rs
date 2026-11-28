@@ -963,11 +963,38 @@ fn default_extraction_path_preserves_native_non_utf8_bytes() {
         destination.as_os_str().as_bytes(),
         b"/tmp/archive-\xff-extracted"
     );
+}
 
+#[test]
+fn extraction_review_preserves_unicode_filesystem_paths() {
+    assert_extraction_review_preserves_native_paths(
+        OsStr::new("архив-東京.zip"),
+        OsStr::new("архив-東京-extracted"),
+        OsStr::new("назначение-資料"),
+    );
+}
+
+// macOS filesystems can reject invalid UTF-8 before the application sees the
+// path. Unix OsString preservation is tested above without filesystem access.
+#[cfg(target_os = "linux")]
+#[test]
+fn extraction_review_preserves_non_utf8_filesystem_paths() {
+    use std::os::unix::ffi::OsStrExt;
+
+    assert_extraction_review_preserves_native_paths(
+        OsStr::from_bytes(b"archive-\xff.zip"),
+        OsStr::from_bytes(b"archive-\xff-extracted"),
+        OsStr::from_bytes(b"parent-\xfe"),
+    );
+}
+
+fn assert_extraction_review_preserves_native_paths(
+    archive_name: &OsStr,
+    expected_name: &OsStr,
+    parent_name: &OsStr,
+) {
     let mut fixture = Fixture::new(b"entry.txt");
-    let native_archive = fixture
-        .directory
-        .join(std::ffi::OsString::from_vec(b"archive-\xff.zip".to_vec()));
+    let native_archive = fixture.directory.join(archive_name);
     fs::rename(&fixture.path, &native_archive).expect("create native filename fixture");
     fixture.path = native_archive;
     let mut workspace = ArchiveWorkspace {
@@ -977,9 +1004,7 @@ fn default_extraction_path_preserves_native_non_utf8_bytes() {
         ..Default::default()
     };
     choose_extraction_parent(&mut workspace, ExtractionScope::Selected);
-    let expected = fixture.directory.join(std::ffi::OsString::from_vec(
-        b"archive-\xff-extracted".to_vec(),
-    ));
+    let expected = fixture.directory.join(expected_name);
     assert_eq!(workspace.extraction.destination, expected);
     let _ = frame(&mut workspace);
     assert_eq!(
@@ -996,9 +1021,8 @@ fn default_extraction_path_preserves_native_non_utf8_bytes() {
     let (mut picker, result) = controlled_picker(workspace.generation, &context);
     picker.purpose = purpose;
     workspace.native_picker = Some(picker);
-    let native_parent = fixture
-        .directory
-        .join(std::ffi::OsString::from_vec(b"parent-\xfe".to_vec()));
+    let native_parent = fixture.directory.join(parent_name);
+    fs::create_dir(&native_parent).expect("create native parent fixture");
     result
         .send(Some(native_parent.clone()))
         .expect("choose another native parent");

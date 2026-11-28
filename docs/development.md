@@ -6,6 +6,17 @@ Use the pinned **Rust 1.100.1** toolchain from `rust-toolchain.toml`. Commit `Ca
 
 Linux desktop builds need the window-system development dependencies used by egui/eframe. The CLI and core can be developed without launching a desktop session. CI defines the packages installed for its tested Linux environment; keep that list synchronized with changes to the UI backend.
 
+### Linux native file panels at runtime
+
+The desktop uses pinned `rfd` 0.18.0 with the `xdg-portal` backend. Open and extraction-parent selection need a working graphical user session and either:
+
+- The `libdbus-1` runtime library, a session D-Bus, `xdg-desktop-portal`, and a desktop portal backend that implements **FileChooser**, such as the GTK, GNOME, or KDE backend.
+- The `zenity` executable on the application's `PATH`, which `rfd` uses when its portal request fails.
+
+Install/configure these through the distribution's desktop packages; the portable development archive does not supply a session bus, portal services, or `zenity`. A portal backend that only implements another interface, such as Secret, is insufficient. The [pinned upstream runtime requirements](https://docs.rs/rfd/0.18.0/rfd/#xdg-desktop-portal-backend) describe the backend choices.
+
+The current picker API can return `None` both for user cancellation and for backend failure. ArcForge preserves the existing document in either case and currently has no separate picker-backend error message; with neither backend usable, Open can appear to do nothing. Do not classify that as a successful cancellation test. Verify an actual file/folder panel in the application's desktop session; a successful build or rendered eframe window alone does not verify this integration.
+
 ## Shared build interface
 
 Run commands from the repository root:
