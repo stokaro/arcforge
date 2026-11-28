@@ -242,10 +242,13 @@ impl ArchiveWorkspace {
             _ => unreachable!("non-preview scenes return before archive inspection"),
         };
         let opened_copy_bytes = if scene == Scene::OpenFile {
-            let Some(copy) = self.opened_files.last() else {
+            // Repeated opens must create independent copies that survive until
+            // application exit. The capture parent observes both on disk.
+            if self.opened_files.len() < 2 {
                 self.open_file(entry.id, context);
                 return Ok(None);
-            };
+            }
+            let copy = &self.opened_files[1];
             if !copy.path.ends_with(scene.entry_name()) || !self.status.starts_with("Opened ") {
                 return Err("file-open result does not match the selected fixture entry".into());
             }

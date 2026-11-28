@@ -27,6 +27,9 @@ const SCENES: &[(&str, Option<&str>)] = &[
 ];
 const PROCESS_DEADLINE: Duration = Duration::from_secs(150);
 const MAX_FILE_BYTES: u64 = 64 * 1024 * 1024;
+const NEIGHBOR_TEMP_DIRECTORY: &str = "arcforge-open-capture-neighbor";
+const NEIGHBOR_TEMP_CONTENTS: &[u8] = b"Outside the ArcForge session";
+const TEMPORARY_GUIDE: &str = "entry/Documents/Guide.txt";
 
 pub(crate) fn run(root: &Path, options: &Options) -> Result<()> {
     let host = crate::package::host_target(root)?;
@@ -148,6 +151,12 @@ fn capture(
     let clients = directory.join("client");
     let stdout = directory.join("app.stdout.log");
     let stderr = directory.join("app.stderr.log");
+    let temporary = directory.join("open-copy-temp");
+    let neighbor = temporary.join(NEIGHBOR_TEMP_DIRECTORY);
+    fs::create_dir(&temporary)?;
+    fs::create_dir(&neighbor)?;
+    let marker = neighbor.join("keep.txt");
+    fs::write(&marker, NEIGHBOR_TEMP_CONTENTS)?;
     let mut command = Command::new(&binary);
     command
         .current_dir(root)
@@ -155,6 +164,9 @@ fn capture(
         .arg(&clients)
         .arg("--")
         .arg(&fixture)
+        .env("TMPDIR", &temporary)
+        .env("TMP", &temporary)
+        .env("TEMP", &temporary)
         .stdin(Stdio::null())
         .stdout(File::create(&stdout)?)
         .stderr(File::create(&stderr)?);
@@ -165,6 +177,7 @@ fn capture(
     evidence["status"] = json!("capturing");
     write_json(&directory.join("capture-run.json"), evidence)?;
     let mut captured = Vec::new();
+    let mut opened_copies = Vec::new();
     let started = Instant::now();
     loop {
         if started.elapsed() > PROCESS_DEADLINE {
@@ -216,6 +229,43 @@ fn capture(
                 let png = clients.join(format!("{scene}.png"));
                 let dimensions = png_dimensions(&png)?;
                 validate_scene(&observed, scene, *entry, dimensions)?;
+                if *scene == "10-open-in-default-app" {
+                    opened_copies = temporary_open_copies(&temporary)?;
+                    if opened_copies.len() != 2 {
+                        return Err(format!(
+                            "expected two independent temporary copies, found {}",
+                            opened_copies.len()
+                        )
+                        .into());
+                    }
+                    for copy in &opened_copies {
+                        let file = fs::metadata(copy.join(TEMPORARY_GUIDE))?;
+                        if !file.is_file()
+                            || Some(file.len()) != observed["opened_copy_bytes"].as_u64()
+                        {
+                            return Err("temporary copy does not match the opened entry".into());
+                        }
+                    }
+                    evidence["temporary_open_cleanup"]["copies_observed"] =
+                        json!(opened_copies.len());
+                }
+                if *scene == "03-empty-window" {
+                    if opened_copies.is_empty()
+                        || temporary_open_copies(&temporary)? != opened_copies
+                    {
+                        return Err(
+                            "closing the archive changed the session's temporary directories"
+                                .into(),
+                        );
+                    }
+                    for copy in &opened_copies {
+                        if !copy.join(TEMPORARY_GUIDE).is_file() {
+                            return Err("closing the archive removed an opened file".into());
+                        }
+                    }
+                    evidence["temporary_open_cleanup"]["retained_after_archive_close"] =
+                        json!(true);
+                }
                 recorded["client_png"] = json!(format!("client/{scene}.png"));
                 recorded["client_sha256"] = json!(file_sha256(&png)?);
                 let window_id = observed["native_window_id"]
@@ -243,10 +293,24 @@ fn capture(
             if captured.len() != SCENES.len() {
                 return Err("native GUI exited before all required scenes were captured".into());
             }
+            evidence["temporary_open_cleanup"]["native_exit_code"] = json!(status.code());
             break;
         }
         std::thread::sleep(Duration::from_millis(50));
     }
+    let remaining = temporary_open_copies(&temporary)?;
+    evidence["temporary_open_cleanup"]["remaining_after_exit"] = json!(remaining.len());
+    if !remaining.is_empty() {
+        return Err(format!(
+            "normal ArcForge exit left {} temporary open directories",
+            remaining.len()
+        )
+        .into());
+    }
+    if fs::read(marker)? != NEIGHBOR_TEMP_CONTENTS {
+        return Err("normal ArcForge exit modified an unrelated temporary directory".into());
+    }
+    evidence["temporary_open_cleanup"]["unrelated_directory_preserved"] = json!(true);
     if file_sha256(&fixture)? != fixture_hash {
         return Err("native capture changed its source ZIP fixture".into());
     }
@@ -259,6 +323,20 @@ fn capture(
         return Err("native executable changed during capture".into());
     }
     Ok(())
+}
+
+fn temporary_open_copies(temporary: &Path) -> Result<Vec<PathBuf>> {
+    let mut copies = Vec::new();
+    for entry in fs::read_dir(temporary)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        if name != NEIGHBOR_TEMP_DIRECTORY && name.as_encoded_bytes().starts_with(b"arcforge-open-")
+        {
+            copies.push(entry.path());
+        }
+    }
+    copies.sort_unstable();
+    Ok(copies)
 }
 
 fn valid_source(value: &Value, scene: &str) -> bool {
