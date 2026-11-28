@@ -14,6 +14,12 @@ use crate::{Options, Result};
 const SCENES: &[(&str, Option<&str>)] = &[
     ("01-text-preview", Some("Documents/Guide.txt")),
     ("02-image-preview", Some("Photos/Color-study.png")),
+    ("05-staged-delete", None),
+    ("06-discard-prompt", None),
+    #[cfg(target_os = "macos")]
+    ("07-save-panel", None),
+    ("08-save-collision", None),
+    ("09-saved-copy", None),
     ("03-empty-window", None),
     #[cfg(target_os = "macos")]
     ("04-open-panel", None),
@@ -185,8 +191,8 @@ fn capture(
                 "metadata": format!("client/{scene}.json"),
                 "metadata_sha256": file_sha256(&scene_json)?,
             });
-            if *scene == "04-open-panel" {
-                let panel_id = validate_open_panel(&observed)?;
+            if matches!(*scene, "04-open-panel" | "07-save-panel") {
+                let panel_id = validate_file_panel(&observed, scene)?;
                 let mut panel =
                     capture_mac_window(&mac_helper, directory, scene, child.0.id(), Some(panel_id));
                 if panel["status"] != "captured"
@@ -196,9 +202,13 @@ fn capture(
                     recorded["native_window"] = panel;
                     captured.push(recorded);
                     evidence["scenes"] = json!(captured);
-                    return Err("the actual native Open panel could not be captured; inspect its native-window logs".into());
+                    return Err(format!("the actual native {scene} could not be captured; inspect its native-window logs").into());
                 }
-                panel["window_role"] = json!("open-panel");
+                panel["window_role"] = json!(if *scene == "04-open-panel" {
+                    "open-panel"
+                } else {
+                    "save-panel"
+                });
                 recorded["native_window"] = panel;
             } else {
                 let png = clients.join(format!("{scene}.png"));
@@ -239,6 +249,7 @@ fn capture(
         return Err("native capture changed its source ZIP fixture".into());
     }
     evidence["fixture"]["unchanged_after_capture"] = json!(true);
+    verify_saved_copy(root, directory, &fixture, evidence)?;
     evidence["binary_sha256_after_capture"] = json!(bounded_sha256(&binary, 1024 * 1024 * 1024)?);
     if evidence["binary_sha256"] != evidence["binary_sha256_after_capture"] {
         return Err("native executable changed during capture".into());
@@ -293,6 +304,11 @@ fn validate_scene(
         {
             return Err(format!("invalid archive preview provenance for {scene}").into());
         }
+    } else if matches!(
+        scene,
+        "05-staged-delete" | "06-discard-prompt" | "08-save-collision" | "09-saved-copy"
+    ) {
+        validate_edit_state(value, scene)?;
     } else if scene != "03-empty-window"
         || value["archive_open"] != false
         || value["native_picker_pending"] != false
@@ -307,7 +323,42 @@ fn validate_scene(
     Ok(())
 }
 
-fn validate_open_panel(value: &Value) -> Result<u32> {
+fn validate_edit_state(value: &Value, scene: &str) -> Result<()> {
+    let saved = scene == "09-saved-copy";
+    let source = if saved {
+        "workspace-demo-edited.zip"
+    } else {
+        "workspace-demo.zip"
+    };
+    let error = &value["workspace_error"];
+    if value["archive_open"] != true
+        || value["archive_name"] != source
+        || value["pending_deletions"] != if saved { 0 } else { 1 }
+        || value["visible_entry_count"] != 13
+        || value["discard_prompt"] != (scene == "06-discard-prompt")
+        || value["native_picker_pending"] != (scene == "07-save-panel")
+        || value["snapshot_id"].as_str().is_none_or(str::is_empty)
+        || !value["selected_entry_name"].is_null()
+        || if scene == "08-save-collision" {
+            error
+                .as_str()
+                .is_none_or(|message| !message.contains("already exists"))
+        } else {
+            !error.is_null()
+        }
+    {
+        return Err(format!("invalid staged-edit provenance for {scene}").into());
+    }
+    Ok(())
+}
+
+fn validate_file_panel(value: &Value, scene: &str) -> Result<u32> {
+    let opening = scene == "04-open-panel";
+    let class = if opening {
+        "NSOpenPanel"
+    } else {
+        "NSSavePanel"
+    };
     let panel = &value["native_panel"];
     let window = panel["window_id"]
         .as_u64()
@@ -315,24 +366,68 @@ fn validate_open_panel(value: &Value) -> Result<u32> {
     let parent = panel["parent_window_id"]
         .as_u64()
         .and_then(|id| u32::try_from(id).ok());
-    if !valid_source(value, "04-open-panel")
+    if !valid_source(value, scene)
         || value["os"] != "macos"
         || value["capture_kind"] != "native-panel-request"
-        || value["archive_open"] != false
+        || value["archive_open"].as_bool() != Some(!opening)
         || value["native_picker_pending"] != true
         || value["native_shell_attached"] != true
         || value["native_window_id"].as_u64() != parent.map(u64::from)
         || value["rendered_frames_after_ready"] != 0
         || !value["pixel_dimensions"].is_null()
-        || !value["snapshot_id"].is_null()
-        || panel["class"] != "NSOpenPanel"
+        || (opening && !value["snapshot_id"].is_null())
+        || panel["class"] != class
         || window.is_none_or(|id| id == 0)
         || parent.is_none_or(|id| id == 0)
         || window == parent
     {
-        return Err("native Open readiness did not identify an actual owned NSOpenPanel".into());
+        return Err(
+            format!("native {scene} readiness did not identify an actual owned {class}").into(),
+        );
+    }
+    if !opening {
+        validate_edit_state(value, scene)?;
     }
     Ok(window.expect("nonzero window ID validated"))
+}
+
+fn verify_saved_copy(
+    root: &Path,
+    directory: &Path,
+    fixture: &Path,
+    evidence: &mut Value,
+) -> Result<()> {
+    let saved = directory.join("workspace-demo-edited.zip");
+    let mut verify = Command::new(if cfg!(windows) { "python" } else { "python3" });
+    verify
+        .current_dir(root)
+        .arg("-c")
+        .arg(
+            r#"
+import sys
+import zipfile
+
+with zipfile.ZipFile(sys.argv[1]) as source, zipfile.ZipFile(sys.argv[2]) as saved:
+    removed = 'Photos/Color-study.png'
+    expected = [name for name in source.namelist() if name != removed]
+    if len(source.namelist()) != len(expected) + 1 or saved.namelist() != expected:
+        raise SystemExit('saved copy differs from the expected deletion')
+    if saved.comment != source.comment or saved.testzip() is not None:
+        raise SystemExit('saved copy failed archive comment or CRC verification')
+    if any(saved.read(name) != source.read(name) for name in expected):
+        raise SystemExit('saved copy modified a retained payload')
+"#,
+        )
+        .arg(fixture)
+        .arg(&saved);
+    crate::run(&mut verify)?;
+    evidence["saved_copy"] = json!({
+        "file": "workspace-demo-edited.zip",
+        "sha256": file_sha256(&saved)?,
+        "removed_entry": "Photos/Color-study.png",
+        "verified_independently_with": "Python zipfile",
+    });
+    Ok(())
 }
 
 fn runtime_provenance() -> Value {
@@ -736,7 +831,7 @@ mod tests {
 
     #[test]
     fn a_client_frame_cannot_establish_a_native_open_panel() {
-        assert!(validate_open_panel(&scene()).is_err());
+        assert!(validate_file_panel(&scene(), "04-open-panel").is_err());
     }
 
     #[cfg(target_os = "macos")]
@@ -750,11 +845,11 @@ mod tests {
             "native_shell_attached": true, "native_window_id": 12,
             "native_panel": {"class": "NSOpenPanel", "window_id": 14, "parent_window_id": 12},
         });
-        assert_eq!(validate_open_panel(&ready).unwrap(), 14);
+        assert_eq!(validate_file_panel(&ready, "04-open-panel").unwrap(), 14);
         for value in [json!(0), json!(12), json!(u64::MAX), json!(null)] {
             let mut invalid = ready.clone();
             invalid["native_panel"]["window_id"] = value;
-            assert!(validate_open_panel(&invalid).is_err());
+            assert!(validate_file_panel(&invalid, "04-open-panel").is_err());
         }
         for (key, value) in [
             ("native_window_id", json!(13)),
@@ -762,13 +857,13 @@ mod tests {
         ] {
             let mut invalid = ready.clone();
             invalid[key] = value;
-            assert!(validate_open_panel(&invalid).is_err());
+            assert!(validate_file_panel(&invalid, "04-open-panel").is_err());
         }
         let mut wrong_parent = ready.clone();
         wrong_parent["native_panel"]["parent_window_id"] = json!(13);
-        assert!(validate_open_panel(&wrong_parent).is_err());
+        assert!(validate_file_panel(&wrong_parent, "04-open-panel").is_err());
         let mut reconstructed = ready;
         reconstructed["pixel_dimensions"] = json!([1280, 800]);
-        assert!(validate_open_panel(&reconstructed).is_err());
+        assert!(validate_file_panel(&reconstructed, "04-open-panel").is_err());
     }
 }

@@ -2,8 +2,8 @@
 
 `cargo xtask gui-capture` starts the real ArcForge desktop on its native host,
 opens the original UI fixture through the ordinary archive worker, records two
-finished previews, closes the archive, and captures empty startup. On macOS it
-also opens and captures the actual native Open panel. This is maintainer tooling behind
+finished previews, stages a deletion, saves a verified ZIP copy, then closes the
+archive. On macOS it also captures actual Open and Save As panels. This is maintainer tooling behind
 the `native-capture` feature. Normal development release packages do not enable
 that feature and do not expose its launch argument.
 
@@ -51,7 +51,7 @@ On Windows, CI explicitly prepares the pinned Mesa software OpenGL driver
 described below. The window and production Glow/WGL backend remain native;
 software OpenGL is recorded as part of the runtime evidence.
 
-Every completed capture contains these client scenes, plus the native Open panel on macOS:
+Every completed capture contains these client scenes, plus two native file panels on macOS.
 
 | Scene | Actual selected entry | Required worker result |
 | --- | --- | --- |
@@ -59,6 +59,15 @@ Every completed capture contains these client scenes, plus the native Open panel
 | `client/02-image-preview.png` | `Photos/Color-study.png` | Complete verified preview and decoded 960 × 640 PNG texture |
 | `client/03-empty-window.png` | None | Closed document, cleared selection/preview, no pending picker |
 | `04-open-panel-native-window.png` (macOS) | None | Actual owned `NSOpenPanel`, active native picker and verified window identity |
+| `client/05-staged-delete.png` | None | Original document with the image removed, one staged deletion |
+| `client/06-discard-prompt.png` | None | Attempt to close opens the unsaved-changes prompt |
+| `07-save-panel-native-window.png` (macOS) | None | Actual owned `NSSavePanel` opened for the edited ZIP |
+| `client/08-save-collision.png` | None | Save to the original path rejected with the deletion still staged |
+| `client/09-saved-copy.png` | None | Clean copy open, only the selected image missing |
+
+The harness cancels the inspected Save As panel and submits the collision and
+success destinations through the workspace's save controller. It verifies the
+new ZIP with Python's independent `zipfile` reader and checks the input SHA-256.
 
 The fixture is generated with `scripts/generate_ui_fixture.py --images`. Its
 text and image are original repository content. The driver invokes normal
@@ -107,9 +116,9 @@ application for a native dialog. It still requires the requested window to be
 on-screen and owned by the launched application's PID. Without an explicit ID,
 the ordinary workspace capture continues to require one unambiguous ordinary
 window. A native panel must be captured as an OS window; a client framebuffer
-cannot establish its appearance. The Open-panel scene therefore saves a readiness
-record without an egui PNG, waits for the actual panel capture, and cancels only
-that owned panel before exiting. A missing native panel image fails the macOS
+cannot establish its appearance. Each file-panel scene saves a readiness record
+without an egui PNG, waits for the actual panel capture, and cancels the owned
+panel before advancing. A missing native panel image fails the macOS
 capture run. No native dialog image is inferred from a renderer frame.
 
 The helper checks existing screen-recording permission with
@@ -205,8 +214,9 @@ and generator hashes, actual OS version, selected runner environment fields,
 scene hashes, and native-window outcomes. Scene JSON uses schema version 2.
 Preview records include process ID, observed entry and snapshot identity, metadata
 revision, CRC status and decoded image dimensions. Empty records explicitly have
-no document, selection or pending picker. Native Open readiness identifies the
-actual panel and parent window, without invented renderer pixels or archive state.
+no document, selection or pending picker. Edit records identify the archive,
+the pending deletion count, an open prompt or picker, and the observed error.
+Native file-panel records identify the actual AppKit class, panel and parent window.
 Client records include actual pixel dimensions, scale, theme, viewport state and
 font paths/names/weights/variation coordinates.
 

@@ -65,6 +65,11 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         availability: Availability::Implemented,
     },
     CommandDescriptor {
+        name: "delete",
+        description: "Delete selected entries by saving a verified classic ZIP copy",
+        availability: Availability::Implemented,
+    },
+    CommandDescriptor {
         name: "test",
         description: "Verify archive integrity",
         availability: Availability::Planned,
@@ -93,6 +98,7 @@ pub enum ArchiveOperation {
     Preview,
     Create,
     Extract,
+    Delete,
     Test,
     Update,
     Convert,
@@ -107,6 +113,7 @@ impl ArchiveOperation {
             Self::Preview => "preview",
             Self::Create => "create",
             Self::Extract => "extract",
+            Self::Delete => "delete",
             Self::Test => "test",
             Self::Update => "update",
             Self::Convert => "convert",
@@ -134,6 +141,7 @@ impl Command {
             "preview" => Ok(Self::Archive(ArchiveOperation::Preview)),
             "create" => Ok(Self::Archive(ArchiveOperation::Create)),
             "extract" => Ok(Self::Archive(ArchiveOperation::Extract)),
+            "delete" => Ok(Self::Archive(ArchiveOperation::Delete)),
             "test" => Ok(Self::Archive(ArchiveOperation::Test)),
             "update" => Ok(Self::Archive(ArchiveOperation::Update)),
             "convert" => Ok(Self::Archive(ArchiveOperation::Convert)),
@@ -155,7 +163,7 @@ pub const fn application_info() -> ApplicationInfo {
     ApplicationInfo {
         name: "ArcForge",
         version: VERSION,
-        stage: "zip-extraction",
+        stage: "zip-staged-delete",
         license: "MIT",
     }
 }
@@ -178,7 +186,7 @@ pub const PROVIDERS: &[ProviderCapabilities] = &[ProviderCapabilities {
     name: "zip-rs",
     version: "9.8.2",
     formats: &["zip", "zip64"],
-    operations: &["list", "info", "preview", "extract"],
+    operations: &["list", "info", "preview", "extract", "delete"],
     preview_compression: &["stored", "deflate"],
     extraction_compression: &["stored", "deflate"],
     encrypted_content: false,
@@ -207,7 +215,7 @@ pub const fn diagnostics() -> DiagnosticReport {
         providers: PROVIDERS,
         os: std::env::consts::OS,
         architecture: std::env::consts::ARCH,
-        scope: "ZIP listing, metadata, bounded previews and streamed Stored/Deflate extraction into a new directory. Source archives remain unchanged; editing is planned. Extraction requires resolved safe paths and rejects links, special files, collisions and encrypted content. Compiled capabilities only; the system was not probed.",
+        scope: "ZIP listing, metadata, bounded previews and streamed extraction into a new directory. Delete saves a verified classic ZIP copy to a new filename. Source archives remain unchanged. Extraction requires resolved safe paths and rejects links, special files, collisions and encrypted content. Compiled capabilities only; the system was not probed.",
     }
 }
 
@@ -253,7 +261,8 @@ pub fn execute(command: Command) -> Result<CommandResult, CommandError> {
             operation @ (ArchiveOperation::List
             | ArchiveOperation::Info
             | ArchiveOperation::Preview
-            | ArchiveOperation::Extract),
+            | ArchiveOperation::Extract
+            | ArchiveOperation::Delete),
         ) => Err(CommandError::ArgumentsRequired(operation.name())),
         Command::Archive(operation) => Err(CommandError::NotImplemented(operation.name())),
     }
@@ -299,7 +308,7 @@ mod tests {
         assert_eq!(report.supported_archive_formats, ["zip", "zip64"]);
         assert_eq!(
             report.providers[0].operations,
-            ["list", "info", "preview", "extract"]
+            ["list", "info", "preview", "extract", "delete"]
         );
         assert_eq!(
             report.providers[0].extraction_compression,

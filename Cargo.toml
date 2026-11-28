@@ -30,6 +30,7 @@ same-file = "1.0.6"
 encoding_rs = "=0.8.44"
 cap-std = "=4.0.3"
 cap-fs-ext = "=4.0.3"
+getrandom = "=0.4.3"
 caseless = "=0.2.2"
 unicode-normalization = "=0.1.26"
 skrifa = { version = "=0.44.0", default-features = false, features = ["std"] }

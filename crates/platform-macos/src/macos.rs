@@ -6,8 +6,6 @@ use std::collections::VecDeque;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, ProtocolObject, Sel};
 use objc2::{DefinedClass, MainThreadOnly, define_class, msg_send, sel};
-#[cfg(feature = "native-capture")]
-use objc2_app_kit::NSOpenPanel;
 use objc2_app_kit::{
     NSApplication, NSEventModifierFlags, NSImage, NSMenu, NSMenuItem, NSMenuToolbarItem,
     NSSearchField, NSSearchToolbarItem, NSToolbar, NSToolbarDelegate, NSToolbarDisplayMode,
@@ -15,11 +13,13 @@ use objc2_app_kit::{
     NSToolbarItemGroupControlRepresentation, NSToolbarItemIdentifier, NSWindow,
     NSWindowTitleVisibility, NSWindowToolbarStyle,
 };
+#[cfg(feature = "native-capture")]
+use objc2_app_kit::{NSOpenPanel, NSSavePanel};
 use objc2_foundation::{MainThreadMarker, NSArray, NSObject, NSObjectProtocol, NSString};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 #[cfg(feature = "native-capture")]
-use crate::OpenPanelInfo;
+use crate::FilePanelInfo;
 use crate::{AttachError, Command, State};
 
 const SIDEBAR: &str = "org.stokaro.arcforge.sidebar";
@@ -56,6 +56,11 @@ enum Action {
     Back,
     Forward,
     Settings,
+    Delete,
+    Undo,
+    Redo,
+    SaveAs,
+    Quit,
 }
 
 impl Action {
@@ -84,6 +89,11 @@ impl Action {
             20 => Self::Back,
             21 => Self::Forward,
             22 => Self::Settings,
+            23 => Self::Delete,
+            24 => Self::Undo,
+            25 => Self::Redo,
+            26 => Self::SaveAs,
+            27 => Self::Quit,
             _ => return None,
         })
     }
@@ -96,6 +106,10 @@ impl Action {
             Self::ExtractAll => state.can_extract_all,
             Self::ExtractSelected => state.can_extract_selected,
             Self::Test => state.can_test,
+            Self::Delete => state.can_delete,
+            Self::Undo => state.can_undo,
+            Self::Redo => state.can_redo,
+            Self::SaveAs => state.can_save_as,
             Self::Preview => state.can_preview,
             Self::Outline | Self::Flat => state.can_change_view,
             Self::Search => state.can_search,
@@ -110,6 +124,7 @@ impl Action {
             | Self::Cut
             | Self::Copy
             | Self::Paste
+            | Self::Quit
             | Self::IconsOnly
             | Self::IconsAndLabels => true,
         }
@@ -121,6 +136,11 @@ impl Action {
             Self::OpenByPath => Command::OpenByPath,
             Self::Settings => Command::OpenSettings,
             Self::Close => Command::CloseArchive,
+            Self::Delete => Command::DeleteSelected,
+            Self::Undo => Command::Undo,
+            Self::Redo => Command::Redo,
+            Self::SaveAs => Command::SaveAs,
+            Self::Quit => Command::CloseWindow,
             Self::ExtractAll => Command::ExtractAll,
             Self::ExtractSelected => Command::ExtractSelected,
             Self::Test => Command::TestArchive,
@@ -147,6 +167,8 @@ impl Action {
             Self::Copy => Some(sel!(copy:)),
             Self::Paste => Some(sel!(paste:)),
             Self::SelectAll => Some(sel!(selectAll:)),
+            Self::Undo => Some(sel!(undo:)),
+            Self::Redo => Some(sel!(redo:)),
             _ => None,
         }
     }
@@ -301,7 +323,7 @@ impl ShellTarget {
                 "Archive",
                 &[
                     self.extract_item(),
-                    self.button("save", "Save", "doc.zipper", Action::Unavailable),
+                    self.button("save", "Save As", "doc.zipper", Action::SaveAs),
                     self.button("test", "Test", "checkmark.square", Action::Test),
                     self.button("move", "Move", "arrow.right.square", Action::Unavailable),
                 ],
@@ -312,7 +334,7 @@ impl ShellTarget {
                 &[
                     self.button("add", "Add", "archivebox", Action::Unavailable),
                     self.button("view", "View", "doc.text.magnifyingglass", Action::Preview),
-                    self.button("delete", "Delete", "trash", Action::Unavailable),
+                    self.button("delete", "Delete", "trash", Action::Delete),
                     self.button(
                         "new-folder",
                         "New Folder",
@@ -589,7 +611,7 @@ fn build_menus(target: &ShellTarget) -> (Retained<NSMenu>, Retained<NSMenu>) {
         mtm,
     );
     application.addItem(&NSMenuItem::separatorItem(mtm));
-    add_standard(&application, "Quit ArcForge", "q", sel!(terminate:), mtm);
+    target.add_menu_item(&application, "Quit ArcForge", "q", Action::Quit);
     add_submenu(&main, "ArcForge", &application, mtm);
 
     let file = new_menu(mtm, "File");
@@ -602,15 +624,23 @@ fn build_menus(target: &ShellTarget) -> (Retained<NSMenu>, Retained<NSMenu>) {
     selected
         .setKeyEquivalentModifierMask(NSEventModifierFlags::Command | NSEventModifierFlags::Shift);
     target.add_menu_item(&file, "Save", "s", Action::Unavailable);
+    let save_as = target.add_menu_item(&file, "Save As…", "s", Action::SaveAs);
+    save_as
+        .setKeyEquivalentModifierMask(NSEventModifierFlags::Command | NSEventModifierFlags::Shift);
     target.add_menu_item(&file, "Test Archive", "", Action::Test);
     file.addItem(&NSMenuItem::separatorItem(mtm));
     target.add_menu_item(&file, "Cancel Operation", ".", Action::Cancel);
     add_submenu(&main, "File", &file, mtm);
 
     let edit = new_menu(mtm, "Edit");
+    target.add_menu_item(&edit, "Undo", "z", Action::Undo);
+    let redo = target.add_menu_item(&edit, "Redo", "z", Action::Redo);
+    redo.setKeyEquivalentModifierMask(NSEventModifierFlags::Command | NSEventModifierFlags::Shift);
+    edit.addItem(&NSMenuItem::separatorItem(mtm));
     target.add_menu_item(&edit, "Cut", "x", Action::Cut);
     target.add_menu_item(&edit, "Copy", "c", Action::Copy);
     target.add_menu_item(&edit, "Paste", "v", Action::Paste);
+    target.add_menu_item(&edit, "Delete Selected", "", Action::Delete);
     target.add_menu_item(&edit, "Select All", "a", Action::SelectAll);
     edit.addItem(&NSMenuItem::separatorItem(mtm));
     target.add_menu_item(&edit, "Find…", "f", Action::Search);
@@ -766,6 +796,7 @@ impl NativeShell {
         if self.window.title().to_string() != state.title {
             self.window.setTitle(&NSString::from_str(&state.title));
         }
+        self.window.setDocumentEdited(state.dirty);
         for item in self.toolbar.items() {
             update_toolbar_item(&item, state);
         }
@@ -828,31 +859,32 @@ impl NativeShell {
     }
 
     #[cfg(feature = "native-capture")]
-    fn owned_open_panel(&self) -> Option<Retained<NSOpenPanel>> {
+    fn owned_file_panel(&self) -> Option<Retained<NSSavePanel>> {
         let sheet = self
             .window
             .attachedSheet()?
-            .downcast::<NSOpenPanel>()
+            .downcast::<NSSavePanel>()
             .ok()?;
         let parent = sheet.sheetParent()?;
         std::ptr::eq(&*parent, &*self.window).then_some(sheet)
     }
 
     #[cfg(feature = "native-capture")]
-    pub fn active_open_panel(&self) -> Option<OpenPanelInfo> {
-        let panel = self.owned_open_panel()?;
+    pub fn active_file_panel(&self) -> Option<FilePanelInfo> {
+        let panel = self.owned_file_panel()?;
         let window_id = u32::try_from(panel.windowNumber())
             .ok()
             .filter(|id| *id != 0)?;
-        Some(OpenPanelInfo {
+        Some(FilePanelInfo {
             window_id,
             parent_window_id: self.window_id()?,
+            is_open: panel.downcast_ref::<NSOpenPanel>().is_some(),
         })
     }
 
     #[cfg(feature = "native-capture")]
-    pub fn cancel_open_panel(&self, expected_window_id: u32) -> bool {
-        let Some(panel) = self.owned_open_panel() else {
+    pub fn cancel_file_panel(&self, expected_window_id: u32) -> bool {
+        let Some(panel) = self.owned_file_panel() else {
             return false;
         };
         if expected_window_id == 0
@@ -861,7 +893,7 @@ impl NativeShell {
             return false;
         }
         // SAFETY: The retained object was checked to be this exact window's
-        // attached NSOpenPanel and still has the requested window number. nil is
+        // attached NSSavePanel and still has the requested window number. nil is
         // the documented optional sender for the standard cancel: action.
         unsafe { panel.cancel(None) };
         true

@@ -17,6 +17,8 @@ use eframe::egui;
 use image::ImageEncoder;
 use serde_json::{Value, json};
 
+use super::platform::FilePanelInfo;
+
 const DEADLINE: Duration = Duration::from_secs(120);
 const ACK_DEADLINE: Duration = Duration::from_secs(45);
 const MAX_PIXELS: usize = 16 * 1024 * 1024;
@@ -78,14 +80,6 @@ struct Shot {
     metadata: Value,
 }
 
-/// Identifiers observed from the owned native NSOpenPanel, never guessed from
-/// an eframe viewport identifier. The external driver validates PID ownership.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct OpenPanel {
-    pub window_id: u32,
-    pub parent_window_id: u32,
-}
-
 enum Phase {
     Preparing,
     AwaitingPaint(ReadyScene),
@@ -104,10 +98,15 @@ pub(crate) struct Session {
     outcome: Outcome,
     panel_window_id: Option<u32>,
     panel_to_cancel: Option<u32>,
+    saved_copy: PathBuf,
 }
 
 impl Session {
     fn new(directory: PathBuf, context: egui::Context, outcome: Outcome) -> std::io::Result<Self> {
+        let saved_copy = directory
+            .parent()
+            .ok_or_else(|| std::io::Error::other("capture directory requires a parent"))?
+            .join("workspace-demo-edited.zip");
         let (writer, shots) = mpsc::sync_channel::<Shot>(1);
         let (event_sender, events) = mpsc::sync_channel(4);
         let sender = event_sender.clone();
@@ -137,6 +136,7 @@ impl Session {
             outcome,
             panel_window_id: None,
             panel_to_cancel: None,
+            saved_copy,
         })
     }
 
@@ -145,7 +145,7 @@ impl Session {
         workspace: &mut arcforge_ui_egui::ArchiveWorkspace,
         context: &egui::Context,
         native_window_id: Option<u32>,
-        open_panel: Option<OpenPanel>,
+        file_panel: Option<FilePanelInfo>,
     ) {
         if matches!(self.phase, Phase::Finished) {
             return;
@@ -186,6 +186,11 @@ impl Session {
                         return;
                     }
                     self.phase = Phase::Preparing;
+                    if self.panel_window_id.is_some() {
+                        self.panel_to_cancel = self.panel_window_id.take();
+                        context.request_repaint();
+                        return;
+                    }
                 }
             }
         }
@@ -194,7 +199,7 @@ impl Session {
             return;
         }
         let scene = Scene::ALL[self.scene_index];
-        let ready = match workspace.prepare_native_capture(scene, context) {
+        let ready = match workspace.prepare_native_capture(scene, context, &self.saved_copy) {
             Ok(Some(ready)) => ready,
             Ok(None) => {
                 context.request_repaint_after(Duration::from_millis(25));
@@ -206,8 +211,8 @@ impl Session {
             }
         };
         #[cfg(target_os = "macos")]
-        if scene == Scene::OpenPanel {
-            let Some(panel) = open_panel else {
+        if scene.is_panel() {
+            let Some(panel) = file_panel else {
                 context.request_repaint_after(Duration::from_millis(25));
                 return;
             };
@@ -215,9 +220,10 @@ impl Session {
                 || panel.parent_window_id == 0
                 || panel.window_id == panel.parent_window_id
                 || Some(panel.parent_window_id) != native_window_id
+                || panel.is_open != (scene == Scene::OpenPanel)
             {
                 self.finish(
-                    Err("native Open panel identifiers are invalid".into()),
+                    Err("native file panel kind or identifiers are invalid".into()),
                     context,
                 );
                 return;
@@ -225,10 +231,10 @@ impl Session {
             let mut metadata = scene_metadata(scene, &ready, context, native_window_id);
             metadata["capture_kind"] = json!("native-panel-request");
             metadata["capture_api"] =
-                json!("owned NSOpenPanel observation; external native window capture required");
+                json!("AppKit sheet observation; external native window capture required");
             metadata["rendered_frames_after_ready"] = json!(0);
             metadata["native_panel"] = json!({
-                "class": "NSOpenPanel",
+                "class": if panel.is_open { "NSOpenPanel" } else { "NSSavePanel" },
                 "window_id": panel.window_id,
                 "parent_window_id": panel.parent_window_id,
             });
@@ -247,7 +253,9 @@ impl Session {
             return;
         }
         #[cfg(not(target_os = "macos"))]
-        let _ = open_panel;
+        if let Some(panel) = file_panel {
+            let _ = (panel.window_id, panel.parent_window_id, panel.is_open);
+        }
         let visible = context.input(|input| {
             let viewport = input.viewport();
             viewport.minimized != Some(true) && viewport.occluded != Some(true)
@@ -309,6 +317,10 @@ impl Session {
 
     pub(crate) fn take_panel_to_cancel(&mut self) -> Option<u32> {
         self.panel_to_cancel.take()
+    }
+
+    pub(crate) fn finished(&self) -> bool {
+        matches!(self.phase, Phase::Finished)
     }
 }
 
@@ -376,6 +388,16 @@ fn scene_metadata(
         ReadyScene::Empty => {
             value["archive_open"] = json!(false);
             value["native_picker_pending"] = json!(false);
+        }
+        ReadyScene::Editing(edit) => {
+            value["archive_open"] = json!(true);
+            value["snapshot_id"] = json!(edit.snapshot_id);
+            value["archive_name"] = json!(edit.archive_name);
+            value["visible_entry_count"] = json!(edit.visible_entry_count);
+            value["pending_deletions"] = json!(edit.pending_deletions);
+            value["discard_prompt"] = json!(edit.discard_prompt);
+            value["native_picker_pending"] = json!(edit.picker_pending);
+            value["workspace_error"] = json!(edit.error);
         }
         #[cfg(target_os = "macos")]
         ReadyScene::OpenPanelRequested => {

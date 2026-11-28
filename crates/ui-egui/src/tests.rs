@@ -9,6 +9,143 @@ use super::*;
 
 static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(1);
 
+fn finish_job(workspace: &mut ArchiveWorkspace) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while workspace.current.is_some() {
+        workspace.poll();
+        assert!(
+            std::time::Instant::now() < deadline,
+            "archive job did not finish"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+}
+
+#[test]
+fn editing_keeps_source_ids_and_guards_old_contents_until_save_as_succeeds() {
+    let fixture = Fixture::new(b"replaced.txt");
+    let original = stored_zip_entries(&[
+        (b"proof.txt", b"keep"),
+        (b"folder/drop.txt", b"drop"),
+        (b"folder/also-drop.txt", b"drop"),
+    ]);
+    fs::write(&fixture.path, &original).unwrap();
+    let context = egui::Context::default();
+    let mut workspace = ArchiveWorkspace::default();
+    workspace.open(fixture.path.clone(), &context);
+    finish_job(&mut workspace);
+    let snapshot = workspace.document.as_ref().unwrap().snapshot.id.clone();
+    let folder = workspace
+        .rows
+        .iter()
+        .position(|row| row.folder.is_some())
+        .unwrap();
+    workspace.select_row(folder, egui::Modifiers::NONE);
+    workspace.dispatch_command(WorkspaceCommand::DeleteSelected, &context);
+    finish_job(&mut workspace);
+    let doc = workspace.document.as_ref().unwrap();
+    assert_eq!(doc.edits.removed, BTreeSet::from([1, 2]));
+    assert_eq!(doc.snapshot.id, snapshot);
+    assert!(doc.entry(0).is_some());
+    assert!(doc.entry(1).is_none());
+    assert_eq!(workspace.rows.len(), 1);
+    assert!(workspace.toolbar_state().can_save_as);
+    assert_eq!(fs::read(&fixture.path).unwrap(), original);
+
+    workspace.dispatch_command(WorkspaceCommand::Undo, &context);
+    finish_job(&mut workspace);
+    assert!(!workspace.toolbar_state().dirty);
+    assert!(workspace.toolbar_state().can_redo);
+    assert_eq!(workspace.document.as_ref().unwrap().totals.entries, 3);
+    workspace.dispatch_command(WorkspaceCommand::Redo, &context);
+    finish_job(&mut workspace);
+    assert!(workspace.toolbar_state().dirty);
+
+    workspace.close();
+    assert!(matches!(
+        workspace.discard.take(),
+        Some(DiscardAction::CloseArchive)
+    ));
+    let replacement = fixture.directory.join("another.zip");
+    workspace.open(replacement.clone(), &context);
+    assert!(
+        matches!(workspace.discard.take(), Some(DiscardAction::Open(path)) if path == replacement)
+    );
+    assert!(workspace.hold_window_close());
+    assert!(matches!(
+        workspace.discard.take(),
+        Some(DiscardAction::CloseWindow)
+    ));
+    assert!(workspace.toolbar_state().dirty);
+
+    let existing = fixture.directory.join("existing.zip");
+    fs::write(&existing, b"other file").unwrap();
+    workspace.start_save_as(existing.clone(), &context);
+    assert!(!workspace.toolbar_state().can_open);
+    finish_job(&mut workspace);
+    assert!(workspace.toolbar_state().dirty);
+    assert!(
+        workspace
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("already exists"))
+    );
+    assert_eq!(fs::read(existing).unwrap(), b"other file");
+    let output = fixture.directory.join("edited.zip");
+    workspace.start_save_as(output.clone(), &context);
+    finish_job(&mut workspace);
+    let doc = workspace.document.as_ref().unwrap();
+    assert_eq!(doc.snapshot.path(), output);
+    assert_eq!(doc.snapshot.entries[0].name.display, "proof.txt");
+    assert_eq!(doc.snapshot.entries.len(), 1);
+    assert_ne!(doc.snapshot.id, snapshot);
+    assert!(!workspace.toolbar_state().dirty);
+    assert!(!workspace.toolbar_state().can_undo);
+    assert_eq!(fs::read(&fixture.path).unwrap(), original);
+}
+
+#[test]
+fn extraction_from_an_edited_folder_does_not_restore_removed_descendants() {
+    let fixture = Fixture::new(b"replaced.txt");
+    fs::write(
+        &fixture.path,
+        stored_zip_entries(&[
+            (b"folder/", b""),
+            (b"folder/drop.txt", b"remove"),
+            (b"folder/keep.txt", b"keep"),
+        ]),
+    )
+    .unwrap();
+    let context = egui::Context::default();
+    let mut workspace = ArchiveWorkspace::default();
+    workspace.open(fixture.path.clone(), &context);
+    finish_job(&mut workspace);
+    workspace.set_view(ViewMode::Flat, &context);
+    finish_job(&mut workspace);
+    workspace.select_row(1, egui::Modifiers::NONE);
+    workspace.dispatch_command(WorkspaceCommand::DeleteSelected, &context);
+    finish_job(&mut workspace);
+    assert_eq!(
+        workspace.document.as_ref().unwrap().edits.removed,
+        BTreeSet::from([1])
+    );
+    workspace.select_row(0, egui::Modifiers::NONE);
+    workspace.review_extraction_parent(ExtractionScope::Selected, fixture.directory.clone(), false);
+    let destination = workspace.extraction.destination.clone();
+    workspace.start_extraction(&context);
+    finish_job(&mut workspace);
+    let ExtractionState::Finished(Ok(report)) = &workspace.extraction.state else {
+        panic!("staged extraction did not complete");
+    };
+    assert_eq!(report.status, ExtractionStatus::Completed);
+    assert_eq!(
+        fs::read(destination.join("folder/keep.txt")).unwrap(),
+        b"keep"
+    );
+    assert!(!destination.join("folder/drop.txt").exists());
+    assert!(workspace.toolbar_state().dirty);
+}
+
 struct Fixture {
     directory: PathBuf,
     path: PathBuf,

@@ -213,6 +213,7 @@ dependencies = [
  "crc32fast",
  "encoding_rs",
  "flate2",
+ "getrandom",
  "same-file",
  "serde",
  "sha2",

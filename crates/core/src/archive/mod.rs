@@ -1,5 +1,6 @@
-//! Read-only archive snapshots shared by the GUI and standalone CLI.
+//! Archive snapshots and operations shared by the GUI and standalone CLI.
 
+mod destination;
 mod extraction;
 mod names;
 mod provider;
@@ -9,7 +10,10 @@ mod provider_tests;
 
 pub use extraction::*;
 pub use names::*;
-pub use provider::{ArchiveStream, begin_stream, open_archive, preview_entry, reinterpret};
+pub use provider::{
+    ArchiveStream, SavedZip, ZipEditReport, begin_stream, open_archive, preview_entry, reinterpret,
+    save_zip_without_entries, supports_zip_removal,
+};
 
 use std::fmt;
 use std::path::Path;
@@ -238,14 +242,12 @@ impl fmt::Display for ArchiveError {
                 entries.len()
             ),
             Self::InvalidDestination(message) => {
-                write!(f, "invalid extraction destination: {message}")
+                write!(f, "invalid destination: {message}")
             }
             Self::DestinationExists(path) => {
-                write!(f, "extraction destination already exists: {path:?}")
+                write!(f, "destination already exists: {path:?}")
             }
-            Self::DestinationChanged => {
-                f.write_str("extraction destination changed during the operation")
-            }
+            Self::DestinationChanged => f.write_str("destination changed during the operation"),
         }
     }
 }

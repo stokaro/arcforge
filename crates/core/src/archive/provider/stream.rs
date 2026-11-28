@@ -9,8 +9,8 @@ use super::super::{
 };
 use super::io::BudgetReader;
 use super::{
-    check_source_identity, encrypted, entry_kind, open_source_reader, pin_data_start,
-    validate_descriptor, validate_local, validate_policy, verify_source,
+    ProviderRecord, check_source_identity, encrypted, entry_kind, open_source_reader,
+    pin_data_start, validate_descriptor, validate_local, validate_policy, verify_source,
 };
 
 const OUTPUT_CHUNK: usize = 16 * 1024;
@@ -123,32 +123,7 @@ impl ArchiveStream<'_> {
             .and_then(|index| source.records.get(index))
             .ok_or(ArchiveError::EntryNotFound(entry_id))?;
         let raw = &record.raw;
-        match entry_kind(record) {
-            EntryKind::File => {}
-            EntryKind::Directory if raw.size == 0 => {}
-            EntryKind::Directory => {
-                return Err(ArchiveError::Unsupported(
-                    "directory entries containing file data cannot be extracted".into(),
-                ));
-            }
-            EntryKind::Symlink | EntryKind::Special => {
-                return Err(ArchiveError::Unsupported(
-                    "symbolic links, special files and conflicting entry types cannot be extracted"
-                        .into(),
-                ));
-            }
-        }
-        if encrypted(record) {
-            return Err(ArchiveError::Unsupported(
-                "encrypted entry extraction is not implemented".into(),
-            ));
-        }
-        if !matches!(raw.method(), 0 | 8) {
-            return Err(ArchiveError::Unsupported(format!(
-                "streaming supports Stored (0) and Deflate (8), entry uses method {}",
-                raw.method()
-            )));
-        }
+        check_streamable(record)?;
         if self.entries >= self.limits.max_entries {
             return Err(ArchiveError::LimitExceeded("streamed entry count".into()));
         }
@@ -172,7 +147,7 @@ impl ArchiveStream<'_> {
             &mut self.reader,
             record,
             source.footer.directory_offset,
-            choice,
+            Some(choice),
         )?;
         pin_data_start(record, local.data_start)?;
         let mut entry_bytes_written = 0_u64;
@@ -284,7 +259,7 @@ impl ArchiveStream<'_> {
             &mut self.reader,
             record,
             source.footer.directory_offset,
-            choice,
+            Some(choice),
         )?;
         if after != local {
             return Err(ArchiveError::SourceChanged);
@@ -298,6 +273,37 @@ impl ArchiveStream<'_> {
             crc32_verified: true,
         })
     }
+}
+
+pub(super) fn check_streamable(record: &ProviderRecord) -> Result<(), ArchiveError> {
+    let raw = &record.raw;
+    match entry_kind(record) {
+        EntryKind::File => {}
+        EntryKind::Directory if raw.size == 0 => {}
+        EntryKind::Directory => {
+            return Err(ArchiveError::Unsupported(
+                "directory entries containing file data cannot be streamed".into(),
+            ));
+        }
+        EntryKind::Symlink | EntryKind::Special => {
+            return Err(ArchiveError::Unsupported(
+                "symbolic links, special files and conflicting entry types cannot be streamed"
+                    .into(),
+            ));
+        }
+    }
+    if encrypted(record) {
+        return Err(ArchiveError::Unsupported(
+            "encrypted entries cannot be streamed".into(),
+        ));
+    }
+    if !matches!(raw.method(), 0 | 8) {
+        return Err(ArchiveError::Unsupported(format!(
+            "streaming supports Stored (0) and Deflate (8), entry uses method {}",
+            raw.method()
+        )));
+    }
+    Ok(())
 }
 
 fn check_control(

@@ -4,8 +4,12 @@
 
 mod headers;
 mod io;
+mod rewrite;
 mod stream;
 
+#[cfg(test)]
+pub(super) use rewrite::rewrite as save_with_publish_hook;
+pub use rewrite::{SavedZip, ZipEditReport, save_zip_without_entries, supports_zip_removal};
 pub use stream::{ArchiveStream, begin_stream};
 
 use std::collections::BTreeMap;
@@ -329,7 +333,12 @@ pub fn preview_entry(
     let mut reader = open_source_reader(source, limits, cancel)?;
     verify_source(&mut reader, source)?;
     let choice = snapshot.policy.choice_for(entry_id);
-    let local = validate_local(&mut reader, record, source.footer.directory_offset, choice)?;
+    let local = validate_local(
+        &mut reader,
+        record,
+        source.footer.directory_offset,
+        Some(choice),
+    )?;
     // The library caches this offset. Publish only our checked value, so shared
     // previews cannot initialize its cache from different racing local headers.
     pin_data_start(record, local.data_start)?;
@@ -376,7 +385,12 @@ pub fn preview_entry(
             source.footer.directory_offset,
         )?;
     }
-    let after = validate_local(&mut reader, record, source.footer.directory_offset, choice)?;
+    let after = validate_local(
+        &mut reader,
+        record,
+        source.footer.directory_offset,
+        Some(choice),
+    )?;
     if after != local {
         return Err(ArchiveError::SourceChanged);
     }
@@ -643,6 +657,7 @@ fn metadata_fingerprint(
 struct LocalEvidence {
     data_start: u64,
     data_end: u64,
+    extra: Vec<u8>,
     fingerprint: [u8; 32],
 }
 
@@ -650,7 +665,7 @@ fn validate_local(
     reader: &mut BudgetReader,
     record: &ProviderRecord,
     directory_offset: u64,
-    choice: FilenameChoice,
+    choice: Option<FilenameChoice>,
 ) -> Result<LocalEvidence, ArchiveError> {
     let central = &record.raw;
     checked_end(central.local_offset, 30, directory_offset, "local header")?;
@@ -700,25 +715,28 @@ fn validate_local(
     {
         return invalid("selected local CRC or sizes disagree with central metadata");
     }
-    let local_name = resolve_name(&name, central.flags(), &extra, choice);
-    let central_name = resolve_name(&central.name, central.flags(), &central.extra, choice);
-    if local_name.state == NameState::Conflict || central_name.state == NameState::Conflict {
-        return invalid("selected filename declarations conflict");
-    }
-    if local_name.provenance == NameProvenance::UnicodePath
-        && local_name.display != central_name.display
-    {
-        return invalid(
-            "local Unicode Path metadata disagrees with the displayed central-directory evidence",
-        );
+    if let Some(choice) = choice {
+        let local_name = resolve_name(&name, central.flags(), &extra, choice);
+        let central_name = resolve_name(&central.name, central.flags(), &central.extra, choice);
+        if local_name.state == NameState::Conflict || central_name.state == NameState::Conflict {
+            return invalid("selected filename declarations conflict");
+        }
+        if local_name.provenance == NameProvenance::UnicodePath
+            && local_name.display != central_name.display
+        {
+            return invalid(
+                "local Unicode Path metadata disagrees with the displayed central-directory evidence",
+            );
+        }
     }
     let mut hash = Sha256::new();
     hash.update(local);
     hash.update(name);
-    hash.update(extra);
+    hash.update(&extra);
     Ok(LocalEvidence {
         data_start,
         data_end,
+        extra,
         fingerprint: hash.finalize().into(),
     })
 }
@@ -728,7 +746,7 @@ fn validate_descriptor(
     record: &ProviderRecord,
     offset: u64,
     directory_offset: u64,
-) -> Result<(), ArchiveError> {
+) -> Result<u64, ArchiveError> {
     let raw = &record.raw;
     let mut local_sizes = [0; 8];
     reader.read_at(raw.local_offset + 18, &mut local_sizes)?;
@@ -760,7 +778,7 @@ fn validate_descriptor(
             )
         };
         if crc == raw.crc32() && compressed == raw.compressed_size && size == raw.size {
-            return Ok(());
+            return Ok(offset + start as u64 + minimum);
         }
     }
     invalid("selected data descriptor disagrees with central metadata")

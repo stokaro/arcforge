@@ -32,7 +32,7 @@ fn doctor_reports_zip_extraction_without_archive_modification() {
     assert_eq!(report["data"]["archive_provider_count"], 1);
     assert_eq!(
         report["data"]["providers"][0]["operations"],
-        serde_json::json!(["list", "info", "preview", "extract"])
+        serde_json::json!(["list", "info", "preview", "extract", "delete"])
     );
     assert_eq!(
         report["data"]["providers"][0]["extraction_compression"],
