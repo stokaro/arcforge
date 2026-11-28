@@ -189,15 +189,21 @@ fn archive_errors_and_usage_are_noninteractive_and_never_report_partial_success(
     assert_eq!(error["data"]["exit_code"], json!(4));
 }
 
-#[cfg(unix)]
 #[test]
-fn non_utf8_archive_path_is_reopened_using_original_os_bytes() {
-    use std::os::unix::ffi::OsStringExt;
-    let fixture = Fixture::new();
-    let path = fixture
-        .0
-        .join(std::ffi::OsString::from_vec(b"archive-\xff.zip".to_vec()));
-    fs::rename(fixture.path(), &path).unwrap();
-    let preview = success(cli("preview", &path, &["--json", "--entry", "0"]));
-    assert_eq!(preview["data"]["preview"]["text"], "Hello from ArcForge.\n");
+fn native_archive_paths_are_reopened_without_lossy_conversion() {
+    let names = [
+        PathBuf::from("архив 資料 𐐷.zip"),
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::unix::ffi::OsStringExt;
+            PathBuf::from(std::ffi::OsString::from_vec(b"archive-\xff.zip".to_vec()))
+        },
+    ];
+    for name in names {
+        let fixture = Fixture::new();
+        let path = fixture.0.join(name);
+        fs::rename(fixture.path(), &path).expect("rename archive to native test path");
+        let preview = success(cli("preview", &path, &["--json", "--entry", "0"]));
+        assert_eq!(preview["data"]["preview"]["text"], "Hello from ArcForge.\n");
+    }
 }
