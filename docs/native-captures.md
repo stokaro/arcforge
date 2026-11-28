@@ -76,6 +76,8 @@ snapshot, preview result, archive status, or rendered workspace.
 
 Readiness depends on the selected entry, snapshot identity, finished worker,
 matching preview, CRC verification, and a prepared image texture where relevant.
+The discard prompt also waits for its rendered area's fade-in to reach full
+opacity. The capture feature parks the pointer over blank workspace padding.
 The harness then waits for two actual renderer screenshot callbacks with the
 same ready state; it discards the first frame and saves the second. A UI layout
 pass alone does not count as a painted frame. There is no guessed loading sleep.

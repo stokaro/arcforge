@@ -5,6 +5,7 @@
 
 use std::path::Path;
 
+use super::edits::DISCARD_MODAL_ID;
 use super::{ArchiveWorkspace, EntryId, ViewMode, WorkspaceCommand};
 
 const REMOVED_ENTRY: &str = "Photos/Color-study.png";
@@ -273,6 +274,19 @@ impl ArchiveWorkspace {
             Scene::DiscardPrompt if self.discard.is_none() => {
                 self.dispatch_command(WorkspaceCommand::CloseArchive, context);
                 return Ok(None);
+            }
+            Scene::DiscardPrompt => {
+                // The ordinary modal fades in. Wait for its actual visibility
+                // timestamp plus the configured duration before collecting pixels.
+                let visible_since =
+                    egui::AreaState::load(context, egui::Id::unique(DISCARD_MODAL_ID))
+                        .and_then(|area| area.last_became_visible_at);
+                let now = context.input(|input| input.time);
+                if visible_since.is_none_or(|time| {
+                    now - time < f64::from(context.global_style().animation_time)
+                }) {
+                    return Ok(None);
+                }
             }
             #[cfg(target_os = "macos")]
             Scene::SavePanel if self.discard.take().is_some() => return Ok(None),

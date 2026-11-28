@@ -103,6 +103,8 @@ pub(crate) struct Session {
 
 impl Session {
     fn new(directory: PathBuf, context: egui::Context, outcome: Outcome) -> std::io::Result<Self> {
+        // Keep the runner's initial pointer off the rows and their tooltips.
+        context.send_viewport_cmd(egui::ViewportCommand::CursorPosition(egui::pos2(2.0, 2.0)));
         let saved_copy = directory
             .parent()
             .ok_or_else(|| std::io::Error::other("capture directory requires a parent"))?

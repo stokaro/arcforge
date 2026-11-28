@@ -7,6 +7,8 @@ use arcforge_core::archive::EntryId;
 use super::jobs::{PreparedDocument, Task, ViewMode, ViewRow};
 use super::{ArchiveWorkspace, NativePickerPurpose, archive_label};
 
+pub(super) const DISCARD_MODAL_ID: &str = "discard-staged-edits";
+
 pub(super) enum EditAction {
     Delete {
         ids: BTreeSet<EntryId>,
@@ -214,20 +216,19 @@ impl ArchiveWorkspace {
             || "the archive".into(),
             |document| archive_label(document.snapshot.path()),
         );
-        let decision =
-            egui::Modal::new(egui::Id::unique("discard-staged-edits")).show(context, |ui| {
-                ui.set_width(330.0);
-                ui.heading("Discard unsaved changes?");
-                ui.label(format!("Staged deletions in {name} will be lost."));
-                ui.add_space(8.0);
-                let mut discard = false;
-                let mut cancel = false;
-                super::dialog_actions(ui, |ui| {
-                    discard = ui.button("Discard Changes").clicked();
-                    cancel = ui.button("Cancel").clicked();
-                });
-                (discard, cancel)
+        let decision = egui::Modal::new(egui::Id::unique(DISCARD_MODAL_ID)).show(context, |ui| {
+            ui.set_width(330.0);
+            ui.heading("Discard unsaved changes?");
+            ui.label(format!("Staged deletions in {name} will be lost."));
+            ui.add_space(8.0);
+            let mut discard = false;
+            let mut cancel = false;
+            super::dialog_actions(ui, |ui| {
+                discard = ui.button("Discard Changes").clicked();
+                cancel = ui.button("Cancel").clicked();
             });
+            (discard, cancel)
+        });
         if decision.inner.0 {
             match self.discard.take() {
                 Some(DiscardAction::Open(path)) => self.open_document(path, context),
