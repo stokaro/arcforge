@@ -28,6 +28,21 @@ func displayBounds(_ display: CGDirectDisplayID) -> [Double] {
     return [Double(bounds.origin.x), Double(bounds.origin.y), Double(bounds.width), Double(bounds.height)]
 }
 
+func describeDesktop() {
+    let display = CGMainDisplayID()
+    guard let mode = CGDisplayCopyDisplayMode(display) else {
+        output(["status": "unavailable", "reason": "CoreGraphics did not report the current display mode"])
+        return
+    }
+    output([
+        "status": "observed",
+        "process_id": ProcessInfo.processInfo.processIdentifier,
+        "display_id": display,
+        "mode": modeDescription(mode),
+        "bounds": displayBounds(display),
+    ])
+}
+
 func fitDesktop() {
     guard ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == "true" else {
         output(["status": "not-requested", "reason": "mode selection is restricted to ephemeral CI"])
@@ -40,7 +55,10 @@ func fitDesktop() {
         return
     }
     var report: [String: Any] = [
-        "api": "CGDisplayCopyAllDisplayModes + CGDisplaySetDisplayMode",
+        "api": "CGDisplayCopyAllDisplayModes + CGConfigureDisplayWithDisplayMode + CGCompleteDisplayConfiguration",
+        "requested_configuration_scope": "current-login-session",
+        "permanent_configuration_changed": false,
+        "process_id": ProcessInfo.processInfo.processIdentifier,
         "display_id": display,
         "requested_scene_points": [1280, 800],
         "minimum_desktop_mode": [1440, 900],
@@ -83,12 +101,37 @@ func fitDesktop() {
         return
     }
     report["selected"] = modeDescription(selected)
-    let result = CGDisplaySetDisplayMode(display, selected, nil)
+    // CGDisplaySetDisplayMode reverts when its calling process exits. The app
+    // starts after this helper exits, so retain the supported mode for this
+    // ephemeral CI login session without changing permanent display settings.
+    var configuration: CGDisplayConfigRef?
+    let beginResult = CGBeginDisplayConfiguration(&configuration)
+    report["begin_configuration_result"] = beginResult.rawValue
+    guard beginResult == .success, let configuration = configuration else {
+        report["status"] = "unavailable"
+        report["reason"] = "CoreGraphics could not begin the display configuration transaction"
+        report["after_bounds"] = displayBounds(display)
+        output(report)
+        return
+    }
+    let configureResult = CGConfigureDisplayWithDisplayMode(configuration, display, selected, nil)
+    report["configure_mode_result"] = configureResult.rawValue
+    guard configureResult == .success else {
+        _ = CGCancelDisplayConfiguration(configuration)
+        report["status"] = "unavailable"
+        report["reason"] = "CoreGraphics declined the supported display mode"
+        report["after_bounds"] = displayBounds(display)
+        output(report)
+        return
+    }
+    // The configuration token is consumed even if completing the transaction fails.
+    let result = CGCompleteDisplayConfiguration(configuration, .forSession)
     report["coregraphics_result"] = result.rawValue
     if result != .success {
         report["status"] = "unavailable"
         report["reason"] = "CoreGraphics declined the supported display-mode change"
     } else {
+        report["applied_configuration_scope"] = "current-login-session"
         let deadline = Date().addingTimeInterval(2)
         while Date() < deadline {
             if let observed = CGDisplayCopyDisplayMode(display),
@@ -118,6 +161,11 @@ func fitDesktop() {
 
 if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "--fit-desktop" {
     fitDesktop()
+    exit(0)
+}
+
+if CommandLine.arguments.count == 2 && CommandLine.arguments[1] == "--describe-desktop" {
+    describeDesktop()
     exit(0)
 }
 

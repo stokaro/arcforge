@@ -303,12 +303,7 @@ impl ShellTarget {
                     self.extract_item(),
                     self.button("save", "Save", "doc.zipper", Action::Unavailable),
                     self.button("test", "Test", "checkmark.square", Action::Test),
-                    self.button(
-                        "move",
-                        "Move",
-                        "folder.badge.arrowshape.right",
-                        Action::Unavailable,
-                    ),
+                    self.button("move", "Move", "arrow.right.square", Action::Unavailable),
                 ],
             ),
             EDIT_GROUP => self.group(
@@ -401,12 +396,7 @@ impl ShellTarget {
             NSMenuToolbarItem::alloc(self.mtm()),
             &NSString::from_str("extract"),
         );
-        configure_item(
-            &item,
-            "Extract",
-            "archivebox.and.arrow.up",
-            Action::ExtractAll,
-        );
+        configure_item(&item, "Extract", "square.and.arrow.up", Action::ExtractAll);
         item.setShowsIndicator(true);
         let menu = new_menu(self.mtm(), "Extract");
         self.add_menu_item(&menu, "Extract All", "", Action::Unavailable);
@@ -502,6 +492,10 @@ fn configure_item(item: &NSToolbarItem, title: &str, symbol: &str, action: Actio
     } else {
         // A symbol may be absent on an older installed macOS. Preserve a
         // usable native text item instead of an invisible or invented icon.
+        #[cfg(any(debug_assertions, feature = "native-capture"))]
+        eprintln!(
+            "ArcForge native toolbar: system symbol {symbol:?} is unavailable; using its text label"
+        );
         item.setTitle(&title);
     }
 }

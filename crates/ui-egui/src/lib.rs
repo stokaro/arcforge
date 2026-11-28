@@ -399,7 +399,7 @@ impl ArchiveWorkspace {
         self.favorites_content_width = self
             .favorites_rows
             .iter()
-            .map(|row| 180.0 + row.depth as f32 * 15.0)
+            .map(|row| 130.0 + row.depth as f32 * 15.0)
             .fold(0.0, f32::max);
     }
 
@@ -1953,7 +1953,10 @@ impl ArchiveWorkspace {
                                     .rect_filled(rect, 6, sidebar_selection_color(ui));
                             }
                             let left = rect.left() + row.depth as f32 * 15.0;
-                            let mut label_right = rect.right() - 3.0;
+                            // Deep folders may widen the scrollable content, but
+                            // counts belong to the visible row's trailing edge.
+                            let row_right = rect.right().min(ui.clip_rect().right()) - 6.0;
+                            let mut label_right = row_right;
                             let enabled = !self.native_picker_pending()
                                 && (!matches!(row.kind, FavoritesRowKind::Archive) || can_open);
                             let color = if matches!(row.kind, FavoritesRowKind::Notice) || !enabled
@@ -1980,9 +1983,11 @@ impl ArchiveWorkspace {
                                             egui::vec2(22.0, 22.0),
                                         ),
                                     );
-                                    if let Some(count) = count {
+                                    if let Some(count) = count
+                                        && left + 44.0 < row_right - 33.0
+                                    {
                                         let badge = egui::Rect::from_min_size(
-                                            egui::pos2(rect.right() - 36.0, rect.center().y - 9.0),
+                                            egui::pos2(row_right - 33.0, rect.center().y - 9.0),
                                             egui::vec2(33.0, 18.0),
                                         );
                                         ui.painter().rect_filled(
@@ -2264,13 +2269,29 @@ impl ArchiveWorkspace {
                     return;
                 };
                 let height = ui.available_height();
+                // Fit the ordinary heading/properties and the closed metadata
+                // disclosure initially. Longer names or expanded diagnostics
+                // still scroll within the bounded, user-resizable Info pane.
+                let row_height = ui.text_style_height(&egui::TextStyle::Body)
+                    + ui.spacing().item_spacing.y;
+                let ordinary_info_height = 32.0
+                    + ui.text_style_height(&egui::TextStyle::Heading)
+                    + ui.spacing().item_spacing.y
+                    + 22.0
+                    + 8.0 * row_height
+                    + 10.0
+                    + ui.text_style_height(&egui::TextStyle::Button)
+                    + 2.0 * ui.spacing().button_padding.y;
                 egui::Panel::top("inspector_properties")
-                    .default_size(height * 0.43)
+                    .default_size((height * 0.43).max(ordinary_info_height))
                     .min_size(180.0)
                     .max_size(height * 0.67)
                     .resizable(true)
                     .frame(egui::Frame::NONE.fill(content_color(ui)).inner_margin(egui::Margin::symmetric(18, 16)))
                     .show(ui, |ui| {
+                        // Keep an overflow affordance visible without covering
+                        // metadata text when the available height is small.
+                        ui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
                         egui::ScrollArea::vertical().id_salt("information_scroll").auto_shrink([false, false]).show(ui, |ui| {
                             self.inspector_info(ui, &document);
                         });

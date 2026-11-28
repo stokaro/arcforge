@@ -129,15 +129,27 @@ the actual application window. The helper now queries the main display's
 supported modes through
 [`CGDisplayCopyAllDisplayModes`](https://developer.apple.com/documentation/coregraphics/quartz-display-services)
 and, **only inside GitHub Actions**, requests a larger desktop-usable mode through
-`CGDisplaySetDisplayMode`. It prefers at least 1600 × 1000, with a 1440 × 900
+`CGBeginDisplayConfiguration`, `CGConfigureDisplayWithDisplayMode`, and
+`CGCompleteDisplayConfiguration` with
+[`forSession`](https://developer.apple.com/documentation/coregraphics/cgconfigureoption/forsession).
+This scope survives the helper process and lasts only for the ephemeral runner's
+login session; it does not save permanent display preferences. It prefers at least 1600 × 1000, with a 1440 × 900
 minimum, leaving room for the 1280 × 800 application scene and real system UI.
 It selects only an advertised mode; it does not create a virtual display, enlarge
 a screenshot, or change screen-recording permissions. Local `gui-capture` leaves
 the desktop mode alone.
 
+The earlier `CGDisplaySetDisplayMode` attempt reported a larger mode while its
+helper was running, but the app still opened at the old size. Apple's
+[API contract](https://developer.apple.com/documentation/coregraphics/cgdisplaysetdisplaymode(_:_:_:))
+explains why: that change reverts when the calling program exits.
+
 `display_configuration` records the available modes, original mode/bounds,
-requested mode, CoreGraphics result, and observed final mode/bounds. The observed
-transition has a two-second bound. If the host exposes no suitable mode or declines
+requested scope/mode, CoreGraphics result, and observed final mode/bounds. The
+transition has a two-second bound. Before starting ArcForge, xtask launches a
+separate read-only `--describe-desktop` process after the setter has exited and
+records `after_helper_exit` plus `persists_after_helper_exit`. A reverted mode or
+smaller bounds cannot remain labelled as a successful configuration. If the host exposes no suitable mode or declines
 the change, that outcome remains explicit and the actual smaller capture remains
 labelled with its true dimensions. The scene PNG and viewport metadata remain the
 evidence for the window size actually rendered.

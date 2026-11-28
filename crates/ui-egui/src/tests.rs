@@ -1423,6 +1423,213 @@ fn frame(workspace: &mut ArchiveWorkspace) -> String {
     text
 }
 
+fn native_workspace_frame(
+    context: &egui::Context,
+    workspace: &mut ArchiveWorkspace,
+    size: egui::Vec2,
+    frame_index: u32,
+    events: Vec<egui::Event>,
+) -> egui::FullOutput {
+    let mut output = context.run_ui(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            time: Some(f64::from(frame_index) * 0.1),
+            events,
+            ..Default::default()
+        },
+        |ui| workspace.show(ui),
+    );
+    output.textures_delta.clear();
+    output
+}
+
+fn painted_text_rect(
+    output: &egui::FullOutput,
+    expected: &str,
+) -> Option<(egui::Rect, egui::Rect)> {
+    fn find(shape: &egui::epaint::Shape, expected: &str) -> Option<egui::Rect> {
+        match shape {
+            egui::epaint::Shape::Text(text) if text.galley.job.text == expected => {
+                Some(text.galley.rect.translate(text.pos.to_vec2()))
+            }
+            egui::epaint::Shape::Vec(shapes) => {
+                shapes.iter().find_map(|shape| find(shape, expected))
+            }
+            _ => None,
+        }
+    }
+    output
+        .shapes
+        .iter()
+        .find_map(|shape| find(&shape.shape, expected).map(|rect| (rect, shape.clip_rect)))
+}
+
+#[test]
+fn narrow_favorites_keeps_count_badges_inside_the_visible_right_gutter() {
+    for width in [900.0, 1024.0] {
+        let context = egui::Context::default();
+        configure_style(&context);
+        let mut workspace = ArchiveWorkspace {
+            favorites_rows: vec![
+                FavoritesRow {
+                    path: PathBuf::from("Downloads"),
+                    label: "Downloads".into(),
+                    depth: 0,
+                    kind: FavoritesRowKind::Directory {
+                        expanded: true,
+                        count: Some(512),
+                    },
+                },
+                FavoritesRow {
+                    path: PathBuf::from("Downloads/nested"),
+                    label: "Nested folder".into(),
+                    depth: 8,
+                    kind: FavoritesRowKind::Directory {
+                        expanded: false,
+                        count: None,
+                    },
+                },
+            ],
+            favorites_content_width: 250.0,
+            ..Default::default()
+        };
+        workspace.set_native_toolbar_attached(true);
+        let size = egui::vec2(width, 622.0);
+        for frame_index in 0..2 {
+            native_workspace_frame(&context, &mut workspace, size, frame_index, vec![]);
+        }
+        let output = native_workspace_frame(&context, &mut workspace, size, 2, vec![]);
+        let (badge, clip) = painted_text_rect(&output, "512").expect("actual count badge");
+        assert!(
+            clip.contains_rect(badge),
+            "badge must remain fully visible at {width}: {badge:?}, {clip:?}"
+        );
+        assert!(
+            badge.right() + 6.0 <= clip.right(),
+            "badge needs a visible right gutter"
+        );
+        assert!(
+            workspace.filesystem.is_none(),
+            "the layout test performs no folder discovery"
+        );
+    }
+}
+
+#[test]
+fn narrow_inspector_shows_metadata_disclosure_and_scrolls_expanded_details() {
+    let fixture = Fixture::new(b"Photos/Color-study.png");
+    let document = fixture.document();
+    for size in [
+        egui::vec2(900.0, 622.0),
+        egui::vec2(1024.0, 622.0),
+        egui::vec2(900.0, 440.0),
+    ] {
+        let context = egui::Context::default();
+        configure_style(&context);
+        let mut workspace = ArchiveWorkspace {
+            document: Some(document.clone()),
+            selected: Some(0),
+            selected_entries: BTreeSet::from([0]),
+            preview: Some(preview(0)),
+            ..Default::default()
+        };
+        workspace.set_native_toolbar_attached(true);
+        for frame_index in 0..2 {
+            native_workspace_frame(&context, &mut workspace, size, frame_index, vec![]);
+        }
+        let mut output = native_workspace_frame(&context, &mut workspace, size, 2, vec![]);
+        let (_, clip) = painted_text_rect(&output, "PNG image").expect("ordinary Info property");
+        if size.y >= 622.0 {
+            let (header, clip) = painted_text_rect(&output, "Filename and archive metadata")
+                .expect("metadata disclosure is painted");
+            assert!(
+                clip.contains_rect(header),
+                "ordinary Info must show the whole disclosure at {size:?}: {header:?}, {clip:?}"
+            );
+        }
+        let hover = clip.center();
+        native_workspace_frame(
+            &context,
+            &mut workspace,
+            size,
+            3,
+            vec![
+                egui::Event::PointerMoved(hover),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0.0, -800.0),
+                    phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Wheel,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        for frame_index in 4..7 {
+            output = native_workspace_frame(&context, &mut workspace, size, frame_index, vec![]);
+        }
+        let (header, clip) = painted_text_rect(&output, "Filename and archive metadata")
+            .expect("metadata disclosure after scrolling");
+        assert!(
+            clip.contains_rect(header),
+            "short Info remains scrollable to the complete disclosure"
+        );
+        let click = header.center();
+        for (frame_index, pressed) in [(7, true), (8, false)] {
+            native_workspace_frame(
+                &context,
+                &mut workspace,
+                size,
+                frame_index,
+                vec![
+                    egui::Event::PointerMoved(click),
+                    egui::Event::PointerButton {
+                        pos: click,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        for frame_index in 9..12 {
+            native_workspace_frame(&context, &mut workspace, size, frame_index, vec![]);
+        }
+        native_workspace_frame(
+            &context,
+            &mut workspace,
+            size,
+            12,
+            vec![
+                egui::Event::PointerMoved(hover),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0.0, -2000.0),
+                    phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Wheel,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        for frame_index in 13..17 {
+            output = native_workspace_frame(&context, &mut workspace, size, frame_index, vec![]);
+        }
+        let (last, clip) = painted_text_rect(&output, "Original entry comment (hex)")
+            .expect("expanded metadata is reachable by scrolling");
+        assert!(
+            clip.contains_rect(last),
+            "last metadata disclosure is fully reachable at {size:?}"
+        );
+        let (checksum, _) = painted_text_rect(&output, "CRC32").expect("checksum remains visible");
+        assert!(
+            last.bottom() < checksum.top(),
+            "metadata must stay above the checksum panel"
+        );
+        assert_eq!(workspace.selected, Some(0));
+        assert!(workspace.preview.is_some());
+        assert!(workspace.worker.is_none());
+    }
+}
+
 #[test]
 fn empty_populated_and_error_workspaces_render_without_a_native_window() {
     let mut workspace = ArchiveWorkspace::default();

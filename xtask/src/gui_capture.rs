@@ -415,7 +415,7 @@ fn configure_mac_display(helper: &Result<PathBuf>, directory: &Path) -> Value {
     };
     let mut command = Command::new(binary);
     command.arg("--fit-desktop");
-    match logged_command(
+    let mut report = match logged_command(
         &mut command,
         directory,
         "mac-display",
@@ -425,6 +425,58 @@ fn configure_mac_display(helper: &Result<PathBuf>, directory: &Path) -> Value {
     {
         Ok(report) => report,
         Err(error) => json!({"status": "unavailable", "reason": error.to_string()}),
+    };
+    // The setter process has exited. A new observer catches process-scoped
+    // changes that revert before ArcForge can create its native window.
+    let mut observer = Command::new(binary);
+    observer.arg("--describe-desktop");
+    let observed = match logged_command(
+        &mut observer,
+        directory,
+        "mac-display-after-helper-exit",
+        Duration::from_secs(10),
+    )
+    .and_then(|()| read_json(&directory.join("mac-display-after-helper-exit.stdout.log")))
+    {
+        Ok(observed) => observed,
+        Err(error) => json!({"status": "unavailable", "reason": error.to_string()}),
+    };
+    record_display_after_helper_exit(&mut report, observed);
+    report
+}
+
+fn record_display_after_helper_exit(report: &mut Value, observed: Value) {
+    let claimed_ready = matches!(
+        report["status"].as_str(),
+        Some("changed" | "already-sufficient")
+    );
+    let expected_mode = report["after"]["mode_id"].as_u64();
+    let expected_display = report["display_id"].as_u64();
+    let persists = claimed_ready
+        && observed["status"] == "observed"
+        && expected_mode.is_some()
+        && observed["mode"]["mode_id"].as_u64() == expected_mode
+        && expected_display.is_some()
+        && observed["display_id"].as_u64() == expected_display
+        && observed["mode"]["width"]
+            .as_u64()
+            .is_some_and(|width| width >= 1440)
+        && observed["mode"]["height"]
+            .as_u64()
+            .is_some_and(|height| height >= 900)
+        && observed["bounds"][2]
+            .as_f64()
+            .is_some_and(|width| width >= 1440.0)
+        && observed["bounds"][3]
+            .as_f64()
+            .is_some_and(|height| height >= 900.0);
+    report["after_helper_exit"] = observed;
+    report["persists_after_helper_exit"] = json!(persists);
+    if claimed_ready && !persists {
+        report["status"] = json!("unavailable");
+        report["reason"] = json!(
+            "larger desktop mode was not observed by a separate process after the configuration helper exited"
+        );
     }
 }
 
@@ -627,6 +679,38 @@ mod tests {
         assert!(require_clean_source(&(Some("a".repeat(40)), false)).is_ok());
         assert!(require_clean_source(&(Some("a".repeat(40)), true)).is_err());
         assert!(require_clean_source(&(None, false)).is_err());
+    }
+
+    #[test]
+    fn display_mode_must_survive_the_configuration_helper_process() {
+        let configured = json!({
+            "status": "changed", "display_id": 1,
+            "after": {"mode_id": 9, "width": 1600, "height": 1200},
+            "after_bounds": [0, 0, 1600, 1200],
+        });
+        let observed = json!({
+            "status": "observed", "display_id": 1,
+            "mode": {"mode_id": 9, "width": 1600, "height": 1200},
+            "bounds": [0, 0, 1600, 1200],
+        });
+        let mut retained = configured.clone();
+        record_display_after_helper_exit(&mut retained, observed.clone());
+        assert_eq!(retained["status"], "changed");
+        assert_eq!(retained["persists_after_helper_exit"], true);
+        assert_eq!(retained["after_helper_exit"], observed);
+
+        let mut reverted = observed.clone();
+        reverted["mode"] = json!({"mode_id": 3, "width": 1024, "height": 768});
+        reverted["bounds"] = json!([0, 0, 1024, 768]);
+        let mut stale_bounds = observed;
+        stale_bounds["bounds"] = json!([0, 0, 1024, 768]);
+        for observation in [reverted, stale_bounds, json!({"status": "unavailable"})] {
+            let mut report = configured.clone();
+            record_display_after_helper_exit(&mut report, observation.clone());
+            assert_eq!(report["status"], "unavailable");
+            assert_eq!(report["persists_after_helper_exit"], false);
+            assert_eq!(report["after_helper_exit"], observation);
+        }
     }
 
     #[test]
