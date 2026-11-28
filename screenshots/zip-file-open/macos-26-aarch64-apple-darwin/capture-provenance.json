@@ -1,0 +1,125 @@
+{
+  "platform": "macos-26-aarch64-apple-darwin",
+  "target": "aarch64-apple-darwin",
+  "source_commit": "a6253af3ea72b3aefd10a0e32cce539028ab00c7",
+  "source_dirty": false,
+  "build": {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--target",
+      "aarch64-apple-darwin",
+      "-p",
+      "arcforge",
+      "--features",
+      "native-capture"
+    ],
+    "feature": "native-capture",
+    "profile": "debug",
+    "release_bundle": false
+  },
+  "binary_sha256": "6d95233d14798029efa565d0adf28ae48fc3a74448a50bf0693d5d73a4b636c2",
+  "github_actions_run": 46151146819,
+  "capture_run_sha256": "df4b9fbe9a761cab1af57b9ce2697a09d31a94827192a61f1e26978985265749",
+  "scene_metadata_sha256": "61d82eef056aa237838b4f1c8569d4aac4543ccd10b436ab23b7e829e1d66d96",
+  "runtime": {
+    "architecture": "aarch64",
+    "environment": {
+      "ARCFORGE_CAPTURE_DISPLAY": "GitHub-hosted macOS 26 native desktop session",
+      "GITHUB_ACTIONS": "true",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_RUN_ID": "46151146819",
+      "GITHUB_SHA": "a6253af3ea72b3aefd10a0e32cce539028ab00c7",
+      "ImageOS": "macos26",
+      "ImageVersion": "20261117.0516.1",
+      "RUNNER_ARCH": "ARM64",
+      "RUNNER_OS": "macOS"
+    },
+    "os": "macos",
+    "os_version": "ProductName:\t\tmacOS\nProductVersion:\t\t26.7.2\nBuildVersion:\t\t25G332",
+    "renderer": "production Glow backend; no offscreen or alternate renderer",
+    "window": "actual native eframe window with shared platform::native_options"
+  },
+  "fixture": {
+    "file": "workspace-demo.zip",
+    "generator": "scripts/generate_ui_fixture.py --images",
+    "generator_sha256": "f08427b3389702f953b7bbf84c14dc37dfe1a82b982864f3897ac7290a157aec",
+    "original_content": true,
+    "sha256": "eef9fd6de48a3e465ab99dae9cdb5df13353e25056fe9365584d9e722d0da70e",
+    "unchanged_after_capture": true
+  },
+  "scene": {
+    "file": "01-opened-file.png",
+    "original_scene": "10-open-in-default-app",
+    "capture_kind": "macOS native window including AppKit chrome",
+    "sha256": "555c5740cd3b0a8cd091a931f98d9bc9d4473c19629776ad0f533c12734504bd",
+    "pixel_dimensions": [
+      1280,
+      884
+    ],
+    "scale": 1.0,
+    "theme": "light",
+    "process_id": 1921,
+    "viewport": {
+      "focused": false,
+      "inner_rect_points": [
+        160.0,
+        148.0,
+        1280.0,
+        832.0
+      ],
+      "minimized": false,
+      "native_pixels_per_point": 1.0,
+      "occluded": false,
+      "outer_rect_points": [
+        160.0,
+        96.0,
+        1280.0,
+        884.0
+      ]
+    },
+    "fonts": {
+      "regular": {
+        "embedded": false,
+        "face_index": 0,
+        "font_name": "System Font",
+        "source_path": "/System/Library/Fonts/SFNS.ttf",
+        "variation_coordinates": [
+          [
+            "wght",
+            400.0
+          ],
+          [
+            "opsz",
+            17.0
+          ]
+        ],
+        "weight": 400.0
+      },
+      "semibold": {
+        "embedded": false,
+        "face_index": 0,
+        "font_name": "System Font",
+        "source_path": "/System/Library/Fonts/SFNS.ttf",
+        "variation_coordinates": [
+          [
+            "wght",
+            600.0
+          ],
+          [
+            "opsz",
+            17.0
+          ]
+        ],
+        "weight": 600.0
+      }
+    },
+    "selected_entry": "Documents/Guide.txt",
+    "verified_preview_crc32": true,
+    "system_open_succeeded": true,
+    "opened_copy_bytes": 170,
+    "opened_payload_sha256": "3654e1e91695ee3ed1a44d373e5ef47d0b7a905a3be6de435342599eb2e6f225",
+    "file_open_handoff": null
+  }
+}
