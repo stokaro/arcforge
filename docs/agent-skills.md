@@ -1,6 +1,6 @@
 # Repository agent skills
 
-ArcForge keeps five focused workflows in the repository. They support implementation and review of the archive manager described in [issue #1](https://github.com/stokaro/arcforge/issues/1). They do not implement archive operations; the application remains a bootstrap.
+ArcForge keeps seven focused workflows in the repository. They support implementation and review of the archive manager described in [issue #1](https://github.com/stokaro/arcforge/issues/1). They do not implement archive operations; the application remains a bootstrap.
 
 ## Discovery and use
 
@@ -13,10 +13,14 @@ The canonical instruction files are `.agents/skills/<name>/SKILL.md`. Codex supp
 | `arcforge-archive-safety` | Archive providers, extraction, mutation, helpers, or filesystem placement change | Explicit safety invariants and tests for the changed boundary |
 | `arcforge-review` | A coherent code change is ready for review, or review is requested | Concrete findings, dispositions, and remaining risks |
 | `arcforge-verify` | Implementation claims or a code PR need verification | Commands, source snapshot, results, and platform limits |
+| `arcforge-rust` | Nontrivial Rust ownership, API, error, byte-range, unsafe, or performance work needs guidance | A justified design and focused checks, with relevant reference sections only |
+| `arcforge-ci` | A specified PR/commit has failing, missing, or incomplete CI checks | Revision-bound diagnosis, focused correction, and exact remote-check status |
 
 Use normal task requests, or explicitly invoke a project skill: `$arcforge-debug` in Codex, `/arcforge-debug` in Claude Code. An agent without native skill discovery can follow the links in [AGENTS.md](../AGENTS.md). Client settings, versions, and enabled project instructions affect discovery; the build validator does not exercise a live agent client.
 
-Start with `AGENTS.md`; load a skill's body only when its task applies. For example, a failed-save bug needs debugging, preservation tests, and archive safety; verification applies before reporting it fixed. A documentation correction only needs content/link checks and the applicable metadata gate. No startup hook loads all five bodies, and no global agent configuration is changed.
+Start with `AGENTS.md`; load a skill's body only when its task applies. For example, a failed-save bug needs debugging, preservation tests, and archive safety; verification applies before reporting it fixed. A documentation correction only needs content/link checks and the applicable metadata gate. No startup hook loads the entire catalog, and no global agent configuration is changed.
+
+The Rust skill indexes nine pinned Apollo reference chapters. Search their headings and read the section needed for the current decision; these references are not added to every task's context. Repository contracts and measured evidence take precedence over contextual upstream style heuristics. The CI skill prefers the connected GitHub integration, accepts an authenticated CLI as an alternative, and adds no Python/helper dependency to the build.
 
 ## Verification scope
 
@@ -31,7 +35,7 @@ The workflows preserve existing user authorization and do not impose mandatory d
 1. Edit a canonical `SKILL.md`. Keep its trigger specific and its body concise; aim for 250–500 words, with up to 1,000 allowed for domain requirements.
 2. Use exactly two frontmatter fields: an unquoted `name` matching the directory and a single-line, JSON-style double-quoted `description` of 1–1,024 characters. This is a deliberately constrained subset of YAML. Keep the complete file within 500 lines.
 3. Run `cargo xtask skills-sync`, then review the generated `.claude/skills` differences. Never edit those entry points independently.
-4. Run `cargo xtask skills`. It checks the five known skills, metadata/body budgets, simple inline relative Markdown links, and exact entry-point contents. It rejects symlinked owned paths, unexpected `arcforge-*` catalog entries, and unrecognized wrapper files rather than deleting or overwriting them. Other skill names are outside this checker.
+4. Run `cargo xtask skills`. It checks the seven known skills, metadata/body budgets, simple inline relative Markdown links, and exact entry-point contents. It rejects symlinked owned paths, unexpected `arcforge-*` catalog entries, and unrecognized wrapper files rather than deleting or overwriting them. Other skill names are outside this checker.
 5. Forward-test substantial instruction changes with a fresh agent given a realistic task and raw artifacts. Do not give it the expected diagnosis. Inspect its decisions and output; a metadata pass does not establish instruction quality.
 6. When adapting upstream changes, review them at a fixed commit and update the provenance below. Preserve required notices and refresh the license snapshot if its inputs changed.
 
@@ -59,6 +63,17 @@ Four workflows are adapted from [obra/superpowers](https://github.com/obra/super
 The bodies have been shortened, rewritten, and scoped to ArcForge. The original universal activation rules, mandatory brainstorming/design approval stages, and instructions to delete code written before a test are not imported. Upstream hooks, installer scripts, agents, templates, and plugin configuration are not vendored. Generated Claude entry points refer to the adapted files and contain no separate upstream workflow implementation.
 
 `arcforge-archive-safety`, the routing, generator, and tests are original ArcForge work under the repository's [MIT license](../LICENSE). Existing ArtCraft code provenance is unchanged; see [artcraft-reuse.md](artcraft-reuse.md).
+
+## hiewbie, Apollo, and OpenAI skill provenance
+
+The Rust and CI entry instructions adapt the corresponding focused workflows from [stokaro/hiewbie](https://github.com/stokaro/hiewbie/tree/058d5b4a9775a4ee2a7ec09db9493b9dc8a3650f), inspected at commit `058d5b4a9775a4ee2a7ec09db9493b9dc8a3650f`. hiewbie's original repository/specification material is MIT-licensed, copyright 2026 Stokaro; its notice is byte-identical to ArcForge's root [LICENSE](../LICENSE). The inherited skill components retain their upstream terms below.
+
+| ArcForge material | Original source and revision | Retained terms | Adaptation |
+| --- | --- | --- | --- |
+| `arcforge-rust/SKILL.md` and nine `references/chapter_*.md` files | [apollographql/skills](https://github.com/apollographql/skills/tree/8d0129fdc96a1b80d999a6682e48fc11e137dc09/skills/rust-best-practices), `8d0129fdc96a1b80d999a6682e48fc11e137dc09` | [MIT, copyright 2024 Apollo Graph, Inc.](../licenses/apollo-MIT.txt) | Entry rewritten for ArcForge; nine reference chapters copied unchanged through hiewbie |
+| `arcforge-ci/SKILL.md` | [openai/skills](https://github.com/openai/skills/tree/49f948faa9258a0c61caceaf225e179651397431/skills/.curated/gh-fix-ci), `49f948faa9258a0c61caceaf225e179651397431` | [Apache-2.0](../licenses/openai-skills-Apache-2.0.txt) | Entry rewritten through hiewbie for exact source/run evidence, connector use, and ArcForge checks; Python helper not imported |
+
+These are local adaptations, not upstream Apollo or OpenAI releases. The CI instruction retains Apache-2.0 rather than being relabeled MIT. Its generated Claude entry point loads that canonical instruction. No upstream plugin, hooks, installer, agent metadata, or CLI helper is imported. The existing Superpowers debugging workflow is retained without a second copy from hiewbie. [hiewbie-reuse.md](hiewbie-reuse.md) records exact intermediate paths, modifications, and the related architectural inspiration.
 
 ## Archive safety references
 

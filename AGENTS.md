@@ -17,12 +17,25 @@ Read the matching canonical `SKILL.md` when its task arises. Do not preload the 
 | Task | Skill |
 | --- | --- |
 | Diagnose a concrete failure or regression | [arcforge-debug](.agents/skills/arcforge-debug/SKILL.md) |
+| Diagnose GitHub Actions checks or a failed native CI leg | [arcforge-ci](.agents/skills/arcforge-ci/SKILL.md) |
+| Implement or review Rust ownership, APIs, errors, or performance | [arcforge-rust](.agents/skills/arcforge-rust/SKILL.md) |
 | Change observable behavior or a preservation guarantee | [arcforge-tdd](.agents/skills/arcforge-tdd/SKILL.md) |
 | Implement/review archive providers, extraction, mutation, helpers, or placement | [arcforge-archive-safety](.agents/skills/arcforge-archive-safety/SKILL.md) |
 | Assess a coherent code change or requested review | [arcforge-review](.agents/skills/arcforge-review/SKILL.md) |
 | Verify implementation claims or prepare a code PR | [arcforge-verify](.agents/skills/arcforge-verify/SKILL.md) |
 
 Several skills may apply at different stages of one task. Prose, formatting, and other changes without executable behavior need appropriate content checks, not a test-first ceremony. Maintain valid prior decisions and user authorization; skills do not introduce extra approval stages or grant permission for unrelated actions.
+
+## Update the affected contract
+
+| Change | Contract to inspect and update when behavior changes |
+| --- | --- |
+| Document state, background jobs, caches, or provider settings | [Snapshot and generation rules](docs/architecture.md#document-generations-and-background-results) |
+| Archive offsets, sizes, streaming, or allocation | [Large-file boundaries](docs/architecture.md#large-files-and-checked-offsets) |
+| Target coverage, bundle layout, or release evidence | [Release manifest and verification](docs/release.md) |
+| Agent workflow or borrowed source | [Skill maintenance](docs/agent-skills.md) and the relevant source reuse inventory |
+
+Keep requirements proportional to the change. A contract for a future provider does not imply the provider is implemented. When filtering diagnostic output, preserve the raw log and the original command's exit status; a successful filter does not make a failed command pass.
 
 ## Verification and pull requests
 
@@ -32,4 +45,4 @@ Record the verified snapshot, exact commands, results, and platform. Reuse evide
 
 For a substantial code change, request one independent review when available; otherwise identify the self-review. Follow up on concrete findings rather than repeating broad reviews indefinitely. PRs explain the problem, resulting behavior, verification, and limitations; include a compact Mermaid diagram when a flow changes. Update epic checkboxes only for completed work.
 
-Edit canonical skills under `.agents/skills`, then run `cargo xtask skills-sync` to update Claude entry points. [Skill maintenance and provenance](docs/agent-skills.md) describes the limited Superpowers adaptations.
+Edit canonical skills under `.agents/skills`, then run `cargo xtask skills-sync` to update Claude entry points. [Skill maintenance and provenance](docs/agent-skills.md) records the scoped adaptations and reference licenses.

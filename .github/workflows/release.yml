@@ -15,11 +15,13 @@ jobs:
   draft:
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Verify tag matches workspace version
         run: |
@@ -30,23 +32,37 @@ jobs:
           if tag != f'v{version}':
               raise SystemExit(f'Tag {tag!r} must match workspace version v{version}')
           PY
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.100.1 --profile minimal
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: release-tools
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: arcforge-*
           path: dist
           merge-multiple: true
-      - name: Check all development bundle checksums
-        working-directory: dist
-        run: sha256sum --check --strict *.sha256
+      - name: Verify complete release inputs
+        run: cargo xtask verify-release --directory dist --commit "$(git rev-parse HEAD)"
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cat > release-notes.txt <<'EOF'
+          cat > "$RUNNER_TEMP/arcforge-release-notes.txt" <<'EOF'
           Unsigned ArcForge development bundles for macOS, Windows and Linux, on x86-64 and ARM64.
 
           These are portable bootstrap builds, not production installers. They do not configure file associations or include signing/notarization. Consult the bundled README for currently implemented functionality.
 
-          SHA-256 checksums and license notices are provided. Native CI command smoke tests do not establish full GUI or archive-feature parity.
+          Every target includes a SHA-256 sidecar and native-command-smoke evidence tied to the exact source commit and archive hash. Commands are run from an unpacked bundle. Native command smoke tests do not establish full GUI or archive-feature parity.
           EOF
-          gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --draft --title "ArcForge $GITHUB_REF_NAME" --notes-file release-notes.txt
+          gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --draft --title "ArcForge $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/arcforge-release-notes.txt"
+      - name: Download and compare uploaded draft assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          download_dir="$(mktemp -d "$RUNNER_TEMP/arcforge-release-assets.XXXXXX")"
+          gh release download "$GITHUB_REF_NAME" --dir "$download_dir"
+          cargo xtask verify-release --directory "$download_dir" --commit "$(git rev-parse HEAD)"
+          for file in dist/*; do
+            cmp -- "$file" "$download_dir/$(basename "$file")"
+          done

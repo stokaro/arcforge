@@ -91,7 +91,9 @@ fn bundles_preserve_names_bytes_permissions_and_repeatable_archives() -> Result<
 fn executable_machine_check_rejects_mislabeled_target_artifacts() -> Result<()> {
     let directory = TestDirectory::new();
     let path = directory.0.join("binary");
-    for target in TARGETS {
+    let manifest = crate::release::Manifest::load(&crate::workspace_root()?)?;
+    for delivery in &manifest.targets {
+        let target = &delivery.target;
         let arm = target.starts_with("aarch64");
         let mut bytes = [0_u8; 128];
         if target.contains("linux") {
@@ -124,6 +126,6 @@ fn executable_machine_check_rejects_mislabeled_target_artifacts() -> Result<()> 
         assert!(verify_binary(&path, &wrong).is_err());
     }
     fs::write(&path, b"truncated")?;
-    assert!(verify_binary(&path, TARGETS[0]).is_err());
+    assert!(verify_binary(&path, &manifest.targets[0].target).is_err());
     Ok(())
 }
