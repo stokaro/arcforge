@@ -19,6 +19,10 @@ image.workspace = true
 rfd.workspace = true
 raw-window-handle.workspace = true
 dirs.workspace = true
+tempfile = "=3.27.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+open = { version = "=5.4.5", default-features = false, features = ["shellexecute-on-windows"] }
 
 [lints]
 workspace = true

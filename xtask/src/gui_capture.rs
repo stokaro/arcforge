@@ -13,6 +13,7 @@ use crate::{Options, Result};
 
 const SCENES: &[(&str, Option<&str>)] = &[
     ("01-text-preview", Some("Documents/Guide.txt")),
+    ("10-open-in-default-app", Some("Documents/Guide.txt")),
     ("02-image-preview", Some("Photos/Color-study.png")),
     ("05-staged-delete", None),
     ("06-discard-prompt", None),
@@ -158,7 +159,7 @@ fn capture(
         .stdout(File::create(&stdout)?)
         .stderr(File::create(&stderr)?);
     #[cfg(target_os = "linux")]
-    command.env_remove("WAYLAND_DISPLAY");
+    configure_capture_file_handler(&mut command, directory)?;
     let mut child = ChildGuard(command.spawn()?);
     evidence["process_id"] = json!(child.0.id());
     evidence["status"] = json!("capturing");
@@ -250,6 +251,8 @@ fn capture(
         return Err("native capture changed its source ZIP fixture".into());
     }
     evidence["fixture"]["unchanged_after_capture"] = json!(true);
+    #[cfg(target_os = "linux")]
+    verify_capture_file_handler(root, directory, &fixture, evidence)?;
     verify_saved_copy(root, directory, &fixture, evidence)?;
     evidence["binary_sha256_after_capture"] = json!(bounded_sha256(&binary, 1024 * 1024 * 1024)?);
     if evidence["binary_sha256"] != evidence["binary_sha256_after_capture"] {
@@ -321,6 +324,71 @@ fn validate_scene(
     if scene == "02-image-preview" && value["preview_image_size"] != json!([960, 640]) {
         return Err("image scene did not show the fixture's decoded 960×640 PNG".into());
     }
+    if scene == "10-open-in-default-app"
+        && (value["system_open_succeeded"] != true
+            || !value["opened_copy_bytes"]
+                .as_u64()
+                .is_some_and(|bytes| bytes > 0)
+            || value["opened_copy_bytes"] != value["preview_bytes"])
+    {
+        return Err("file-open scene lacks a verified copy and a successful system handoff".into());
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn configure_capture_file_handler(command: &mut Command, directory: &Path) -> Result<()> {
+    let applications = directory.join("capture-xdg/share/applications");
+    let config = directory.join("capture-xdg/config");
+    fs::create_dir_all(&applications)?;
+    fs::create_dir_all(&config)?;
+    let working_directory = directory
+        .to_str()
+        .ok_or("Linux capture requires a UTF-8 output path")?
+        .replace('\\', "\\\\")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r");
+    fs::write(
+        applications.join("arcforge-capture-reader.desktop"),
+        format!(
+            "[Desktop Entry]\nType=Application\nName=ArcForge Capture Reader\nExec=/usr/bin/cp -- %f opened-guide.txt\nPath={working_directory}\nMimeType=text/plain;\nNoDisplay=true\n"
+        ),
+    )?;
+    fs::write(
+        config.join("mimeapps.list"),
+        "[Default Applications]\ntext/plain=arcforge-capture-reader.desktop;\n",
+    )?;
+    command
+        .env_remove("WAYLAND_DISPLAY")
+        .env("XDG_CONFIG_HOME", config)
+        .env("XDG_DATA_HOME", directory.join("capture-xdg/share"));
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn verify_capture_file_handler(
+    root: &Path,
+    directory: &Path,
+    fixture: &Path,
+    evidence: &mut Value,
+) -> Result<()> {
+    let opened = directory.join("opened-guide.txt");
+    let mut verify = Command::new("python3");
+    verify
+        .current_dir(root)
+        .arg("-c")
+        .arg(
+            "import pathlib, sys, zipfile\nwith zipfile.ZipFile(sys.argv[1]) as archive:\n    if archive.read('Documents/Guide.txt') != pathlib.Path(sys.argv[2]).read_bytes():\n        raise SystemExit('registered reader received the wrong ZIP payload')",
+        )
+        .arg(fixture)
+        .arg(&opened);
+    crate::run(&mut verify)?;
+    evidence["file_open_handoff"] = json!({
+        "handler": "capture-only XDG text/plain association",
+        "entry": "Documents/Guide.txt",
+        "received_sha256": file_sha256(&opened)?,
+        "verified_independently_with": "Python zipfile",
+    });
     Ok(())
 }
 
@@ -755,7 +823,15 @@ mod tests {
     #[test]
     fn rejects_wrong_platform_unchecked_preview_or_missing_real_image() {
         let valid = scene();
-        assert!(validate_scene(&valid, SCENES[1].0, SCENES[1].1, [1280, 800]).is_ok());
+        let validate = |value: &Value| {
+            validate_scene(
+                value,
+                "02-image-preview",
+                Some("Photos/Color-study.png"),
+                [1280, 800],
+            )
+        };
+        assert!(validate(&valid).is_ok());
         for (key, value) in [
             ("os", json!("made-up-os")),
             ("preview_crc32_verified", json!(false)),
@@ -766,11 +842,30 @@ mod tests {
         ] {
             let mut invalid = valid.clone();
             invalid[key] = value;
-            assert!(
-                validate_scene(&invalid, SCENES[1].0, SCENES[1].1, [1280, 800]).is_err(),
-                "{key}"
-            );
+            assert!(validate(&invalid).is_err(), "{key}");
         }
+    }
+
+    #[test]
+    fn file_open_capture_requires_a_handoff_and_the_complete_copy() {
+        let mut observed = scene();
+        observed["scene"] = json!("10-open-in-default-app");
+        observed["selected_entry_name"] = json!("Documents/Guide.txt");
+        observed["preview_bytes"] = json!(200);
+        let validate = |value: &Value| {
+            validate_scene(
+                value,
+                "10-open-in-default-app",
+                Some("Documents/Guide.txt"),
+                [1280, 800],
+            )
+        };
+        assert!(validate(&observed).is_err());
+        observed["system_open_succeeded"] = json!(true);
+        observed["opened_copy_bytes"] = json!(199);
+        assert!(validate(&observed).is_err());
+        observed["opened_copy_bytes"] = json!(200);
+        assert!(validate(&observed).is_ok());
     }
 
     #[test]

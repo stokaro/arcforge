@@ -64,6 +64,8 @@ Current headless tests cover stale read/preview completions, newer requests, can
 
 A staged deletion holds the affected entry IDs and rebuilds the active view off-thread. The backing snapshot retains its original entry order. Undo and Redo move a bounded deletion batch between history stacks. Extraction from an edited document expands the selection against the active view and passes exact IDs to the core. Save As reserves the exclusive worker ticket through publication and reports its terminal result before the workspace adopts the clean saved snapshot. The writer shares the destination capability checks and CRC stream verifier with extraction. Its publication boundary and format limits are described in [the ZIP contract](zip-browser.md#staged-deletion-and-save-as).
 
+Desktop opening takes an exact visible entry ID, plans it through the core extraction checks and streams it into a private temporary directory. The same exclusive worker ticket spans extraction and OS dispatch, keeping the temp directory alive through the terminal result. Before dispatch, errors and cancellation drop the temporary copy. After a successful dispatch, the application retains the copy beyond the lifetime of the document. macOS uses `/usr/bin/open`, Windows uses `ShellExecuteExW` through the `open` dependency, and Linux uses `gio open`. The launcher receives the absolute file path as a native argument.
+
 ## Large files and checked offsets
 
 The following boundaries apply to the current ZIP reader and future providers:

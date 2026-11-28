@@ -3,6 +3,7 @@
 //! This module never inserts a document, preview, or completed operation. The
 //! ordinary archive worker opens the fixture and produces every displayed byte.
 
+use std::io::Read;
 use std::path::Path;
 
 use super::edits::DISCARD_MODAL_ID;
@@ -13,6 +14,7 @@ const REMOVED_ENTRY: &str = "Photos/Color-study.png";
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Scene {
     Text,
+    OpenFile,
     Image,
     StagedDelete,
     DiscardPrompt,
@@ -28,6 +30,7 @@ pub enum Scene {
 impl Scene {
     pub const ALL: &'static [Self] = &[
         Self::Text,
+        Self::OpenFile,
         Self::Image,
         Self::StagedDelete,
         Self::DiscardPrompt,
@@ -43,6 +46,7 @@ impl Scene {
     pub fn name(self) -> &'static str {
         match self {
             Self::Text => "01-text-preview",
+            Self::OpenFile => "10-open-in-default-app",
             Self::Image => "02-image-preview",
             Self::StagedDelete => "05-staged-delete",
             Self::DiscardPrompt => "06-discard-prompt",
@@ -58,7 +62,7 @@ impl Scene {
 
     pub fn entry_name(self) -> &'static str {
         match self {
-            Self::Text => "Documents/Guide.txt",
+            Self::Text | Self::OpenFile => "Documents/Guide.txt",
             Self::Image => REMOVED_ENTRY,
             _ => "",
         }
@@ -99,6 +103,7 @@ pub struct ReadyPreview {
     pub entry_name: String,
     pub preview_bytes: usize,
     pub image_size: Option<[usize; 2]>,
+    pub opened_copy_bytes: Option<usize>,
 }
 
 impl ArchiveWorkspace {
@@ -216,8 +221,12 @@ impl ArchiveWorkspace {
             return Err("capture preview does not match the CRC-checked selection".into());
         }
         let image_size = match scene {
-            Scene::Text if preview.text_rows.is_some() && !self.preview_hex => None,
-            Scene::Text => return Err("text capture did not produce a text preview".into()),
+            Scene::Text | Scene::OpenFile if preview.text_rows.is_some() && !self.preview_hex => {
+                None
+            }
+            Scene::Text | Scene::OpenFile => {
+                return Err("text capture did not produce a text preview".into());
+            }
             Scene::Image => {
                 let image = preview.image.as_ref().ok_or_else(|| {
                     preview
@@ -232,6 +241,26 @@ impl ArchiveWorkspace {
             }
             _ => unreachable!("non-preview scenes return before archive inspection"),
         };
+        let opened_copy_bytes = if scene == Scene::OpenFile {
+            let Some(copy) = self.opened_files.last() else {
+                self.open_file(entry.id, context);
+                return Ok(None);
+            };
+            if !copy.path.ends_with(scene.entry_name()) || !self.status.starts_with("Opened ") {
+                return Err("file-open result does not match the selected fixture entry".into());
+            }
+            let expected = &preview.preview.bytes;
+            let mut bytes = Vec::new();
+            std::fs::File::open(&copy.path)
+                .and_then(|file| file.take(expected.len() as u64 + 1).read_to_end(&mut bytes))
+                .map_err(|error| format!("could not check the opened copy: {error}"))?;
+            if &bytes != expected {
+                return Err("opened copy differs from the CRC-verified preview".into());
+            }
+            Some(bytes.len())
+        } else {
+            None
+        };
         Ok(Some(ReadyScene::Preview(ReadyPreview {
             snapshot_id: document.snapshot.id.clone(),
             metadata_revision: document.snapshot.metadata_revision.clone(),
@@ -239,6 +268,7 @@ impl ArchiveWorkspace {
             entry_name: entry.name.display.clone(),
             preview_bytes: preview.preview.bytes.len(),
             image_size,
+            opened_copy_bytes,
         })))
     }
 

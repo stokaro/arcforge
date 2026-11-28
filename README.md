@@ -28,6 +28,7 @@ cargo xtask package
 - ZIP/ZIP64 metadata, stable entry IDs within a snapshot, and original filename/extra-field/comment bytes.
 - A BetterZip 6-oriented workspace with filesystem Favorites, a virtualized Outline/Flat contents table, selection, search, and Info/Preview. Open one archive through a native picker, startup argument, or file drop. [Reference decisions and remaining gaps](docs/reference/betterzip-6.md) and [actual screenshots](screenshots/README.md) record the current fidelity.
 - Bounded text/hex previews of complete Stored/Deflate entries up to 256 KiB, with CRC32 verification. Archive reads, filename reinterpretation, search preparation, and previews run on one cancellable worker outside the UI thread.
+- Double-click a file to open a verified temporary copy in the system's default application. [ZIP file-opening behavior](docs/zip-browser.md#open-a-file-in-the-default-app)
 - Selected/all Stored/Deflate extraction into a new directory, with portable name/collision checks, bounded streaming, CRC verification, cancellation, and an explicit report of completed and partial output. Existing destinations are never merged or overwritten.
 - Delete selected files or folders in classic ZIP, undo or redo staged changes, and use Save As to create a verified ZIP at a new filename.
 - Filename evidence and manual archive/per-entry interpretation controls, including explicit recovery. Reinterpretation preserves source bytes and entry identity.

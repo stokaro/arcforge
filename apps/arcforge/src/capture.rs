@@ -386,6 +386,10 @@ fn scene_metadata(
             value["preview_bytes"] = json!(preview.preview_bytes);
             value["preview_crc32_verified"] = json!(true);
             value["preview_image_size"] = json!(preview.image_size);
+            if let Some(bytes) = preview.opened_copy_bytes {
+                value["opened_copy_bytes"] = json!(bytes);
+                value["system_open_succeeded"] = json!(true);
+            }
         }
         ReadyScene::Empty => {
             value["archive_open"] = json!(false);

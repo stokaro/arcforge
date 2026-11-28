@@ -1580,6 +1580,137 @@ fn native_workspace_frame(
     output
 }
 
+#[test]
+fn double_click_requests_opening_the_clicked_file_after_the_first_click_previews_it() {
+    let fixture = Fixture::new(b"double-click.txt");
+    let document = fixture.document();
+    let rows = document
+        .view_rows(
+            "",
+            None,
+            ViewMode::Outline,
+            &BTreeSet::new(),
+            &CancellationToken::new(),
+        )
+        .unwrap();
+    let (worker, incoming, _outgoing) = Worker::test_channels();
+    let mut workspace = ArchiveWorkspace {
+        document: Some(document),
+        rows,
+        worker: Some(worker),
+        ..Default::default()
+    };
+    let context = egui::Context::default();
+    let size = egui::vec2(1300.0, 780.0);
+    let output = native_workspace_frame(&context, &mut workspace, size, 0, vec![]);
+    let (label, _) = painted_text_rect(&output, "double-click.txt").expect("archive row");
+    let pos = label.center();
+    for (frame_index, pressed) in [(1, true), (2, false), (3, true), (4, false)] {
+        native_workspace_frame(
+            &context,
+            &mut workspace,
+            size,
+            frame_index,
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        if frame_index == 2 {
+            assert!(matches!(
+                incoming.try_recv().unwrap().task,
+                Task::Preview { entry: 0, .. }
+            ));
+        }
+    }
+    let activation = incoming
+        .try_recv()
+        .expect("double click submits an opening request");
+    assert!(matches!(activation.task, Task::OpenFile { entry: 0, .. }));
+    assert!(workspace.file_job_active());
+    assert!(!workspace.native_picker_pending());
+    let ticket = workspace.current;
+    workspace.cancel();
+    assert!(activation.cancel.is_cancelled());
+    assert_eq!(workspace.current, ticket);
+    assert!(!workspace.toolbar_state().can_open);
+}
+
+#[test]
+fn temporary_open_copies_one_exact_file_and_keeps_its_bytes_for_the_session() {
+    let fixture = Fixture::new(b"initial.txt");
+    let payload = vec![b'x'; 300_000];
+    let original = stored_zip_entries(&[
+        (b"nested/-draft & notes.txt", b"duplicate name"),
+        (b"nested/-draft & notes.txt", &payload),
+        (b"nested/other.txt", b"do not extract"),
+    ]);
+    fs::write(&fixture.path, &original).unwrap();
+    let document = fixture.document();
+    let copy = open_file::OpenCopy::prepare(&document.snapshot, 1, &CancellationToken::new())
+        .expect("stream a file larger than the preview limit");
+    assert!(copy.path.is_absolute());
+    assert!(copy.path.ends_with("nested/-draft & notes.txt"));
+    assert_eq!(fs::read(&copy.path).unwrap(), payload);
+    assert!(!copy.path.with_file_name("other.txt").exists());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            fs::metadata(&copy.path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+    let path = copy.path.clone();
+    let mut workspace = ArchiveWorkspace {
+        document: Some(document),
+        opened_files: vec![copy],
+        ..Default::default()
+    };
+    workspace.close();
+    assert!(workspace.document.is_none());
+    assert_eq!(fs::read(&path).unwrap(), payload);
+    assert_eq!(fs::read(&fixture.path).unwrap(), original);
+    drop(workspace);
+    assert!(!path.exists());
+}
+
+#[test]
+fn temporary_open_rejects_unsafe_names_cancelled_work_and_corrupt_payloads() {
+    let fixture = Fixture::new(b"initial.txt");
+    let mut bytes = stored_zip_entries(&[
+        (b"../escaped.txt", b"unsafe"),
+        (b"shortcut.LnK", b"shortcut"),
+        (b".command", b"script"),
+        (b"test.txt", b"correct payload"),
+    ]);
+    let payload = bytes
+        .windows(b"correct payload".len())
+        .position(|bytes| bytes == b"correct payload")
+        .unwrap();
+    bytes[payload] = b'C';
+    fs::write(&fixture.path, &bytes).unwrap();
+    let document = fixture.document();
+    let cancel = CancellationToken::new();
+    let prepare = |id| open_file::OpenCopy::prepare(&document.snapshot, id, &cancel);
+    assert!(matches!(
+        prepare(0),
+        Err(ArchiveError::UnsafeEntryPath { .. })
+    ));
+    for id in [1, 2] {
+        assert!(matches!(prepare(id), Err(ArchiveError::Unsupported(_))));
+    }
+    assert!(matches!(prepare(3), Err(ArchiveError::InvalidArchive(_))));
+    cancel.cancel();
+    assert!(matches!(prepare(3), Err(ArchiveError::Cancelled)));
+    assert_eq!(fs::read(&fixture.path).unwrap(), bytes);
+}
+
 fn painted_text_rect(
     output: &egui::FullOutput,
     expected: &str,

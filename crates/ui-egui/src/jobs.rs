@@ -485,6 +485,10 @@ pub(super) enum Task {
         document: Arc<PreparedDocument>,
         entry: EntryId,
     },
+    OpenFile {
+        document: Arc<PreparedDocument>,
+        entry: EntryId,
+    },
     Edit {
         document: Arc<PreparedDocument>,
         action: EditAction,
@@ -526,6 +530,7 @@ pub(super) enum Completed {
         expanded: BTreeSet<String>,
     },
     Preview(PreparedPreview),
+    OpenedFile(super::open_file::OpenCopy),
     Extraction(ExtractionReport),
     Edited {
         document: Arc<PreparedDocument>,
@@ -626,7 +631,10 @@ impl Worker {
             ));
         }
         self.cancel();
-        if matches!(&request.task, Task::Extract { .. } | Task::Save { .. }) {
+        if matches!(
+            &request.task,
+            Task::Extract { .. } | Task::Save { .. } | Task::OpenFile { .. }
+        ) {
             self.exclusive = Some(request.ticket);
         }
         self.cancellation = Some(request.cancel.clone());
@@ -747,6 +755,17 @@ fn execute(
         Task::Preview { document, entry } => {
             let preview = preview_entry(&document.snapshot, *entry, &limits, &request.cancel)?;
             PreparedPreview::new(preview, &request.cancel).map(Completed::Preview)
+        }
+        Task::OpenFile { document, entry } => {
+            if document.entry(*entry).is_none() {
+                return Err(ArchiveError::EntryNotFound(*entry));
+            }
+            let copy =
+                super::open_file::OpenCopy::prepare(&document.snapshot, *entry, &request.cancel)?;
+            check_cancel(&request.cancel)?;
+            super::open_file::handoff(&copy.path)?;
+            // The OS accepted the handoff. A late cancellation must keep its copy.
+            return Ok(Completed::OpenedFile(copy));
         }
         Task::Edit {
             document,
