@@ -323,6 +323,8 @@ pub(super) struct PreparedPreview {
     pub text_rows: Option<Vec<String>>,
     pub text_limited: bool,
     pub hex_rows: Vec<String>,
+    pub image: Option<egui::ColorImage>,
+    pub image_error: Option<String>,
 }
 
 impl PreparedPreview {
@@ -330,6 +332,15 @@ impl PreparedPreview {
         preview: EntryPreview,
         cancel: &CancellationToken,
     ) -> Result<Self, ArchiveError> {
+        check_cancel(cancel)?;
+        let (image, image_error) = match super::preview_image::decode(&preview.bytes) {
+            Some(Ok(image)) => (Some(image), None),
+            Some(Err(error)) => (None, Some(error)),
+            None => (None, None),
+        };
+        // Pixel decoding is bounded but not preemptible. Discard a cancelled
+        // result before preparing or delivering any UI presentation.
+        check_cancel(cancel)?;
         let mut text_limited = false;
         let text_rows = if let Some(text) = &preview.text {
             let mut rows = Vec::new();
@@ -381,6 +392,8 @@ impl PreparedPreview {
             text_rows,
             text_limited,
             hex_rows,
+            image,
+            image_error,
         })
     }
 }

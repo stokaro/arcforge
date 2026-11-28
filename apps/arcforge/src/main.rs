@@ -5,15 +5,33 @@ use std::process::ExitCode;
 use arcforge_core::application_info;
 use arcforge_ui_egui::ArchiveWorkspace;
 
+#[cfg(feature = "native-capture")]
+mod capture;
+mod platform;
+
 #[derive(Debug, Eq, PartialEq)]
 enum Startup {
     Help,
     Version,
     Desktop(Option<PathBuf>),
+    #[cfg(feature = "native-capture")]
+    Capture(capture::Options),
 }
 
 fn parse_args(args: Vec<OsString>) -> Result<Startup, &'static str> {
     match args.as_slice() {
+        #[cfg(feature = "native-capture")]
+        [flag, directory, separator, archive]
+            if flag == "--capture-native"
+                && separator == "--"
+                && !directory.is_empty()
+                && !archive.is_empty() =>
+        {
+            Ok(Startup::Capture(capture::Options {
+                directory: directory.into(),
+                archive: archive.into(),
+            }))
+        }
         [] => Ok(Startup::Desktop(None)),
         [arg] if arg == "--help" || arg == "-h" => Ok(Startup::Help),
         [arg] if arg == "--version" || arg == "-V" => Ok(Startup::Version),
@@ -39,6 +57,8 @@ fn main() -> ExitCode {
         }
     };
     let path = match startup {
+        #[cfg(feature = "native-capture")]
+        Startup::Capture(options) => return capture::run(options),
         Startup::Version => {
             let info = application_info();
             println!("{} {} ({})", info.name, info.version, info.stage);
@@ -53,20 +73,16 @@ fn main() -> ExitCode {
         Startup::Desktop(path) => path,
     };
 
-    let options = eframe::NativeOptions {
-        viewport: eframe::egui::ViewportBuilder::default()
-            .with_inner_size([1100.0, 680.0])
-            .with_min_inner_size([900.0, 440.0])
-            .with_app_id("org.stokaro.arcforge")
-            .with_icon(eframe::egui::IconData::default()),
-        ..Default::default()
-    };
+    // Read a bounded set of system font files before the UI event loop starts.
+    arcforge_ui_egui::typography::prepare();
+    let options = platform::native_options();
     match eframe::run_native(
         "ArcForge",
         options,
         Box::new(move |_| {
             Ok(Box::new(DesktopApp {
                 workspace: ArchiveWorkspace::new(path),
+                ..Default::default()
             }))
         }),
     ) {
@@ -81,11 +97,38 @@ fn main() -> ExitCode {
 #[derive(Default)]
 struct DesktopApp {
     workspace: ArchiveWorkspace,
+    native_shell: platform::NativeShell,
+    #[cfg(feature = "native-capture")]
+    capture: Option<capture::Session>,
 }
 
 impl eframe::App for DesktopApp {
-    fn ui(&mut self, ui: &mut eframe::egui::Ui, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut eframe::egui::Ui, frame: &mut eframe::Frame) {
+        self.workspace.enable_filesystem_favorites(ui.ctx());
+        self.native_shell
+            .before_frame(&mut self.workspace, ui.ctx(), frame);
         self.workspace.show(ui);
+        self.workspace.service_native_picker(frame, ui.ctx());
+        self.native_shell.after_frame(&self.workspace);
+        #[cfg(feature = "native-capture")]
+        if let Some(capture) = &mut self.capture {
+            let panel = self
+                .native_shell
+                .active_open_panel()
+                .map(|panel| capture::OpenPanel {
+                    window_id: panel.window_id,
+                    parent_window_id: panel.parent_window_id,
+                });
+            capture.after_frame(
+                &mut self.workspace,
+                ui.ctx(),
+                self.native_shell.window_id(),
+                panel,
+            );
+            if let Some(panel_id) = capture.take_panel_to_cancel() {
+                self.native_shell.cancel_open_panel(panel_id);
+            }
+        }
     }
 }
 
@@ -122,6 +165,32 @@ mod tests {
             vec!["--", "first.zip", "second.zip"],
         ] {
             assert!(parse_args(arguments(&invalid)).is_err(), "{invalid:?}");
+        }
+    }
+
+    #[cfg(feature = "native-capture")]
+    #[test]
+    fn developer_capture_requires_explicit_output_and_one_native_archive_path() {
+        assert_eq!(
+            parse_args(arguments(&[
+                "--capture-native",
+                "new captures",
+                "--",
+                "архив.zip"
+            ])),
+            Ok(Startup::Capture(capture::Options {
+                directory: "new captures".into(),
+                archive: "архив.zip".into(),
+            }))
+        );
+        for args in [
+            vec!["--capture-native"],
+            vec!["--capture-native", "", "--", "archive.zip"],
+            vec!["--capture-native", "output", "--", ""],
+            vec!["--capture-native", "output", "archive.zip"],
+            vec!["--capture-native", "output", "--", "one.zip", "two.zip"],
+        ] {
+            assert!(parse_args(arguments(&args)).is_err());
         }
     }
 

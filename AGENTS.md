@@ -6,10 +6,11 @@ ArcForge currently provides ZIP/ZIP64 browsing, small-entry previews, and bounde
 
 - Keep models, capabilities, commands, and validation in `crates/core`, independent of UI/windowing libraries. Keep presentation in `crates/ui-egui`; it calls shared operations.
 - Keep `apps/arcforge` and `apps/arcforge-cli` thin. The CLI must work without a display server or GUI dependencies.
+- Keep the macOS AppKit shell in `crates/platform-macos`, independent of the archive core and egui. The desktop entry point translates its typed commands and capability state. Confine audited Objective-C interoperation to that crate's private macOS module; do not weaken the workspace-wide unsafe-code prohibition.
 - Keep portable build orchestration in `xtask`. Register workspace crates/dependencies in its boundary checker; correct an accidental dependency direction instead of disabling the check.
 - Keep capabilities truthful: planned, unsupported, and implemented operations are distinct. Preserve the source archive on failed/cancelled updates. Keep blocking I/O and archive processing off the UI thread.
 - Use the pinned toolchain and `Cargo.lock`. Document native prerequisites. Record source adaptations with pinned paths, revisions, modifications, and full license notices in the relevant reuse inventory linked from `THIRD_PARTY_NOTICES.md`.
-- Require **BetterZip 6 look and feel** for the desktop interface. Use OpenZip only to resolve details that BetterZip evidence leaves unclear; retain attribution and full notices for any MIT-covered source/asset adaptation. The [reference inventory](docs/reference/betterzip-6.md) records evidence, decisions, and remaining differences.
+- Require **BetterZip 6 look and feel**, with **macOS as the primary visual target**: a familiar user should recognize the original application's appearance and interaction on first use. Use native platform file/destination panels and actual macOS toolbar/window behavior. Use OpenZip only to resolve details that BetterZip evidence leaves unclear; retain attribution and full notices for any MIT-covered source/asset adaptation. The [reference inventory](docs/reference/betterzip-6.md) records evidence, decisions, and remaining differences.
 
 ## Load only the relevant skills
 
@@ -45,7 +46,7 @@ Use targeted tests during iteration. Add meaningful regression coverage for chan
 
 Record the verified snapshot, exact commands, results, and platform. Reuse evidence while its relevant inputs remain unchanged; rerun affected checks after a change invalidates it. Report failed/skipped gates honestly. Compilation and startup flags do not prove native desktop behavior.
 
-For visible interface changes, commit actual application screenshots under `screenshots/<topic>/`, following the [screenshot evidence conventions](screenshots/README.md). Include reproducible scenes, fixture, source snapshot, and OS/window/scale/theme details. Review the images against BetterZip 6 and record unresolved parity; screenshots supplement behavioral checks.
+For visible interface changes, commit actual application screenshots under `screenshots/<topic>/`, following the [screenshot evidence conventions](screenshots/README.md). Cover macOS, Windows and Linux; record a concrete failed/blocked capture as unverified, not as a pass. Include reproducible scenes, fixture, source snapshot, and OS/window/scale/theme details. Distinguish client-area frames from captures including native chrome. Compare typography, toolbar, proportions, rows and inspector against BetterZip 6 separately; three panes and a passing build do not establish visual parity.
 
 For a substantial code change, request one independent review when available; otherwise identify the self-review. Follow up on concrete findings rather than repeating broad reviews indefinitely. PRs explain the problem, resulting behavior, verification, and limitations; include a compact Mermaid diagram when a flow changes. Update epic checkboxes only for completed work.
 

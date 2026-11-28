@@ -10,6 +10,7 @@ The Rust workspace provides ZIP/ZIP64 metadata, bounded Stored/Deflate previews,
 | --- | --- | --- |
 | `crates/core` | `arcforge-core` | UI-independent models, operation/capability registry, and shared command behavior |
 | `crates/ui-egui` | `arcforge-ui-egui` | Rust desktop presentation and interaction over the shared core |
+| `crates/platform-macos` | `arcforge-platform-macos` | macOS AppKit toolbar, menus and typed native command/state boundary |
 | `apps/arcforge` | `arcforge` | Desktop executable and platform entry point |
 | `apps/arcforge-cli` | `arcforge-cli` | Headless command-line interface over the same core |
 | `xtask` | `xtask` | Checks, builds, tests, and portable development packaging |
@@ -17,12 +18,23 @@ The Rust workspace provides ZIP/ZIP64 metadata, bounded Stored/Deflate previews,
 ```mermaid
 flowchart TD
     G["Desktop executable"] --> U["Rust UI"]
+    G --> N["AppKit shell on macOS"]
     U --> C["Shared core and commands"]
     L["Standalone CLI"] --> C
     X["xtask boundary checks"] -.-> C
 ```
 
 The core must not depend on `egui`, `eframe`, windowing, or native dialog libraries. The CLI depends on shared core behavior without importing the UI. The desktop executable connects platform startup to the UI. `cargo xtask check` enforces the configured workspace boundaries alongside the other development checks.
+
+### Native presentation boundary
+
+On macOS, the desktop entry point attaches an actual `NSToolbar` and `NSMenu` to its own `NSWindow`. AppKit owns window controls, toolbar layout/materials, menu interaction, search and overflow; egui renders the document contents below it. The adapter has no core or egui dependency. The executable maps its typed commands to the same UI command dispatcher used by portable controls, and mirrors availability, selection, navigation and search state back to AppKit. Unsupported operations remain disabled. The portable toolbar remains available on Windows/Linux and as an explicit attach-failure fallback; a fallback cannot pass macOS native-shell capture acceptance.
+
+The only application-owned unsafe code is the private macOS interoperation module, using typed `objc2` bindings and main-thread-only retained objects. Its [safety contract](../crates/platform-macos/README.md) covers target/action ABI, weak native delegate ownership, teardown and owned-window identification. Core, CLI, UI and all other workspace packages retain the unsafe-code prohibition.
+
+Normal Open and extraction-parent selection use `rfd` native asynchronous panels parented to the real application window. The UI starts and polls the future on its main thread; it retains native `PathBuf` values independently of lossy display text. One pending picker prevents duplicate panels. A document generation guards each result, so cancellation or a stale completion cannot replace a newer document. An extraction parent choice is followed by a compact scope/new-folder review; final placement still uses the core's exclusive new-directory contract. A deliberate advanced Open-by-path action remains secondary.
+
+Filesystem Favorites use a separate worker for actual platform Desktop, Documents and Downloads locations, falling back to an existing Home directory when none are available. Discovery and directory reads happen off the UI thread and cannot cancel an archive job. Scans inspect immediate children only, limited to 512 entries, 1 MiB of retained metadata and 500 ms checked between filesystem calls. OS-blocked calls are not preemptible. The cache holds at most 32 directories with 16 pending requests; per-path generations reject superseded results. Display labels are separate from native paths. A ZIP badge reports a complete immediate scan of regular `.zip` candidates, not recursive totals or proven-valid archives; partial/error listings have no complete-count badge. Persistence, custom places and recursive indexing remain planned.
 
 ## Shared operations
 
@@ -36,7 +48,7 @@ The current document contains immutable archive metadata and filename policy. Ch
 
 The desktop implements this snapshot/generation approach adapted from [hiewbie](hiewbie-reuse.md). `ArchiveSnapshot` owns metadata and source state; its per-open identity and central-directory entry IDs remain stable during reinterpretation. The UI advances a checked generation on open, close, and interpretation changes, and gives each request a separate checked identity. It applies a completion only when the exact generation/request ticket is current, and preview results must also match the selected entry.
 
-One persistent worker performs archive reads, search/cache preparation, filename reinterpretation, bounded previews, and extraction. Request and reply channels are bounded; the UI retains at most one latest pending request and cancels superseded work. Prepared names, folder paths, and preview rows have explicit limits and are rendered through virtualized lists. Read-only cancellation invalidates its ticket without blocking the UI. Extraction keeps an exclusive ticket until its terminal report arrives: Open, Close, reinterpretation, and superseding reads cannot discard a job that has published files. Cancel requests cooperative termination and keeps progress/report state attached; a completed extraction is not changed to cancellation by a late request. The source and resource limits are documented in [the ZIP contract](zip-browser.md).
+One persistent worker performs archive reads, search/cache preparation, filename reinterpretation, bounded previews, and extraction. Request and reply channels are bounded; the UI retains at most one latest pending request and cancels superseded work. Prepared names, folder paths, and preview rows have explicit limits and are rendered through virtualized lists. PNG/JPEG pixel decoding runs on that worker after core payload verification, with input/dimension/output limits; the UI only uploads the prepared image texture. Read-only cancellation invalidates its ticket without blocking the UI. Extraction keeps an exclusive ticket until its terminal report arrives: Open, Close, reinterpretation, and superseding reads cannot discard a job that has published files. Cancel requests cooperative termination and keeps progress/report state attached; a completed extraction is not changed to cancellation by a late request. The source and resource limits are documented in [the ZIP contract](zip-browser.md).
 
 Maintain a distinct document identity and a monotonically increasing generation. For future editing operations, also advance the generation when staged contents change, including undo/redo, when the backing source changes or is replaced, and when provider selection or settings change the interpretation of the document. Never reuse a generation for the same document identity; handle counter exhaustion explicitly. Keep one document-wide generation until measurements justify finer invalidation.
 

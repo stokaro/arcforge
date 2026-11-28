@@ -6,6 +6,17 @@ Use the pinned **Rust 1.100.1** toolchain from `rust-toolchain.toml`. Commit `Ca
 
 Linux desktop builds need the window-system development dependencies used by egui/eframe. The CLI and core can be developed without launching a desktop session. CI defines the packages installed for its tested Linux environment; keep that list synchronized with changes to the UI backend.
 
+### Linux native file panels at runtime
+
+The desktop uses pinned `rfd` 0.18.0 with the `xdg-portal` backend. Open and extraction-parent selection need a working graphical user session and either:
+
+- The `libdbus-1` runtime library, a session D-Bus, `xdg-desktop-portal`, and a desktop portal backend that implements **FileChooser**, such as the GTK, GNOME, or KDE backend.
+- The `zenity` executable on the application's `PATH`, which `rfd` uses when its portal request fails.
+
+Install/configure these through the distribution's desktop packages; the portable development archive does not supply a session bus, portal services, or `zenity`. A portal backend that only implements another interface, such as Secret, is insufficient. The [pinned upstream runtime requirements](https://docs.rs/rfd/0.18.0/rfd/#xdg-desktop-portal-backend) describe the backend choices.
+
+The current picker API can return `None` both for user cancellation and for backend failure. ArcForge preserves the existing document in either case and currently has no separate picker-backend error message; with neither backend usable, Open can appear to do nothing. Do not classify that as a successful cancellation test. Verify an actual file/folder panel in the application's desktop session; a successful build or rendered eframe window alone does not verify this integration.
+
 ## Shared build interface
 
 Run commands from the repository root:
@@ -21,6 +32,7 @@ cargo xtask build --release
 cargo xtask package --release
 cargo xtask ci-matrix
 cargo xtask verify-package --target x86_64-unknown-linux-gnu
+cargo xtask gui-capture --directory target/native-gui/local-review
 ```
 
 `check` is the standard local gate: formatting, scoped skills, dependency boundaries, license notices, Clippy, tests, and builds. `layers`, `notices`, and `skills` run their respective checks alone. `skills-sync` regenerates Claude entry points from canonical repository skills; see [skill maintenance](agent-skills.md). `build`, `test`, and `package` use the shared Rust orchestration rather than requiring a particular shell. Target/profile options affect Cargo build/test steps, not source-only checks. Packaging always builds the release profile; supplying `--release` to `package` is optional. `ci-matrix`, `verify-package`, and `verify-release` share the [target manifest and release contract](release.md); see `cargo xtask --help` for their options. The target and profile can be supplied explicitly:
@@ -49,7 +61,7 @@ cargo run --locked -p arcforge-cli -- preview example.zip --entry 0 --json
 cargo run --locked -p arcforge-cli -- extract example.zip --output new-output --json
 ```
 
-The desktop opens a ZIP/ZIP64 browser with selected/all extraction into a new directory. It accepts one native path at startup, a path in the Open window, or a file drop; use `-- PATH` for a startup path beginning with a dash. Search, filename interpretation, archive reads, and preview preparation run on a bounded worker outside the UI thread. The CLI implements `version`, `commands`, `doctor`, `list`, `info`, bounded `preview`, and `extract` through the shared core. `doctor` reports compiled capabilities without probing the machine or opening an archive. Planned commands still return explicit not-implemented errors. See [the ZIP contract](zip-browser.md) for limits, filename options, metadata revisions, and unsupported cases.
+The desktop opens a ZIP/ZIP64 browser with selected/all extraction into a new directory. It accepts one native path at startup, a selection in the native Open panel, or a file drop; use `-- PATH` for a startup path beginning with a dash. Search, filename interpretation, archive reads, and preview preparation run on a bounded worker outside the UI thread. The CLI implements `version`, `commands`, `doctor`, `list`, `info`, bounded `preview`, and `extract` through the shared core. `doctor` reports compiled capabilities without probing the machine or opening an archive. Planned commands still return explicit not-implemented errors. See [the ZIP contract](zip-browser.md) for limits, filename options, metadata revisions, and unsupported cases.
 
 ## Primary target matrix
 
@@ -82,3 +94,11 @@ After dependencies or features change, follow [license bundle regeneration](../l
 Tests use synthetic archives and isolated temporary directories for archive behavior. Test the same shared operation through core and CLI contracts, and add UI/native integration tests for behavior that the core cannot prove. The committed [Python zipfile fixture](../tests/fixtures/python-zipfile.hex) supplies independent Stored/Deflate ZIP input to tests and package smoke verification; the optional [generator](../scripts/generate_zip_fixture.py) regenerates it. Normal tests, builds, and package verification consume the committed bytes and do not require Python. Add interoperability fixtures as provider coverage grows.
 
 For visual work, record the fixture, window size, scale, theme, OS, and reference version. Compare repeatable states rather than unrelated screenshots. Report the commands and platforms actually verified in the PR, along with any pending checks.
+
+`gui-capture` launches the actual native desktop with a developer-only feature,
+waits for real text and PNG preview results and rendered frames, and writes PNGs
+plus source/runtime/scale/font provenance into a new directory. It requires a
+native display session and Python 3 for the original fixture generator. Normal
+release packaging does not enable the capture feature. See [native GUI captures](native-captures.md)
+for the six-target CI steps, additional macOS 26 capture job, optional macOS window
+chrome capture, and the distinction between native client pixels and a full OS window.

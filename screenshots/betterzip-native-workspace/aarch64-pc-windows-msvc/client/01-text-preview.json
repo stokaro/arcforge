@@ -1,0 +1,65 @@
+{
+  "architecture": "aarch64",
+  "archive_open": true,
+  "capture_api": "egui::Context::request_screenshot",
+  "capture_kind": "native-client-area",
+  "fonts": {
+    "regular": {
+      "embedded": false,
+      "face_index": 0,
+      "font_name": "Segoe UI",
+      "source_path": "C:\\Windows\\Fonts\\segoeui.ttf",
+      "variation_coordinates": [],
+      "weight": 400.0
+    },
+    "semibold": {
+      "embedded": false,
+      "face_index": 0,
+      "font_name": "Segoe UI Semibold",
+      "source_path": "C:\\Windows\\Fonts\\seguisb.ttf",
+      "variation_coordinates": [],
+      "weight": 600.0
+    }
+  },
+  "metadata_revision": "ee533dac86a919672b88a8df962a74307c36de67bac8ae255ef935dbdb81e93d",
+  "native_shell_attached": false,
+  "native_window_chrome": false,
+  "native_window_id": null,
+  "os": "windows",
+  "pixel_dimensions": [
+    1024,
+    768
+  ],
+  "pixels_per_point": 1.0,
+  "preview_bytes": 170,
+  "preview_crc32_verified": true,
+  "preview_image_size": null,
+  "process_id": 10316,
+  "rendered_frames_after_ready": 2,
+  "renderer": "eframe Glow",
+  "scene": "01-text-preview",
+  "schema_version": 2,
+  "selected_entry_id": 1,
+  "selected_entry_name": "Documents/Guide.txt",
+  "snapshot_id": "284c-18ec30824ccda0ec-0",
+  "theme": "light",
+  "unix_timestamp_seconds": 1795863688,
+  "viewport": {
+    "focused": false,
+    "inner_rect_points": [
+      86.0,
+      109.0,
+      1024.0,
+      768.0
+    ],
+    "minimized": false,
+    "native_pixels_per_point": 1.0,
+    "occluded": null,
+    "outer_rect_points": [
+      78.0,
+      78.0,
+      1040.0,
+      807.0
+    ]
+  }
+}

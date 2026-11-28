@@ -83,6 +83,14 @@ def main() -> None:
         raise SystemExit("Cargo.lock changed during notice generation; retry after dependency changes finish")
 
     packages = {f"{entry['package']['name']}@{entry['package']['version']}": entry["package"] for entry in report["crates"]}
+    mpl_package = packages.get("option-ext@0.2.0")
+    if mpl_package is None:
+        raise SystemExit("Review the corresponding MPL source distribution after changing option-ext")
+    mpl_lock = next((block for block in (ROOT / "Cargo.lock").read_text().split("[[package]]")
+                     if re.search(r'^name = "option-ext"$', block, re.M)), "")
+    mpl_checksum = re.search(r'^checksum = "([0-9a-f]{64})"$', mpl_lock, re.M)
+    if mpl_checksum is None or digest(LICENSES / "source/option-ext-0.2.0.crate") != mpl_checksum[1]:
+        raise SystemExit("The distributed option-ext source is not the exact locked registry package")
     source_map = json.loads((LICENSES / "upstream-sources.json").read_text(encoding="utf-8"))
     upstream: dict[str, list[dict]] = {}
     for source in source_map["sources"]:
@@ -189,6 +197,7 @@ def main() -> None:
         (font_dir / name).write_bytes(normalized)
         provenance["files"][name] = {"source_sha256": hashlib.sha256(raw).hexdigest(), "normalized_crlf": raw != normalized}
     font_docs = ["# Embedded font notices\n\n", "Source: the locked epaint_default_fonts 0.37.0 crate. Full original font licenses are copied beside this file. Copyright and license metadata below are read from each font's original SFNT name table.\n\n", "Hack, Ubuntu Light, and the egui icon subset are unconditional upstream font assets. Noto Emoji and the full emoji-icon font are feature-gated; their notices are included conservatively and do not claim they are active in every binary.\n\n"]
+    font_docs.append("ArcForge also embeds the unmodified legacy Open Sans Regular and Semibold Version 1.10 files from Debian fonts-open-sans 1.11-2. Their separate [Apache-2.0 license](OpenSans-Apache-2.0.txt), [original copyright records](OpenSans-NOTICE.txt), and [exact source/hash inventory](../../docs/reference/typography.md) apply to those files. System Apple/Microsoft fonts are read on the user's machine and are not redistributed.\n\n")
     for name in ["Hack-Regular.ttf", "Ubuntu-Light.ttf", "egui-icons.ttf", "NotoEmoji-Regular.ttf", "emoji-icon-font.ttf"]:
         values = font_names(font_root / name)
         provenance["files"][name] = {"source_sha256": digest(font_root / name), "name_metadata": values}
@@ -203,6 +212,7 @@ def main() -> None:
     write(LICENSES / "dependency-source-notices.md", "".join(notices))
     files = [ROOT / "Cargo.lock", ROOT / "Cargo.toml", ROOT / "about.toml", ROOT / "scripts/dependency-licenses.md.in", Path(__file__), ROOT / "LICENSE"]
     files += list(ROOT.glob("crates/*/Cargo.toml")) + list(ROOT.glob("apps/*/Cargo.toml")) + [ROOT / "xtask/Cargo.toml"]
+    files += list(ROOT.glob("crates/*/assets/fonts/*.ttf"))
     files += [p for p in LICENSES.rglob("*") if p.is_file() and p.name != "dependencies.lock.json"]
     for optional in [ROOT / ".gitattributes", ROOT / "rust-toolchain.toml"]:
         if optional.exists():

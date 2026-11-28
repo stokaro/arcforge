@@ -1,4 +1,4 @@
 interface:
   display_name: "ArcForge Design and UX"
-  short_description: "Build ArcForge with BetterZip 6 fidelity"
-  default_prompt: "Use $arcforge-design-ux to implement and verify an ArcForge interface change against BetterZip 6, using OpenZip for unresolved details."
+  short_description: "Match BetterZip 6, with macOS visual verification"
+  default_prompt: "Use $arcforge-design-ux to faithfully reproduce BetterZip 6 appearance and first-use interaction in ArcForge, using native macOS controls, actual cross-platform screenshots, and OpenZip only for unresolved details."

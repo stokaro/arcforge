@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use arcforge_core::archive::{ArchiveLimits, EntryPreview, open_archive, reinterpret};
 
+use super::jobs::FolderTotals;
 use super::*;
 
 static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(1);
@@ -141,6 +142,417 @@ fn preview(entry: EntryId) -> PreparedPreview {
         &CancellationToken::new(),
     )
     .expect("prepare preview fixture")
+}
+
+fn controlled_picker(
+    generation: u64,
+    context: &egui::Context,
+) -> (
+    PendingNativePicker,
+    std::sync::mpsc::SyncSender<Option<PathBuf>>,
+) {
+    let (send, receive) = std::sync::mpsc::sync_channel(1);
+    let future = std::future::poll_fn(move |_| match receive.try_recv() {
+        Ok(path) => Poll::Ready(path),
+        Err(std::sync::mpsc::TryRecvError::Empty) => Poll::Pending,
+        Err(std::sync::mpsc::TryRecvError::Disconnected) => Poll::Ready(None),
+    });
+    (
+        PendingNativePicker {
+            generation,
+            purpose: NativePickerPurpose::OpenArchive,
+            future: Box::pin(future),
+            waker: Waker::from(Arc::new(PickerRepaint(context.clone()))),
+        },
+        send,
+    )
+}
+
+fn choose_extraction_parent(workspace: &mut ArchiveWorkspace, scope: ExtractionScope) {
+    let context = egui::Context::default();
+    let parent = workspace
+        .document
+        .as_ref()
+        .expect("archive for extraction")
+        .snapshot
+        .path()
+        .parent()
+        .expect("archive parent")
+        .to_path_buf();
+    workspace.open_extraction(scope);
+    let purpose = workspace
+        .native_picker_request
+        .take()
+        .expect("native parent chooser requested");
+    assert!(matches!(
+        purpose,
+        NativePickerPurpose::ExtractionParent { .. }
+    ));
+    let (mut picker, result) = controlled_picker(workspace.generation, &context);
+    picker.purpose = purpose;
+    workspace.native_picker = Some(picker);
+    result
+        .send(Some(parent))
+        .expect("choose an existing parent");
+    workspace.poll_native_picker(&context);
+    assert!(workspace.extraction.open);
+}
+
+#[test]
+fn native_picker_cancel_preserves_document_selection_preview_and_pending_job() {
+    let fixture = Fixture::new(b"selected.txt");
+    let document = fixture.document();
+    let context = egui::Context::default();
+    let current = Ticket {
+        generation: 3,
+        request: 4,
+    };
+    let mut workspace = ArchiveWorkspace {
+        document: Some(document.clone()),
+        selected: Some(0),
+        selected_entries: BTreeSet::from([0]),
+        preview: Some(preview(0)),
+        generation: 3,
+        request: 4,
+        current: Some(current),
+        status: "Current archive remains open".into(),
+        ..Default::default()
+    };
+    workspace.request_open_archive();
+    assert_eq!(
+        workspace.native_picker_request,
+        Some(NativePickerPurpose::OpenArchive)
+    );
+    assert!(
+        !workspace.show_open_path,
+        "normal Open never shows the path form"
+    );
+    let (picker, result) = controlled_picker(3, &context);
+    workspace.native_picker_request = None;
+    workspace.native_picker = Some(picker);
+    workspace.poll_native_picker(&context);
+    assert!(workspace.native_picker.is_some());
+    workspace.request_open_archive();
+    assert!(
+        workspace.native_picker_request.is_none(),
+        "a second Open must not queue another picker"
+    );
+    result.send(None).expect("cancel native picker");
+    workspace.poll_native_picker(&context);
+    assert!(workspace.native_picker.is_none());
+    assert!(Arc::ptr_eq(
+        workspace.document.as_ref().expect("same document"),
+        &document
+    ));
+    assert_eq!(workspace.selected, Some(0));
+    assert_eq!(workspace.selected_entries, BTreeSet::from([0]));
+    assert_eq!(
+        workspace
+            .preview
+            .as_ref()
+            .expect("retained preview")
+            .preview
+            .bytes,
+        b"hi"
+    );
+    assert_eq!(workspace.current, Some(current));
+    assert_eq!(workspace.status, "Current archive remains open");
+    assert!(workspace.error.is_none());
+    assert!(workspace.worker.is_none(), "cancel performs no archive I/O");
+}
+
+#[test]
+fn stale_native_picker_cannot_replace_a_newer_archive_or_reopen_a_closed_one() {
+    let first = Fixture::new(b"first.txt");
+    let second = Fixture::new(b"second.txt");
+    let first_document = first.document();
+    let second_document = second.document();
+    let context = egui::Context::default();
+    for open_newer in [true, false] {
+        let (worker, incoming, _outgoing) = Worker::test_channels();
+        let (picker, result) = controlled_picker(3, &context);
+        let mut workspace = ArchiveWorkspace {
+            worker: Some(worker),
+            document: Some(first_document.clone()),
+            generation: 3,
+            native_picker: Some(picker),
+            ..Default::default()
+        };
+        if open_newer {
+            workspace.open(second.path.clone(), &context);
+            let request = incoming.try_recv().expect("newer open request");
+            workspace.apply(document_reply(request.ticket, second_document.clone()));
+        } else {
+            workspace.close();
+        }
+        let generation = workspace.generation;
+        result
+            .send(Some(first.path.clone()))
+            .expect("complete old chooser");
+        workspace.poll_native_picker(&context);
+        assert!(workspace.native_picker.is_none());
+        assert_eq!(workspace.generation, generation);
+        assert!(
+            incoming.try_recv().is_err(),
+            "a stale selection must not enqueue an open"
+        );
+        if open_newer {
+            assert!(Arc::ptr_eq(
+                workspace.document.as_ref().expect("newer document remains"),
+                &second_document,
+            ));
+        } else {
+            assert!(workspace.document.is_none());
+        }
+    }
+}
+
+#[test]
+fn native_picker_passes_the_exact_native_path_to_the_archive_worker() {
+    #[cfg(unix)]
+    let path = {
+        use std::os::unix::ffi::OsStringExt;
+        PathBuf::from(std::ffi::OsString::from_vec(b"/archive-\xff.zip".to_vec()))
+    };
+    #[cfg(windows)]
+    let path = {
+        use std::os::windows::ffi::OsStringExt;
+        PathBuf::from(std::ffi::OsString::from_wide(&[
+            67, 58, 92, 97, 114, 99, 104, 105, 118, 101, 45, 0xd800, 46, 122, 105, 112,
+        ]))
+    };
+    #[cfg(not(any(unix, windows)))]
+    let path = PathBuf::from("archive-Привет.zip");
+    let context = egui::Context::default();
+    let (worker, incoming, _outgoing) = Worker::test_channels();
+    let (picker, result) = controlled_picker(2, &context);
+    let mut workspace = ArchiveWorkspace {
+        worker: Some(worker),
+        generation: 2,
+        native_picker: Some(picker),
+        ..Default::default()
+    };
+    result
+        .send(Some(PathBuf::from(rfd::FileHandle::from(path.clone()))))
+        .expect("select native path");
+    workspace.poll_native_picker(&context);
+    let request = incoming.try_recv().expect("archive open request");
+    match request.task {
+        Task::Open { path: actual, .. } => assert_eq!(actual, path),
+        _ => panic!("the picker must submit the selected archive path"),
+    }
+    assert_eq!(workspace.generation, 3);
+    assert!(workspace.native_picker.is_none());
+}
+
+#[test]
+fn unavailable_native_parent_reports_an_error_without_replacing_the_archive() {
+    struct MissingNativeParent;
+    impl HasWindowHandle for MissingNativeParent {
+        fn window_handle(
+            &self,
+        ) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+            Err(raw_window_handle::HandleError::NotSupported)
+        }
+    }
+    impl HasDisplayHandle for MissingNativeParent {
+        fn display_handle(
+            &self,
+        ) -> Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+            Err(raw_window_handle::HandleError::NotSupported)
+        }
+    }
+    let fixture = Fixture::new(b"entry.txt");
+    let document = fixture.document();
+    let mut workspace = ArchiveWorkspace {
+        document: Some(document.clone()),
+        ..Default::default()
+    };
+    workspace.request_open_archive();
+    workspace.service_native_picker(&MissingNativeParent, &egui::Context::default());
+    assert!(
+        workspace
+            .error
+            .as_deref()
+            .is_some_and(|message| message.contains("file chooser"))
+    );
+    assert!(Arc::ptr_eq(
+        workspace.document.as_ref().expect("retained archive"),
+        &document
+    ));
+    assert!(!workspace.native_picker_pending());
+    assert!(
+        !workspace.show_open_path,
+        "failure must not silently replace the native picker with a form"
+    );
+    assert!(workspace.worker.is_none());
+}
+
+#[test]
+fn native_extraction_parent_cancellation_preserves_the_previous_result_and_requires_review() {
+    let fixture = Fixture::new(b"entry.txt");
+    let context = egui::Context::default();
+    let (worker, incoming, _outgoing) = Worker::test_channels();
+    let mut workspace = ArchiveWorkspace {
+        worker: Some(worker),
+        document: Some(fixture.document()),
+        selected: Some(0),
+        selected_entries: BTreeSet::from([0]),
+        extraction: ExtractionDialog {
+            state: ExtractionState::Finished(Ok(extraction_report(ExtractionStatus::Completed))),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    workspace.open_extraction(ExtractionScope::Selected);
+    assert!(
+        !workspace.extraction.open,
+        "the native chooser precedes the new-folder review"
+    );
+    let purpose = workspace
+        .native_picker_request
+        .take()
+        .expect("native parent request");
+    let (mut picker, result) = controlled_picker(workspace.generation, &context);
+    picker.purpose = purpose;
+    workspace.native_picker = Some(picker);
+    result.send(None).expect("cancel parent selection");
+    workspace.poll_native_picker(&context);
+    assert!(matches!(
+        workspace.extraction.state,
+        ExtractionState::Finished(Ok(_))
+    ));
+    assert_eq!(workspace.selected_entries, BTreeSet::from([0]));
+    assert!(incoming.try_recv().is_err());
+
+    choose_extraction_parent(&mut workspace, ExtractionScope::Selected);
+    assert!(matches!(
+        workspace.extraction.state,
+        ExtractionState::Editing
+    ));
+    assert_eq!(
+        workspace.extraction.destination,
+        fixture.directory.join("fixture-extracted")
+    );
+    assert!(
+        incoming.try_recv().is_err(),
+        "choosing the parent must not write any files"
+    );
+    for name in [
+        "",
+        ".",
+        "..",
+        "../output",
+        "nested/output",
+        "nested\\output",
+    ] {
+        workspace.extraction.name_input = name.into();
+        workspace.start_extraction(&context);
+        assert!(
+            incoming.try_recv().is_err(),
+            "invalid child name must not start extraction: {name:?}"
+        );
+        assert!(matches!(
+            workspace.extraction.state,
+            ExtractionState::Editing
+        ));
+    }
+    workspace.extraction.name_input = "chosen-output".into();
+    workspace.extraction.destination = fixture.directory.join("chosen-output");
+    workspace.start_extraction(&context);
+    match incoming
+        .try_recv()
+        .expect("explicitly confirmed extraction")
+        .task
+    {
+        Task::Extract {
+            destination,
+            selection,
+            ..
+        } => {
+            assert_eq!(destination, fixture.directory.join("chosen-output"));
+            assert_eq!(selection, ExtractionSelection::Entries(vec![0]));
+        }
+        _ => panic!("confirmation must reach the extraction worker"),
+    }
+}
+
+#[test]
+fn native_toolbar_commands_expose_only_available_operations() {
+    let context = egui::Context::default();
+    let mut workspace = ArchiveWorkspace::default();
+    let empty = workspace.toolbar_state();
+    assert!(empty.can_open);
+    assert!(!empty.can_close && !empty.can_extract_all && !empty.can_test);
+    workspace.dispatch_command(WorkspaceCommand::OpenArchive, &context);
+    assert_eq!(
+        workspace.native_picker_request,
+        Some(NativePickerPurpose::OpenArchive)
+    );
+    assert!(!workspace.show_open_path);
+    assert!(!workspace.toolbar_state().can_open);
+    workspace.native_picker_request = None;
+    workspace.dispatch_command(WorkspaceCommand::OpenByPath, &context);
+    assert!(
+        workspace.show_open_path,
+        "path input requires the deliberate advanced command"
+    );
+    workspace.dispatch_command(WorkspaceCommand::OpenArchive, &context);
+    assert!(!workspace.show_open_path);
+}
+
+#[test]
+fn native_settings_opens_existing_controls_and_waits_for_picker_or_extraction() {
+    let context = egui::Context::default();
+    let mut workspace = ArchiveWorkspace::default();
+    workspace.set_native_toolbar_attached(true);
+    workspace.dispatch_command(WorkspaceCommand::OpenSettings, &context);
+    let text = frame(&mut workspace);
+    assert!(text.contains("Settings"));
+    assert!(text.contains("Theme: Light"));
+    assert!(text.contains("Archive filename fallback"));
+    assert!(workspace.document.is_none());
+    assert!(workspace.worker.is_none());
+
+    workspace.show_settings = false;
+    workspace.request_open_archive();
+    assert!(!workspace.toolbar_state().can_open);
+    workspace.dispatch_command(WorkspaceCommand::OpenSettings, &context);
+    assert!(!workspace.show_settings, "wait for a queued native chooser");
+
+    workspace.native_picker_request = None;
+    let (picker, result) = controlled_picker(workspace.generation, &context);
+    workspace.native_picker = Some(picker);
+    workspace.dispatch_command(WorkspaceCommand::OpenSettings, &context);
+    assert!(
+        !workspace.show_settings,
+        "wait for an active native chooser"
+    );
+    result.send(None).expect("cancel native chooser");
+    workspace.poll_native_picker(&context);
+
+    workspace.extraction.state = ExtractionState::Running {
+        progress: None,
+        cancel_requested: false,
+    };
+    assert!(!workspace.toolbar_state().can_open);
+    workspace.dispatch_command(WorkspaceCommand::OpenSettings, &context);
+    assert!(!workspace.show_settings, "wait for extraction to finish");
+    workspace.extraction.state = ExtractionState::Running {
+        progress: None,
+        cancel_requested: true,
+    };
+    workspace.dispatch_command(WorkspaceCommand::OpenSettings, &context);
+    assert!(
+        !workspace.show_settings,
+        "cancellation is not a terminal result"
+    );
+
+    workspace.extraction.state = ExtractionState::Finished(Err(ArchiveError::Cancelled));
+    assert!(workspace.toolbar_state().can_open);
+    workspace.dispatch_command(WorkspaceCommand::OpenSettings, &context);
+    assert!(frame(&mut workspace).contains("Archive filename fallback"));
+    assert!(workspace.worker.is_none());
 }
 
 #[test]
@@ -327,7 +739,7 @@ fn extraction_waits_for_its_terminal_result_and_cannot_be_superseded() {
         ..Default::default()
     };
     let context = egui::Context::default();
-    workspace.open_extraction(ExtractionScope::Selected);
+    choose_extraction_parent(&mut workspace, ExtractionScope::Selected);
     workspace.start_extraction(&context);
     let request = incoming.try_recv().expect("extraction request");
     assert!(matches!(request.task, Task::Extract { .. }));
@@ -554,6 +966,74 @@ fn default_extraction_path_preserves_native_non_utf8_bytes() {
 }
 
 #[test]
+fn extraction_review_preserves_unicode_filesystem_paths() {
+    assert_extraction_review_preserves_native_paths(
+        OsStr::new("архив-東京.zip"),
+        OsStr::new("архив-東京-extracted"),
+        OsStr::new("назначение-資料"),
+    );
+}
+
+// macOS filesystems can reject invalid UTF-8 before the application sees the
+// path. Unix OsString preservation is tested above without filesystem access.
+#[cfg(target_os = "linux")]
+#[test]
+fn extraction_review_preserves_non_utf8_filesystem_paths() {
+    use std::os::unix::ffi::OsStrExt;
+
+    assert_extraction_review_preserves_native_paths(
+        OsStr::from_bytes(b"archive-\xff.zip"),
+        OsStr::from_bytes(b"archive-\xff-extracted"),
+        OsStr::from_bytes(b"parent-\xfe"),
+    );
+}
+
+fn assert_extraction_review_preserves_native_paths(
+    archive_name: &OsStr,
+    expected_name: &OsStr,
+    parent_name: &OsStr,
+) {
+    let mut fixture = Fixture::new(b"entry.txt");
+    let native_archive = fixture.directory.join(archive_name);
+    fs::rename(&fixture.path, &native_archive).expect("create native filename fixture");
+    fixture.path = native_archive;
+    let mut workspace = ArchiveWorkspace {
+        document: Some(fixture.document()),
+        selected: Some(0),
+        selected_entries: BTreeSet::from([0]),
+        ..Default::default()
+    };
+    choose_extraction_parent(&mut workspace, ExtractionScope::Selected);
+    let expected = fixture.directory.join(expected_name);
+    assert_eq!(workspace.extraction.destination, expected);
+    let _ = frame(&mut workspace);
+    assert_eq!(
+        workspace.extraction.destination, expected,
+        "displaying the review never reconstructs its native name from lossy text"
+    );
+
+    let context = egui::Context::default();
+    workspace.request_extraction_parent(ExtractionScope::Selected, true);
+    let purpose = workspace
+        .native_picker_request
+        .take()
+        .expect("change parent request");
+    let (mut picker, result) = controlled_picker(workspace.generation, &context);
+    picker.purpose = purpose;
+    workspace.native_picker = Some(picker);
+    let native_parent = fixture.directory.join(parent_name);
+    fs::create_dir(&native_parent).expect("create native parent fixture");
+    result
+        .send(Some(native_parent.clone()))
+        .expect("choose another native parent");
+    workspace.poll_native_picker(&context);
+    assert_eq!(
+        workspace.extraction.destination,
+        native_parent.join(expected.file_name().expect("original native name"))
+    );
+}
+
+#[test]
 fn prepared_views_search_full_names_and_include_implicit_directories() {
     let fixture = Fixture::new(b"outer/inner/Report.txt");
     let document = fixture.document();
@@ -621,6 +1101,105 @@ fn outline_disclosures_search_and_flat_view_preserve_archive_identity() {
     assert_eq!(within.len(), 1);
     assert_eq!(row_full_path(&document, within[0]), "outer/inner/");
     assert_eq!(within[0].depth, 0);
+}
+
+#[test]
+fn unrelated_outline_disclosure_preserves_primary_selection_and_prepared_preview() {
+    let fixture = Fixture::new(b"placeholder.txt");
+    fs::write(
+        &fixture.path,
+        stored_zip_entries(&[
+            (b"Documents/Guide.txt", b"Guide"),
+            (b"Photos/Color-study.png", b"Image fixture"),
+            (b"Source/lib.rs", b"fn main() {}"),
+        ]),
+    )
+    .expect("write separate archive branches");
+    let document = fixture.document();
+    let context = egui::Context::default();
+
+    for selected in [0, 1] {
+        let expanded = BTreeSet::from(["Documents/".into(), "Photos/".into()]);
+        let rows = document
+            .view_rows(
+                "",
+                None,
+                ViewMode::Outline,
+                &expanded,
+                &CancellationToken::new(),
+            )
+            .expect("initial outline rows");
+        let mut prepared = preview(selected);
+        if selected == 1 {
+            prepared.image = Some(egui::ColorImage::new(
+                [1, 1],
+                vec![egui::Color32::from_rgb(28, 100, 180)],
+            ));
+        }
+        let (worker, incoming, _outgoing) = Worker::test_channels();
+        let mut workspace = ArchiveWorkspace {
+            worker: Some(worker),
+            document: Some(document.clone()),
+            rows,
+            selected: Some(selected),
+            selected_entries: BTreeSet::from([selected]),
+            preview: Some(prepared),
+            preview_show_image: selected == 1,
+            expanded_folders: expanded.clone(),
+            applied_expanded_folders: expanded,
+            ..Default::default()
+        };
+        for expanded in [true, false] {
+            workspace.toggle_folder("Source/".into(), &context);
+            assert_eq!(
+                workspace.selected,
+                Some(selected),
+                "changing another branch must retain the inspector's primary selection"
+            );
+            assert!(
+                workspace.preview.is_some(),
+                "a completed preview remains available while the layout job is pending"
+            );
+            let request = incoming.try_recv().expect("queued outline update");
+            let result = match &request.task {
+                Task::Filter {
+                    document,
+                    query,
+                    folder,
+                    mode,
+                    expanded,
+                } => Completed::Filter {
+                    rows: document
+                        .view_rows(query, folder.as_deref(), *mode, expanded, &request.cancel)
+                        .expect("updated outline rows"),
+                    query: query.clone(),
+                    folder: folder.clone(),
+                    mode: *mode,
+                    expanded: expanded.clone(),
+                },
+                _ => panic!("an outline disclosure must only update the prepared view"),
+            };
+            workspace.apply(Reply {
+                ticket: request.ticket,
+                result: Ok(result),
+            });
+            assert_eq!(workspace.expanded_folders.contains("Source/"), expanded);
+            assert_eq!(workspace.selected, Some(selected));
+            assert_eq!(workspace.selected_entries, BTreeSet::from([selected]));
+            assert!(workspace.rows.iter().any(|row| {
+                row.entry.map(|index| document.snapshot.entries[index].id) == Some(selected)
+            }));
+            let retained = workspace
+                .preview
+                .as_ref()
+                .expect("retained completed preview");
+            assert_eq!(retained.preview.entry_id, selected);
+            assert_eq!(retained.preview.bytes, b"hi");
+            assert!(retained.preview.crc32_verified);
+            assert_eq!(retained.image.is_some(), selected == 1);
+            assert_eq!(workspace.preview_show_image, selected == 1);
+        }
+    }
 }
 
 #[test]
@@ -784,7 +1363,7 @@ fn modifier_and_range_selection_include_synthetic_folders_without_checkboxes() {
     assert_eq!(workspace.selection_count(), 3);
     let (worker, incoming, _outgoing) = Worker::test_channels();
     workspace.worker = Some(worker);
-    workspace.open_extraction(ExtractionScope::Selected);
+    choose_extraction_parent(&mut workspace, ExtractionScope::Selected);
     workspace.start_extraction(&egui::Context::default());
     match incoming.try_recv().expect("selected extraction").task {
         Task::Extract {
@@ -816,29 +1395,248 @@ fn frame(workspace: &mut ArchiveWorkspace) -> String {
         }
     }
     let context = egui::Context::default();
+    configure_style(&context);
+    let mut text = String::new();
+    // A new egui Window uses an invisible sizing pass before it is painted.
+    // Retain the Context across deterministic layout/animation frames, then
+    // inspect only the settled frame rather than relying on an incidental Grid
+    // multipass elsewhere in the workspace. No native display or sleep is needed.
+    for frame_index in 0..3 {
+        let mut output = context.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1100.0, 680.0),
+                )),
+                time: Some(f64::from(frame_index) * 0.1),
+                ..Default::default()
+            },
+            |ui| workspace.show(ui),
+        );
+        text.clear();
+        for shape in &output.shapes {
+            collect(&shape.shape, &mut text);
+        }
+        // This harness inspects shapes without a GPU painter, so discard uploads.
+        output.textures_delta.clear();
+    }
+    text
+}
+
+fn native_workspace_frame(
+    context: &egui::Context,
+    workspace: &mut ArchiveWorkspace,
+    size: egui::Vec2,
+    frame_index: u32,
+    events: Vec<egui::Event>,
+) -> egui::FullOutput {
     let mut output = context.run_ui(
         egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(
-                egui::Pos2::ZERO,
-                egui::vec2(1100.0, 680.0),
-            )),
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            time: Some(f64::from(frame_index) * 0.1),
+            events,
             ..Default::default()
         },
         |ui| workspace.show(ui),
     );
-    let mut text = String::new();
-    for shape in &output.shapes {
-        collect(&shape.shape, &mut text);
-    }
-    // This harness inspects shapes without a GPU painter, so discard its texture uploads.
     output.textures_delta.clear();
-    text
+    output
+}
+
+fn painted_text_rect(
+    output: &egui::FullOutput,
+    expected: &str,
+) -> Option<(egui::Rect, egui::Rect)> {
+    fn find(shape: &egui::epaint::Shape, expected: &str) -> Option<egui::Rect> {
+        match shape {
+            egui::epaint::Shape::Text(text) if text.galley.job.text == expected => {
+                Some(text.galley.rect.translate(text.pos.to_vec2()))
+            }
+            egui::epaint::Shape::Vec(shapes) => {
+                shapes.iter().find_map(|shape| find(shape, expected))
+            }
+            _ => None,
+        }
+    }
+    output
+        .shapes
+        .iter()
+        .find_map(|shape| find(&shape.shape, expected).map(|rect| (rect, shape.clip_rect)))
+}
+
+#[test]
+fn narrow_favorites_keeps_count_badges_inside_the_visible_right_gutter() {
+    for width in [900.0, 1024.0] {
+        let context = egui::Context::default();
+        configure_style(&context);
+        let mut workspace = ArchiveWorkspace {
+            favorites_rows: vec![
+                FavoritesRow {
+                    path: PathBuf::from("Downloads"),
+                    label: "Downloads".into(),
+                    depth: 0,
+                    kind: FavoritesRowKind::Directory {
+                        expanded: true,
+                        count: Some(512),
+                    },
+                },
+                FavoritesRow {
+                    path: PathBuf::from("Downloads/nested"),
+                    label: "Nested folder".into(),
+                    depth: 8,
+                    kind: FavoritesRowKind::Directory {
+                        expanded: false,
+                        count: None,
+                    },
+                },
+            ],
+            favorites_content_width: 250.0,
+            ..Default::default()
+        };
+        workspace.set_native_toolbar_attached(true);
+        let size = egui::vec2(width, 622.0);
+        for frame_index in 0..2 {
+            native_workspace_frame(&context, &mut workspace, size, frame_index, vec![]);
+        }
+        let output = native_workspace_frame(&context, &mut workspace, size, 2, vec![]);
+        let (badge, clip) = painted_text_rect(&output, "512").expect("actual count badge");
+        assert!(
+            clip.contains_rect(badge),
+            "badge must remain fully visible at {width}: {badge:?}, {clip:?}"
+        );
+        assert!(
+            badge.right() + 6.0 <= clip.right(),
+            "badge needs a visible right gutter"
+        );
+        assert!(
+            workspace.filesystem.is_none(),
+            "the layout test performs no folder discovery"
+        );
+    }
+}
+
+#[test]
+fn narrow_inspector_shows_metadata_disclosure_and_scrolls_expanded_details() {
+    let fixture = Fixture::new(b"Photos/Color-study.png");
+    let document = fixture.document();
+    for size in [
+        egui::vec2(900.0, 622.0),
+        egui::vec2(1024.0, 622.0),
+        egui::vec2(900.0, 440.0),
+    ] {
+        let context = egui::Context::default();
+        configure_style(&context);
+        let mut workspace = ArchiveWorkspace {
+            document: Some(document.clone()),
+            selected: Some(0),
+            selected_entries: BTreeSet::from([0]),
+            preview: Some(preview(0)),
+            ..Default::default()
+        };
+        workspace.set_native_toolbar_attached(true);
+        for frame_index in 0..2 {
+            native_workspace_frame(&context, &mut workspace, size, frame_index, vec![]);
+        }
+        let mut output = native_workspace_frame(&context, &mut workspace, size, 2, vec![]);
+        let (_, clip) = painted_text_rect(&output, "PNG image").expect("ordinary Info property");
+        if size.y >= 622.0 {
+            let (header, clip) = painted_text_rect(&output, "Filename and archive metadata")
+                .expect("metadata disclosure is painted");
+            assert!(
+                clip.contains_rect(header),
+                "ordinary Info must show the whole disclosure at {size:?}: {header:?}, {clip:?}"
+            );
+        }
+        let hover = clip.center();
+        native_workspace_frame(
+            &context,
+            &mut workspace,
+            size,
+            3,
+            vec![
+                egui::Event::PointerMoved(hover),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0.0, -800.0),
+                    phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Wheel,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        for frame_index in 4..7 {
+            output = native_workspace_frame(&context, &mut workspace, size, frame_index, vec![]);
+        }
+        let (header, clip) = painted_text_rect(&output, "Filename and archive metadata")
+            .expect("metadata disclosure after scrolling");
+        assert!(
+            clip.contains_rect(header),
+            "short Info remains scrollable to the complete disclosure"
+        );
+        let click = header.center();
+        for (frame_index, pressed) in [(7, true), (8, false)] {
+            native_workspace_frame(
+                &context,
+                &mut workspace,
+                size,
+                frame_index,
+                vec![
+                    egui::Event::PointerMoved(click),
+                    egui::Event::PointerButton {
+                        pos: click,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        for frame_index in 9..12 {
+            native_workspace_frame(&context, &mut workspace, size, frame_index, vec![]);
+        }
+        native_workspace_frame(
+            &context,
+            &mut workspace,
+            size,
+            12,
+            vec![
+                egui::Event::PointerMoved(hover),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0.0, -2000.0),
+                    phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Wheel,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        for frame_index in 13..17 {
+            output = native_workspace_frame(&context, &mut workspace, size, frame_index, vec![]);
+        }
+        let (last, clip) = painted_text_rect(&output, "Original entry comment (hex)")
+            .expect("expanded metadata is reachable by scrolling");
+        assert!(
+            clip.contains_rect(last),
+            "last metadata disclosure is fully reachable at {size:?}"
+        );
+        let (checksum, _) = painted_text_rect(&output, "CRC32").expect("checksum remains visible");
+        assert!(
+            last.bottom() < checksum.top(),
+            "metadata must stay above the checksum panel"
+        );
+        assert_eq!(workspace.selected, Some(0));
+        assert!(workspace.preview.is_some());
+        assert!(workspace.worker.is_none());
+    }
 }
 
 #[test]
 fn empty_populated_and_error_workspaces_render_without_a_native_window() {
     let mut workspace = ArchiveWorkspace::default();
-    assert!(frame(&mut workspace).contains("No archive open"));
+    let empty = frame(&mut workspace);
+    assert!(empty.contains("Drop an archive here to open"));
+    assert!(empty.contains("No files selected"));
+    assert!(!empty.contains("compress or extract"));
     let fixture = Fixture::new(b"folder/entry.txt");
     workspace.document = Some(fixture.document());
     workspace.rows = vec![ViewRow {
@@ -848,8 +1646,10 @@ fn empty_populated_and_error_workspaces_render_without_a_native_window() {
     }];
     workspace.selected = Some(0);
     let text = frame(&mut workspace);
-    assert!(text.contains("folder/entry.txt"));
-    assert!(text.contains("Info"));
+    assert!(text.contains("entry.txt"));
+    assert!(text.contains("Path"));
+    assert!(text.contains("folder"));
+    assert!(text.contains("Attributes"));
     assert!(text.contains("CRC32"));
     assert!(text.contains("Load preview"));
     workspace.error = Some("Fixture archive is truncated".into());
@@ -857,6 +1657,10 @@ fn empty_populated_and_error_workspaces_render_without_a_native_window() {
     assert!(
         workspace.worker.is_none(),
         "rendering existing state does not perform archive I/O"
+    );
+    assert!(
+        workspace.filesystem.is_none(),
+        "headless rendering does not discover or scan local folders"
     );
 }
 
@@ -869,9 +1673,12 @@ fn extraction_form_and_retained_output_report_render_without_filesystem_work() {
         selected_entries: BTreeSet::from([0]),
         ..Default::default()
     };
-    workspace.open_extraction(ExtractionScope::Selected);
+    choose_extraction_parent(&mut workspace, ExtractionScope::Selected);
     let text = frame(&mut workspace);
-    assert!(text.contains("Selected (1)"));
+    assert!(
+        text.contains("Selected (1)"),
+        "the extraction form must render its selected scope; rendered text:\n{text}"
+    );
     assert!(text.contains("Extract 1 selected item"));
     assert!(!text.contains("1 selected items"));
     assert!(text.contains("destination must not exist"));
@@ -952,7 +1759,7 @@ fn extraction_dialog_height_tracks_its_content_instead_of_the_viewport() {
         selected_entries: BTreeSet::from([0]),
         ..Default::default()
     };
-    workspace.open_extraction(ExtractionScope::Selected);
+    choose_extraction_parent(&mut workspace, ExtractionScope::Selected);
     let editing = settled_rect(&context, &mut workspace, 822.0);
     assert!(
         editing.height() < 450.0,

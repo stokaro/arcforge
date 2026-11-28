@@ -158,7 +158,8 @@
         "objc2-app-kit@0.3.2",
         "objc2-core-foundation@0.3.2",
         "objc2-foundation@0.3.2",
-        "objc2-ui-kit@0.3.2"
+        "objc2-ui-kit@0.3.2",
+        "objc2-uniform-type-identifiers@0.3.2"
       ],
       "path": "LICENSE.md",
       "file": "licenses/upstream/madsmtm-objc2-7b1abfd750a2-LICENSE.md",

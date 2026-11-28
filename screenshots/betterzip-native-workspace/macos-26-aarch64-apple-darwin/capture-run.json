@@ -1,0 +1,377 @@
+{
+  "binary_sha256": "f0adc69750d2e59d7f2da0b843416c62b520aa5d0486e0204ee2f14b6dec8726",
+  "binary_sha256_after_capture": "f0adc69750d2e59d7f2da0b843416c62b520aa5d0486e0204ee2f14b6dec8726",
+  "build": {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--target",
+      "aarch64-apple-darwin",
+      "-p",
+      "arcforge",
+      "--features",
+      "native-capture"
+    ],
+    "feature": "native-capture",
+    "profile": "debug",
+    "release_bundle": false
+  },
+  "display_configuration": {
+    "after": {
+      "height": 1200,
+      "mode_id": 9,
+      "pixel_height": 1200,
+      "pixel_width": 1600,
+      "refresh_hz": 60,
+      "usable_for_desktop": true,
+      "width": 1600
+    },
+    "after_bounds": [
+      0,
+      0,
+      1600,
+      1200
+    ],
+    "after_helper_exit": {
+      "bounds": [
+        0,
+        0,
+        1600,
+        1200
+      ],
+      "display_id": 1,
+      "mode": {
+        "height": 1200,
+        "mode_id": 9,
+        "pixel_height": 1200,
+        "pixel_width": 1600,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 1600
+      },
+      "process_id": 1996,
+      "status": "observed"
+    },
+    "api": "CGDisplayCopyAllDisplayModes + CGConfigureDisplayWithDisplayMode + CGCompleteDisplayConfiguration",
+    "applied_configuration_scope": "current-login-session",
+    "available_modes": [
+      {
+        "height": 600,
+        "mode_id": 0,
+        "pixel_height": 600,
+        "pixel_width": 800,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 800
+      },
+      {
+        "height": 540,
+        "mode_id": 1,
+        "pixel_height": 540,
+        "pixel_width": 960,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 960
+      },
+      {
+        "height": 576,
+        "mode_id": 2,
+        "pixel_height": 576,
+        "pixel_width": 1024,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 1024
+      },
+      {
+        "height": 768,
+        "mode_id": 3,
+        "pixel_height": 768,
+        "pixel_width": 1024,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 1024
+      },
+      {
+        "height": 720,
+        "mode_id": 4,
+        "pixel_height": 720,
+        "pixel_width": 1280,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 1280
+      },
+      {
+        "height": 960,
+        "mode_id": 5,
+        "pixel_height": 960,
+        "pixel_width": 1280,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 1280
+      },
+      {
+        "height": 756,
+        "mode_id": 6,
+        "pixel_height": 756,
+        "pixel_width": 1344,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 1344
+      },
+      {
+        "height": 1008,
+        "mode_id": 7,
+        "pixel_height": 1008,
+        "pixel_width": 1344,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 1344
+      },
+      {
+        "height": 900,
+        "mode_id": 8,
+        "pixel_height": 900,
+        "pixel_width": 1600,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 1600
+      },
+      {
+        "height": 1200,
+        "mode_id": 9,
+        "pixel_height": 1200,
+        "pixel_width": 1600,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 1600
+      },
+      {
+        "height": 1080,
+        "mode_id": 10,
+        "pixel_height": 1080,
+        "pixel_width": 1920,
+        "refresh_hz": 60,
+        "usable_for_desktop": true,
+        "width": 1920
+      },
+      {
+        "height": 480,
+        "mode_id": 11,
+        "pixel_height": 480,
+        "pixel_width": 640,
+        "refresh_hz": 60,
+        "usable_for_desktop": false,
+        "width": 640
+      }
+    ],
+    "available_modes_truncated": false,
+    "before": {
+      "height": 768,
+      "mode_id": 3,
+      "pixel_height": 768,
+      "pixel_width": 1024,
+      "refresh_hz": 60,
+      "usable_for_desktop": true,
+      "width": 1024
+    },
+    "before_bounds": [
+      0,
+      0,
+      1024,
+      768
+    ],
+    "begin_configuration_result": 0,
+    "configure_mode_result": 0,
+    "coregraphics_result": 0,
+    "display_id": 1,
+    "minimum_desktop_mode": [
+      1440,
+      900
+    ],
+    "permanent_configuration_changed": false,
+    "persists_after_helper_exit": true,
+    "preferred_desktop_mode": [
+      1600,
+      1000
+    ],
+    "process_id": 1995,
+    "requested_configuration_scope": "current-login-session",
+    "requested_scene_points": [
+      1280,
+      800
+    ],
+    "selected": {
+      "height": 1200,
+      "mode_id": 9,
+      "pixel_height": 1200,
+      "pixel_width": 1600,
+      "refresh_hz": 60,
+      "usable_for_desktop": true,
+      "width": 1600
+    },
+    "status": "changed"
+  },
+  "fixture": {
+    "file": "workspace-demo.zip",
+    "generator": "scripts/generate_ui_fixture.py --images",
+    "generator_sha256": "f08427b3389702f953b7bbf84c14dc37dfe1a82b982864f3897ac7290a157aec",
+    "original_content": true,
+    "sha256": "eef9fd6de48a3e465ab99dae9cdb5df13353e25056fe9365584d9e722d0da70e",
+    "unchanged_after_capture": true
+  },
+  "host_target": "aarch64-apple-darwin",
+  "process_id": 2000,
+  "runtime": {
+    "architecture": "aarch64",
+    "environment": {
+      "ARCFORGE_CAPTURE_DISPLAY": "GitHub-hosted macOS 26 native desktop session",
+      "GITHUB_ACTIONS": "true",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_RUN_ID": "46137611405",
+      "GITHUB_SHA": "ecdc089feeb7d106cb802e3945fc8be04f4c2745",
+      "ImageOS": "macos26",
+      "ImageVersion": "20261123.0526.1",
+      "RUNNER_ARCH": "ARM64",
+      "RUNNER_OS": "macOS"
+    },
+    "os": "macos",
+    "os_version": "ProductName:\t\tmacOS\nProductVersion:\t\t26.7.2\nBuildVersion:\t\t25G332",
+    "renderer": "production Glow backend; no offscreen or alternate renderer",
+    "window": "actual native eframe window with shared platform::native_options"
+  },
+  "scenes": [
+    {
+      "client_png": "client/01-text-preview.png",
+      "client_sha256": "1f371fd32eee63159c18656686d9846d67445d098a0bddecc445701eab7a6901",
+      "metadata": "client/01-text-preview.json",
+      "metadata_sha256": "71ff154db69658912e475b74a01dc7af5bcb7d1c9b4ee5c82265d4c37e61f4e6",
+      "native_window": {
+        "capture_api": "/usr/sbin/screencapture -x -o -l",
+        "capture_kind": "native-window",
+        "native_window_chrome": true,
+        "pixel_dimensions": [
+          1280,
+          884
+        ],
+        "png": "01-text-preview-native-window.png",
+        "process_id": 2000,
+        "screen_recording_permission": "already granted; unchanged",
+        "selection": "explicit-owned-window-id",
+        "sha256": "09e9b87d94bc4b05ac3cb1e08c88919ba17e537ecea96f2e23b4dd1b83a33dfc",
+        "shadow_included": false,
+        "status": "captured",
+        "visibility_wait_seconds": 0.9068594166666629,
+        "visible_stable_bounds_seconds": 0.15,
+        "window_bounds": {
+          "Height": 884,
+          "Width": 1280,
+          "X": 160,
+          "Y": 96
+        },
+        "window_id": 30
+      },
+      "scene": "01-text-preview"
+    },
+    {
+      "client_png": "client/02-image-preview.png",
+      "client_sha256": "deb7bef44dfefc6202fc9071f552e6bd5b8b4d0e49f46b961264b3e201410f70",
+      "metadata": "client/02-image-preview.json",
+      "metadata_sha256": "47fecaf84c1166e6ed625a75ca0546704235913508e43dcfc285af4d6328faad",
+      "native_window": {
+        "capture_api": "/usr/sbin/screencapture -x -o -l",
+        "capture_kind": "native-window",
+        "native_window_chrome": true,
+        "pixel_dimensions": [
+          1280,
+          884
+        ],
+        "png": "02-image-preview-native-window.png",
+        "process_id": 2000,
+        "screen_recording_permission": "already granted; unchanged",
+        "selection": "explicit-owned-window-id",
+        "sha256": "27dcb44953a4ca34e7ec40d93ae64f87869c67062d08da1f9d90c8814fd17379",
+        "shadow_included": false,
+        "status": "captured",
+        "visibility_wait_seconds": 0.6835925416666839,
+        "visible_stable_bounds_seconds": 0.15,
+        "window_bounds": {
+          "Height": 884,
+          "Width": 1280,
+          "X": 160,
+          "Y": 96
+        },
+        "window_id": 30
+      },
+      "scene": "02-image-preview"
+    },
+    {
+      "client_png": "client/03-empty-window.png",
+      "client_sha256": "acf667bc2ffb907d16dc125ffb27201b23a42ab02a3a18bcb94651988115468f",
+      "metadata": "client/03-empty-window.json",
+      "metadata_sha256": "2ed833def0766be25a8676d7896a403941f0798382bc666e52477f8a040a08d7",
+      "native_window": {
+        "capture_api": "/usr/sbin/screencapture -x -o -l",
+        "capture_kind": "native-window",
+        "native_window_chrome": true,
+        "pixel_dimensions": [
+          1280,
+          884
+        ],
+        "png": "03-empty-window-native-window.png",
+        "process_id": 2000,
+        "screen_recording_permission": "already granted; unchanged",
+        "selection": "explicit-owned-window-id",
+        "sha256": "b9e0cd185d95d241a96486cb36ad629e390d72f5d94f789603c99887b0776fb1",
+        "shadow_included": false,
+        "status": "captured",
+        "visibility_wait_seconds": 0.4470055416666696,
+        "visible_stable_bounds_seconds": 0.15,
+        "window_bounds": {
+          "Height": 884,
+          "Width": 1280,
+          "X": 160,
+          "Y": 96
+        },
+        "window_id": 30
+      },
+      "scene": "03-empty-window"
+    },
+    {
+      "metadata": "client/04-open-panel.json",
+      "metadata_sha256": "9b901f4d2e58e0aa8cd7d5f0fbe2469de9c2792e672e1229e9ada67ca8365121",
+      "native_window": {
+        "capture_api": "/usr/sbin/screencapture -x -o -l",
+        "capture_kind": "native-window",
+        "native_window_chrome": true,
+        "pixel_dimensions": [
+          1280,
+          884
+        ],
+        "png": "04-open-panel-native-window.png",
+        "process_id": 2000,
+        "screen_recording_permission": "already granted; unchanged",
+        "selection": "explicit-owned-window-id",
+        "sha256": "1f017d5c7f87d5e9d34919de5d85227b917fd8777c192720486754c5685d4065",
+        "shadow_included": false,
+        "status": "captured",
+        "visibility_wait_seconds": 1.4826812499999846,
+        "visible_stable_bounds_seconds": 0.15,
+        "window_bounds": {
+          "Height": 448,
+          "Width": 880,
+          "X": 360,
+          "Y": 314
+        },
+        "window_id": 43,
+        "window_role": "open-panel"
+      },
+      "scene": "04-open-panel"
+    }
+  ],
+  "schema_version": 1,
+  "source_commit": "ecdc089feeb7d106cb802e3945fc8be04f4c2745",
+  "source_dirty": false,
+  "status": "completed",
+  "target": "aarch64-apple-darwin"
+}

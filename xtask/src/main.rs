@@ -3,6 +3,7 @@
 //! The workspace/xtask split follows ArtCraft; see THIRD_PARTY_NOTICES.md.
 
 mod cargo_env;
+mod gui_capture;
 mod layers;
 mod notices;
 mod package;
@@ -30,11 +31,13 @@ Usage: cargo xtask <command> [options]
   ci-matrix  Print native target/runner matrix from release/targets.json
   verify-package  Inspect and smoke-test an unpacked native development bundle
   verify-release  Check the exact complete release assets and native evidence
+  gui-capture  Capture real workspace and first-use scenes with provenance (developer feature)
 
 check/build/test: [--target TARGET] [--release]
 package: [--target TARGET] [--release] (always uses release profile)
 verify-package: [--target TARGET] [--directory DIR] (default: dist)
 verify-release: --commit FULL_SHA [--directory DIR] (default: dist)
+gui-capture: [--target TARGET] [--directory NEW_DIR] (requires a native display)
 Other commands take no options.
 
 package always uses the release profile. Cross-compilation requires an installed
@@ -101,6 +104,7 @@ fn execute() -> Result<()> {
         Some("ci-matrix") => release::matrix(&root),
         Some("verify-package") => release::verify_package(&root, &options),
         Some("verify-release") => release::verify_release(&root, &options),
+        Some("gui-capture") => gui_capture::run(&root, &options),
         _ => Err(format!("unknown command {:?}; use cargo xtask --help", command).into()),
     }
 }
@@ -168,10 +172,10 @@ fn parse_options(args: impl Iterator<Item = OsString>) -> Result<Options> {
 fn validate_options(command: &str, options: &Options) -> Result<()> {
     let supports_target = matches!(
         command,
-        "check" | "build" | "test" | "package" | "verify-package"
+        "check" | "build" | "test" | "package" | "verify-package" | "gui-capture"
     );
     let supports_release = matches!(command, "check" | "build" | "test" | "package");
-    let supports_directory = matches!(command, "verify-package" | "verify-release");
+    let supports_directory = matches!(command, "verify-package" | "verify-release" | "gui-capture");
     if (options.target.is_some() && !supports_target)
         || (options.release && !supports_release)
         || (options.directory.is_some() && !supports_directory)
@@ -281,9 +285,30 @@ mod tests {
                 .map(OsString::from),
         )?;
         assert!(validate_options("verify-package", &options).is_ok());
+        assert!(validate_options("gui-capture", &options).is_ok());
         assert!(validate_options("verify-release", &options).is_err());
         assert!(validate_options("ci-matrix", &options).is_err());
         assert!(validate_options("verify-release", &Options::default()).is_err());
+        assert!(
+            validate_options(
+                "gui-capture",
+                &Options {
+                    directory: Some("new-native-captures".into()),
+                    ..Options::default()
+                }
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_options(
+                "gui-capture",
+                &Options {
+                    release: true,
+                    ..Options::default()
+                }
+            )
+            .is_err()
+        );
         Ok(())
     }
 }
